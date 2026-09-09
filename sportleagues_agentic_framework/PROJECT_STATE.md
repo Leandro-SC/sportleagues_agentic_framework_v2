@@ -2,13 +2,13 @@
 
 ## Estado general
 
-- Fase actual: `00`
-- Última fase completada: `00 - framework creado`
-- Estado: `READY_FOR_PHASE_01`
+- Fase actual: `01`
+- Última fase completada: `01 - auditoría y baseline del repositorio`
+- Estado: `READY_FOR_PHASE_02`
 
 ## MVP — fases
 
-- [ ] 01 — Auditoría y normalización de requisitos
+- [x] 01 — Auditoría y normalización de requisitos
 - [ ] 02 — Arquitectura + ADRs base
 - [ ] 03 — Modelo de datos + multi-tenancy + RLS
 - [ ] 04 — Auth, onboarding y memberships
