@@ -2,14 +2,14 @@
 
 ## Estado general
 
-- Fase actual: `01`
-- Última fase completada: `01 - auditoría y baseline del repositorio`
-- Estado: `READY_FOR_PHASE_02`
+- Fase actual: `02`
+- Última fase completada: `02 - arquitectura, contratos y ADRs base`
+- Estado: `READY_FOR_PHASE_03`
 
 ## MVP — fases
 
 - [x] 01 — Auditoría y normalización de requisitos
-- [ ] 02 — Arquitectura + ADRs base
+- [x] 02 — Arquitectura + ADRs base
 - [ ] 03 — Modelo de datos + multi-tenancy + RLS
 - [ ] 04 — Auth, onboarding y memberships
 - [ ] 05 — Admin: quinielas, branding, reglas y participantes

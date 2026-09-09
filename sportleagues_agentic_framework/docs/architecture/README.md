@@ -1,5 +1,9 @@
 # Arquitectura propuesta
 
+El contrato implementable de Fase 02 esta en
+[`phase-02-contracts.md`](phase-02-contracts.md). Los ADRs aceptados de esta fase
+son ADR-004, ADR-005 y ADR-006.
+
 ## Diagrama lógico
 
 ```text
