@@ -1,0 +1,37 @@
+{
+  "name": "sportleagues_agentic_framework",
+  "version": "1.0.0",
+  "description": "Framework de trabajo para desarrollar el MVP de SportLeagues/BetAdmin con agentes IA de ingeniería, usando como patrón un flujo por fases, documentación viva, ADRs, estado explícito, Definition of Done y separación estricta de responsabilidades.",
+  "private": true,
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "dev": "vite --config apps/platform/vite.config.ts",
+    "build": "vue-tsc --project apps/platform/tsconfig.app.json --noEmit && vite build --config apps/platform/vite.config.ts",
+    "typecheck": "vue-tsc --project apps/platform/tsconfig.app.json --noEmit",
+    "test": "vitest run --config apps/platform/vitest.config.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^22.20.2",
+    "@vitejs/plugin-vue": "^6.0.8",
+    "jsdom": "^30.0.1",
+    "supabase": "^2.117.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.7.3",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.0",
+    "vue-tsc": "^3.3.11"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.116.0",
+    "lucide-vue-next": "^1.0.0",
+    "vue": "^3.5.42",
+    "vue-router": "^4.6.4"
+  }
+}

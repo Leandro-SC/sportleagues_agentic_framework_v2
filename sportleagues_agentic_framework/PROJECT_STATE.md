@@ -2,15 +2,15 @@
 
 ## Estado general
 
-- Fase actual: `02`
-- Última fase completada: `02 - arquitectura, contratos y ADRs base`
-- Estado: `READY_FOR_PHASE_03`
+- Fase actual: `04`
+- Última fase completada: `03 - modelo de datos, multi-tenancy y RLS`
+- Estado: `PHASE_03_PASS_PHASE_04_PARTIAL_CLOUD_E2E_PASS_BUILD_GATE_PENDING`
 
 ## MVP — fases
 
 - [x] 01 — Auditoría y normalización de requisitos
 - [x] 02 — Arquitectura + ADRs base
-- [ ] 03 — Modelo de datos + multi-tenancy + RLS
+- [x] 03 — Modelo de datos + multi-tenancy + RLS
 - [ ] 04 — Auth, onboarding y memberships
 - [ ] 05 — Admin: quinielas, branding, reglas y participantes
 - [ ] 06 — Torneos, jornadas y partidos
