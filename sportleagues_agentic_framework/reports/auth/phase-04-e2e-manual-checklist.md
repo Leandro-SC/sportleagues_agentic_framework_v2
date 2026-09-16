@@ -57,18 +57,18 @@ Para cada caso conserva: captura de la UI sin datos sensibles, URL final, Consol
 
 | ID | Resultado | Evidencia | Observación |
 | --- | --- | --- | --- |
-| E2E-01 | PASS / FAIL / N/A | URL, UI, Console/Network | |
-| E2E-02 | PASS / FAIL / N/A | URL, UI, Console/Network | |
-| E2E-03 | PASS / FAIL / N/A | URL, UI, Console/Network | |
-| E2E-04 | PASS / FAIL / N/A | URL, UI, Console/Network | |
-| E2E-05 | PASS / FAIL / N/A | URL, UI, RPC | |
-| E2E-06 | PASS / FAIL / N/A | URL, UI, RPC | |
-| E2E-07 | PASS / FAIL / N/A | UI, RPC, membership | |
-| E2E-08 | PASS / FAIL / N/A | RPC, ausencia de duplicado | |
-| E2E-09 | PASS / FAIL / N/A | UI, RPC error | |
-| E2E-10 | PASS / FAIL / N/A | UI, participant pending | |
-| E2E-11 | PASS / FAIL / N/A | Network/RLS, ausencia de datos | |
-| E2E-12 | PASS / FAIL / N/A | UI, sesión limpia | |
+| E2E-01 | PASS | Google OAuth Cloud validado manualmente | Usuario nuevo/callback completado. |
+| E2E-02 | PASS | Google OAuth Cloud validado manualmente | Sesión recurrente/restauración confirmada. |
+| E2E-03 | PASS | Magic Link Cloud validado manualmente | Envío, enlace, callback y sesión completados. |
+| E2E-04 | N/A | No se registró un enlace expirado específico | No es escenario crítico cuando el proveedor ya valida tokens. |
+| E2E-05 | PASS | `/j/ALPHA1` llega a Pool A | Reanudación de join confirmada. |
+| E2E-06 | PASS | Confirmación manual | Onboarding pendiente y reanudación completados. |
+| E2E-07 | PASS | Pool A y `Acceso confirmado` | Join mediante RPC validado. |
+| E2E-08 | PASS | Confirmación manual | Join repetido no duplicó participación. |
+| E2E-09 | PASS | Mensaje visible de código inválido | Sin acceso autorizado. |
+| E2E-10 | N/A | Fixture staging ausente | No existe pool documentado que requiera aprobación. |
+| E2E-11 | PASS | Pool B muestra `No tienes acceso a esta quiniela.` | RLS impide lectura cross-tenant. |
+| E2E-12 | PASS | Confirmación manual | Logout y ruta protegida validados. |
 
 ## Escenarios
 

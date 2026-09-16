@@ -103,7 +103,7 @@ RLS protege acceso directo. Mutaciones con invariantes de varias filas, tiempo, 
 
 `tenant_entitlements`, asociado a `plans`, es fuente de verdad. Cada mutacion que consume capacidad invoca comprobacion DB/RPC: FREE permite maximo 10 participantes y una quiniela activa, regla estandar, watermark y branding SportLeagues; PRO habilita capacidades documentadas. Fase 03 crea esa frontera aunque Fase 12 complete UX, auditoria y downgrade. No hay checkout ni cobro.
 
-Logos y banners usan bucket Storage privado con ruta `{tenant_id}/{asset_uuid}` y metadata `branding_assets`. Policies y DB validan membership, rol, plan, tipo, tamano y ruta. SVG queda prohibido hasta contar con sanitizacion segura. Flyers se generan localmente para descarga/Web Share y no se persisten por defecto.
+Logos y banners usan bucket Storage privado con ruta `{tenant_id}/{asset_uuid}`, sin depender de extension, y metadata `branding_assets`. Policies y DB validan membership, rol, plan, tipo, tamano y ruta; una Edge Function autenticada inspecciona firma binaria, MIME real y dimensiones antes de activar un asset. SVG queda prohibido hasta contar con sanitizacion segura. El lifecycle, reemplazo, limpieza y downgrade PRO a FREE se rigen por ADR-007. Flyers se generan localmente para descarga/Web Share y no se persisten por defecto.
 
 El join canonico es `/j/:code` en web y Capacitor. Sin sesion, se conserva el codigo solo como intencion local no confiable; tras Auth se llama `join_pool`. Fase 11 fija hosts/esquemas de app/universal links.
 

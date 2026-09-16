@@ -12,8 +12,9 @@ withDefaults(
     hint?: string
     error?: string
     inputClass?: string
+    disabled?: boolean
   }>(),
-  { type: 'text', required: false },
+  { type: 'text', required: false, disabled: false },
 )
 
 defineEmits<{ 'update:modelValue': [value: string] }>()
@@ -30,6 +31,7 @@ defineEmits<{ 'update:modelValue': [value: string] }>()
       :maxlength="maxlength"
       :autocomplete="autocomplete"
       :required="required"
+      :disabled="disabled"
       class="w-full rounded-xl border border-mist-300 bg-white px-4 py-3 text-[15px] text-ink-900 placeholder:text-mist-400 focus:border-brand-500"
       :class="[error ? 'border-danger-500' : '', inputClass]"
       @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"

@@ -2,16 +2,16 @@
 
 ## Estado general
 
-- Fase actual: `04`
-- Última fase completada: `03 - modelo de datos, multi-tenancy y RLS`
-- Estado: `PHASE_03_PASS_PHASE_04_PARTIAL_CLOUD_E2E_PASS_BUILD_GATE_PENDING`
+- Fase actual: `05`
+- Última fase completada: `04 - Auth, onboarding y memberships`
+- Estado: `PHASE_05_IN_PROGRESS_ADMIN_UI_AND_ENTITLEMENT_RPC`
 
 ## MVP — fases
 
 - [x] 01 — Auditoría y normalización de requisitos
 - [x] 02 — Arquitectura + ADRs base
 - [x] 03 — Modelo de datos + multi-tenancy + RLS
-- [ ] 04 — Auth, onboarding y memberships
+- [x] 04 — Auth, onboarding y memberships
 - [ ] 05 — Admin: quinielas, branding, reglas y participantes
 - [ ] 06 — Torneos, jornadas y partidos
 - [ ] 07 — Pronósticos, locks y privacidad previa al partido

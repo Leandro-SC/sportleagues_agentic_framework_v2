@@ -5,10 +5,11 @@ import JoinView from './views/JoinView.vue'
 import OnboardingView from './views/OnboardingView.vue'
 import PoolView from './views/PoolView.vue'
 import ProfileView from './views/ProfileView.vue'
+import AdminView from './views/AdminView.vue'
 import { useAuth } from './composables/useAuth'
 import { protectedRouteRedirect } from './lib/navigation-guards'
 
-const GUARDED_ROUTES = ['onboarding', 'pool', 'profile']
+const GUARDED_ROUTES = ['onboarding', 'pool', 'profile', 'admin']
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -19,6 +20,7 @@ export const router = createRouter({
     { path: '/j/:code', name: 'join', component: JoinView, props: true },
     { path: '/p/:poolId', name: 'pool', component: PoolView, props: true },
     { path: '/perfil', name: 'profile', component: ProfileView },
+    { path: '/admin', name: 'admin', component: AdminView },
   ],
 })
 

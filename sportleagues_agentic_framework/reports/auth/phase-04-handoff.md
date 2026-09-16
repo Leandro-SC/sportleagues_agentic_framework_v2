@@ -1,7 +1,7 @@
 # HANDOFF - Fase 04: Auth, onboarding, memberships y join
 
 - Agente: Auth & Membership Agent
-- Estado: PARTIAL / CLOUD_E2E_PASS_BUILD_GATE_PENDING
+- Estado: COMPLETED / PASS
 
 ## Objetivo
 
@@ -44,8 +44,8 @@ El join requiere revalidacion manual contra Cloud. La prueba SQL regresiva `supa
 
 ## Bloqueos
 
-No hay bloqueo de implementacion ni de despliegue. Todos los escenarios Cloud E2E estan confirmados. Falta el gate tecnico final porque el build y reejecuciones de test quedan sin salida final mientras existen procesos Node de desarrollo activos. No se leyeron ni registraron secretos.
+No hay bloqueo de implementacion ni de despliegue. Todos los escenarios Cloud E2E y el gate tecnico final estan confirmados por evidencia del usuario. No se leyeron ni registraron secretos.
 
 ## Proximo paso permitido
 
-Detener temporalmente Vite y ejecutar los cuatro comandos de regresion antes de cerrar Fase 04 y habilitar Fase 05.
+Fase 05 — Panel del organizador. Los contratos RPC de soporte ya estan aplicados en Cloud; implementar solo la UI y sus pruebas, sin alterar RLS ni los contratos aprobados.

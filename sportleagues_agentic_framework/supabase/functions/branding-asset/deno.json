@@ -1,0 +1,7 @@
+{
+  "nodeModulesDir": "auto",
+  "tasks": {
+    "check": "deno check index.ts",
+    "test": "deno test --allow-env image-validation.test.ts"
+  }
+}

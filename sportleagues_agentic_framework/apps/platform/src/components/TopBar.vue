@@ -25,6 +25,7 @@ const initials = computed(() => {
         <span class="font-display text-lg font-extrabold tracking-tight text-ink-950">SportLeagues</span>
       </RouterLink>
       <h1 v-if="title && variant === 'app'" class="hidden text-sm font-semibold text-ink-600 sm:block">{{ title }}</h1>
+      <RouterLink v-if="variant === 'app'" to="/admin" class="rounded-lg px-2 py-1 text-xs font-semibold text-brand-600">Admin</RouterLink>
       <RouterLink
         v-if="variant === 'app'"
         to="/perfil"
