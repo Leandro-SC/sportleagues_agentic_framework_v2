@@ -4,15 +4,15 @@
 
 - Fase actual: `05` / `05-bis`
 - Última fase completada: `04 - Auth, onboarding y memberships`
-- Estado: `PHASE_05_MIGRATIONS_APPLIED_QA_CRITICAL_FINDING_OPEN_SUPERADMIN_NOT_PROVISIONED`
-- Entorno QA/UAT: proyecto Supabase Cloud `plataforma_bet` (`juoftaofzepxbrrxbkhx`). Las 8
+- Estado: `PHASE_05_SECURITY_FIX_VALIDATED_EDGE_FUNCTION_CONFIG_PENDING_SUPERADMIN_NOT_PROVISIONED`
+- Entorno QA/UAT: proyecto Supabase Cloud `plataforma_bet` (`juoftaofzepxbrrxbkhx`). Las 9
   migraciones del proyecto (incluidas las 5 de Fase 05/05-bis) están aplicadas y confirmadas
   (`supabase migration list --linked` sin pendientes). No es producción; producción se creará
   cuando el producto esté validado.
-- **Hallazgo de seguridad abierto (alto, no corregido):** `record_verified_branding_asset` no
-  tiene autorización interna y es explotable cross-tenant. Ver
-  `reports/security/finding-001-record-verified-branding-asset-authorization-gap.md`. No bloquea
-  a Superadmin/`/admin`, pero bloquea desplegar las Edge Functions de branding con confianza.
+- **Hallazgo de seguridad 001 (alto): `CLOSED / VALIDATED`.**
+  `20260917000100_phase_05_branding_asset_service_role_guard.sql` está aplicada y la regresión
+  QA confirmó ACL revocadas para `anon`/`authenticated`, denegación interna y acceso exclusivo de
+  `service_role`. Ver `reports/security/finding-001-record-verified-branding-asset-authorization-gap.md`.
 
 ## MVP — fases
 
@@ -22,8 +22,8 @@
 - [x] 04 — Auth, onboarding y memberships
 - [ ] 05 — Admin: quinielas, branding, reglas y participantes. Schema/RPC/migraciones aplicados y
       validados en QA (`reports/admin/phase-05bis-qa-validation.md`). Bloqueado para cierre por:
-      (a) hallazgo de seguridad 001 sin corregir, (b) Edge Functions `branding-asset`/
-      `branding-reconciler` sin desplegar, (c) fixture de QA incompleto (falta `Admin B`/
+      (a) Edge Functions `branding-asset`/`branding-reconciler` sin desplegar por configuración
+      de secretos pendiente, (b) fixture de QA incompleto (falta `Admin B`/
       `Pending A`), (d) validación manual en navegador de `/admin` pendiente (ver
       `reports/admin/phase-05bis-e2e-manual-checklist.md`).
 - [ ] 05-bis — Superadmin de plataforma (frontera de autorización global, ver `ADR-008`,
@@ -69,10 +69,11 @@
 
 Orden sugerido, no obligatorio salvo donde se indica dependencia:
 
-1. **Decidir sobre el hallazgo de seguridad 001** (`record_verified_branding_asset` sin
-   autorización interna, cross-tenant) — `reports/security/finding-001-record-verified-branding-asset-authorization-gap.md`.
-   Recomendado: preparar y autorizar una migración correctiva (`assert ... service_role` interno,
-   igual que las 5 funciones de reconciliación) antes de desplegar Edge Functions de branding.
+1. **Autorizar y aplicar en QA la remediación del hallazgo de seguridad 001**:
+   `20260917000100_phase_05_branding_asset_service_role_guard.sql`. Después, ejecutar
+   `supabase/tests/phase-05-branding-assets.sql` en una base local disponible o QA con fixture
+   suficiente y confirmar las denegaciones `authenticated`/`anon`/cross-tenant. No desplegar las
+   Edge Functions de branding antes de este gate.
 2. **Corregir la aserción de test `anon` en `supabase/tests/phase-05bis-platform-admin.sql`**
    (defecto de test, no de producto — ver `reports/admin/phase-05bis-qa-validation.md` sección 8):
    cambiar la expectativa de "debe fallar" a "debe devolver `false`".
@@ -88,3 +89,25 @@ Orden sugerido, no obligatorio salvo donde se indica dependencia:
 6. **Desplegar Edge Functions de branding** (`branding-asset`, `branding-reconciler`) — solo
    después de resolver el punto 1; no desplegado todavía en esta fase.
 7. Solo entonces: cerrar Fase 05 y Fase 05-bis formalmente en este archivo y avanzar a Fase 06.
+
+## Actualización operativa (2026-09-17)
+
+Esta actualización reemplaza los pendientes 1 y 2 anteriores: la migración
+`20260917000100_phase_05_branding_asset_service_role_guard.sql` está aplicada en QA; las nueve
+migraciones están sincronizadas; la regresión SQL focalizada de branding y la suite
+`phase-05bis-platform-admin.sql` pasaron contra QA dentro de transacciones con rollback. El
+hallazgo de seguridad 001 está `CLOSED / VALIDATED`.
+
+No hay funciones desplegadas porque falta el origen HTTPS QA para configurar
+`CORS_ALLOWED_ORIGINS`. `BRANDING_RECONCILER_SECRET` ya está configurado. Provisioning del
+Superadmin, fixtures QA faltantes y validaciones manuales de navegador siguen pendientes; Fase 06
+continúa bloqueada.
+
+## Bloqueo operativo de Edge Functions (2026-09-17)
+
+`BRANDING_RECONCILER_SECRET` está configurado en QA con un valor criptográficamente seguro
+generado en memoria; su valor no se registró. La inspección de `PROJECT_CONFIG.md`,
+`PROJECT_STATE.md`, los `.env.example`, configuración Vite y documentación no identifica ningún
+origen HTTPS real del frontend QA: solo URL de Supabase y hosts locales. Por tanto,
+`CORS_ALLOWED_ORIGINS` permanece sin configurar y `branding-asset`/`branding-reconciler` no se
+desplegaron ni invocaron. Falta proporcionar el origen QA documentado y autorizado.

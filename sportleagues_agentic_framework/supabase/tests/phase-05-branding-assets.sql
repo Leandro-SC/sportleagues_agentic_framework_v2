@@ -78,6 +78,17 @@ do $$ begin
   begin update public.branding_assets set status = 'deleted' where id = current_setting('test.logo_one')::uuid; raise exception 'authenticated caller updated branding metadata'; exception when insufficient_privilege then null; end;
 end $$;
 
+-- The Cloud default ACL may expose new functions to anon. Both the explicit
+-- revoke and the internal service-role guard must deny this caller.
+reset role;
+set local role anon;
+do $$ begin
+  begin perform public.record_verified_branding_asset(current_setting('test.logo_one')::uuid, 'image/webp', 100000, 512, 512, repeat('a', 64)); raise exception 'anon caller invoked internal metadata RPC'; exception when insufficient_privilege then null; end;
+end $$;
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '44444444-4444-4444-4444-444444444444', true);
+
 -- Replacing a logo atomically retires the previous active asset.
 select set_config('test.logo_two', (select (public.begin_branding_asset('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'logo')).id::text), true);
 set local role service_role;

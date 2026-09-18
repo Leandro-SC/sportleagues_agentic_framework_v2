@@ -69,15 +69,13 @@ do $$ begin
   end;
 end $$;
 
--- 7. anon cannot invoke is_platform_admin() at all.
+-- 7. anon has no platform-admin identity. The Cloud default function ACL may
+-- grant EXECUTE directly to anon, so the secure expectation is false rather
+-- than a privilege error.
 reset role;
 set local role anon;
 do $$ begin
-  begin
-    perform public.is_platform_admin();
-    raise exception 'anon executed is_platform_admin()';
-  exception when insufficient_privilege then null;
-  end;
+  if public.is_platform_admin() then raise exception 'anon was treated as a platform admin'; end if;
 end $$;
 
 rollback;

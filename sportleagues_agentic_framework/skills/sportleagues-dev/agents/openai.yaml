@@ -1,0 +1,4 @@
+interface:
+  display_name: "SportLeagues Dev Team"
+  short_description: "Coordina el equipo tecnico multiagente de SportLeagues"
+  brand_color: "#14B8A6"

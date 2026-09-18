@@ -243,3 +243,37 @@ flujo de carga de imágenes con una vía de escritura cross-tenant abierta. Prov
 corregir el hallazgo 001 son independientes y pueden ordenarse como el usuario prefiera.
 
 No se provisionó ninguna cuenta en esta tarea; queda pendiente de tu autorización explícita.
+
+## 20. Remediación posterior preparada (2026-09-17)
+
+Se agregó `20260917000100_phase_05_branding_asset_service_role_guard.sql` para cerrar el hallazgo
+001: protege internamente `record_verified_branding_asset` con `auth.role() = 'service_role'` y
+revoca explícitamente `EXECUTE` de `anon` y `authenticated`. También se amplió la regresión SQL
+de branding para `anon`, y se corrigió el test de `is_platform_admin()` para esperar `false` en
+lugar de un error de privilegios para `anon`.
+
+`supabase db push --linked --dry-run` confirmó que es la única migración pendiente; no se aplicó
+en QA. La validación SQL local no pudo ejecutarse porque Docker Desktop no estaba disponible.
+Por tanto, el hallazgo 001 sigue abierto hasta aplicar la migración y repetir las regresiones SQL.
+
+## 21. Validación final del fix y de 05-bis (2026-09-17)
+
+La migración correctiva se aplicó en QA y las nueve migraciones están sincronizadas. La regresión
+SQL autocontenida de branding pasó contra QA: ACL de `anon`/`authenticated` revocadas, rechazo
+interno de ambos actores y acceso conservado para `service_role`, todo dentro de `begin`/`rollback`.
+El hallazgo 001 queda cerrado.
+
+También pasó contra QA `supabase/tests/phase-05bis-platform-admin.sql` con la aserción corregida
+para `anon`; sus fixtures son transaccionales y se revierten.
+
+## 22. Preparación operativa de Edge Functions (2026-09-17)
+
+`BRANDING_RECONCILER_SECRET` fue configurado en QA desde un valor criptográficamente seguro
+generado solo en memoria. Se confirmó su nombre mediante `supabase secrets list`; ningún valor se
+registró en el repositorio ni en este reporte.
+
+No se encontró un origen HTTPS real del frontend QA en `PROJECT_CONFIG.md`, `PROJECT_STATE.md`,
+`.env.example`, configuración Vite ni documentación: las únicas URLs de frontend documentadas son
+hosts locales, y Vercel/Netlify sigue como decisión pendiente. Por la política explícita de no
+inventar CORS, no se configuró `CORS_ALLOWED_ORIGINS`; no se desplegaron ni invocaron
+`branding-asset` o `branding-reconciler`. El dato faltante es el origen QA exacto y autorizado.

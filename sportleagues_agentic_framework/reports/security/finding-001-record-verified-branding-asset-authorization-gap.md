@@ -1,7 +1,7 @@
 # Hallazgo de seguridad 001 — `record_verified_branding_asset` sin autorización interna (cross-tenant)
 
 - Severidad: **Alta** (integridad de datos cross-tenant; ver alcance/limitaciones abajo).
-- Estado: `CONFIRMED` contra Supabase Cloud QA/UAT (`plataforma_bet`, `juoftaofzepxbrrxbkhx`), en una transacción `begin/rollback` — no persiste ningún dato.
+- Estado: `CLOSED / VALIDATED` en Supabase Cloud QA/UAT (`plataforma_bet`, `juoftaofzepxbrrxbkhx`) tras aplicar la migración correctiva y ejecutar la regresión transaccional.
 - Detectado durante: validación post-migración de Fase 05 / 05-bis en QA (2026-09-16).
 - Corresponde a la prioridad #6 de `docs/security/01-security-baseline.md` ("Uploads de logos/banners no validados").
 - **No corregido.** Por instrucción explícita, esta tarea no modifica SQL en Cloud. Requiere una migración correctiva autorizada aparte.
@@ -55,3 +55,28 @@ Adicionalmente, revisar sistemáticamente **todas** las funciones `to service_ro
 ## Próximo paso permitido
 
 No corregir en esta tarea. Preparar una migración correctiva dedicada (`assert_branding_reconciler_service_role`-style guard dentro de `record_verified_branding_asset`, más el `revoke` explícito), presentarla para revisión, y volver a ejecutar `supabase/tests/phase-05-branding-assets.sql` (una vez completo el fixture de QA o corrido localmente) antes de considerar este hallazgo cerrado.
+
+## Actualización de remediación (2026-09-17)
+
+La remediación incremental ya está preparada en
+`supabase/migrations/20260917000100_phase_05_branding_asset_service_role_guard.sql`. Añade una
+comprobación interna de `auth.role() = 'service_role'` antes de cualquier lectura o mutación de la
+RPC, revoca explícitamente `EXECUTE` de `anon` y `authenticated`, y conserva el grant a
+`service_role`. La regresión SQL de branding ahora prueba ambas denegaciones; el happy path de
+`service_role` ya estaba cubierto.
+
+El dry-run remoto del 2026-09-17 confirmó que es la única migración pendiente y no la aplicó.
+El hallazgo sigue abierto hasta aplicar esa migración en QA y ejecutar la regresión SQL con una
+base local disponible o con fixtures QA suficientes. Las Edge Functions de branding no deben
+desplegarse antes de ese cierre.
+
+## Cierre validado en QA (2026-09-17)
+
+La migración `20260917000100_phase_05_branding_asset_service_role_guard.sql` fue aplicada en
+`juoftaofzepxbrrxbkhx`; las nueve migraciones están sincronizadas. La regresión autocontenida
+`supabase/tests/phase-05-branding-asset-security-regression.sql` pasó contra QA dentro de una
+transacción con rollback: confirma ACL revocadas y rechazo para `anon`/`authenticated`, mientras
+`service_role` alcanza la lógica posterior al guard.
+
+Estado final: **CLOSED / VALIDATED**. Las Edge Functions siguen bloqueadas separadamente por la
+ausencia de `CORS_ALLOWED_ORIGINS` y `BRANDING_RECONCILER_SECRET` en QA.
