@@ -36,7 +36,7 @@ void props
 
 <template>
   <BottomSheet :open="open" title="Unirme con código" @update:open="onUpdateOpen">
-    <p class="mb-4 text-sm text-ink-500">Pide el código de invitación al administrador de la quiniela.</p>
+    <p class="mb-4 text-sm text-text-muted">Pide el código de invitación al administrador de la quiniela.</p>
     <form class="space-y-4" @submit.prevent="submit">
       <FormField
         id="sheet-join-code"

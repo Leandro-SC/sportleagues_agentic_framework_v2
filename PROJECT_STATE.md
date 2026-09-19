@@ -4,7 +4,7 @@
 
 - Fase actual: `05` / `05-bis`
 - Última fase completada: `04 - Auth, onboarding y memberships`
-- Estado: `PHASE_05_EDGE_FUNCTIONS_ACTIVE_PARTIAL_QA_SUPERADMIN_NOT_PROVISIONED`
+- Estado: `PHASE_05_EDGE_FUNCTIONS_ACTIVE_PARTIAL_QA_AUTH_HAPPY_PATHS_PENDING`
 - Entorno QA/UAT: proyecto Supabase Cloud `plataforma_bet` (`juoftaofzepxbrrxbkhx`). Las 11
   migraciones del proyecto (incluidas las 5 de Fase 05/05-bis) están aplicadas y confirmadas
   (`supabase migration list --linked` sin pendientes). No es producción; producción se creará
@@ -118,6 +118,64 @@ Gates: `npm run typecheck`, `npm test` (10 archivos / 49 tests) y `npm run build
 `npx supabase test db --linked`: **BLOCKED_EXTERNAL** por Docker Desktop ausente
 (`dockerDesktopLinuxEngine`). No hay cuentas QA persistentes accesibles para los happy paths
 manuales; no se registraron JWT ni secretos. Fase 05/05-bis no está ACCEPTED y Fase 06 no inicia.
+
+## Ejecución QA desde repositorio canónico (2026-09-19)
+
+`supabase migration list` confirma las 11 migraciones locales y remotas sincronizadas; `supabase db
+push --dry-run` devuelve vacío, por lo que no se aplicó ningún cambio remoto adicional.
+
+Suites SQL contra QA enlazado, todas PASS con sus transacciones y rollback:
+
+- `phase-03-rls.sql`
+- `phase-05-admin-rpc.sql`
+- `phase-05-branding-assets.sql`
+- `phase-05-branding-asset-security-regression.sql`
+- `phase-05bis-platform-admin.sql`
+
+`supabase test db --linked` permanece **BLOCKED_EXTERNAL**: Docker Desktop no expone
+`dockerDesktopLinuxEngine`.
+
+No se provisionaron cuentas QA persistentes ni se ejecutaron happy paths autenticados de
+`branding-asset`/`branding-reconciler`: no hay cuatro identidades Auth accesibles (QA User, Admin
+A, Admin B y Superadmin), ni JWT de prueba o credencial interna que puedan usarse sin exponer o
+rotar secretos. El runbook de Superadmin exige un UUID Auth real escogido por el operador. Fase
+05/05-bis sigue sin ACCEPTED y Fase 06 no inicia.
+
+## Provisioning QA y matriz de autorización (2026-09-19)
+
+Se usaron únicamente mecanismos existentes y no se modificó `auth.users`:
+
+- Superadmin: bootstrap manual en `platform_admins`, conforme al runbook de ADR-008.
+- Admin 2: membership `admin` activa exclusivamente en Tenant B; su membership previa de Tenant A
+  fue desactivada para conservar aislamiento estricto.
+- Usuario: membership `member` activa en Tenant A, sin privilegios administrativos ni globales.
+- Admin 1: onboarding confirmado y membership `admin` activa exclusivamente en Tenant A.
+
+Matriz SQL contra QA, con las identidades Auth confirmadas y sin registrar UUIDs: Usuario puede
+acceder como miembro de Tenant A y no es admin ni superadmin; Admin 2 es admin de Tenant B, no de
+Tenant A ni plataforma; Superadmin devuelve `is_platform_admin() = true` y no recibe SELECT directo
+en `platform_admins`; Admin 1 es admin de Tenant A, está denegado en Tenant B y no es superadmin.
+
+No se ejecutaron happy paths HTTP con sesión Auth real: faltan credenciales/sesión para obtener un
+JWT válido de Admin 2 y la credencial interna del reconciliador no se consulta ni rota. Fase
+05/05-bis no está ACCEPTED y Fase 06 no inicia.
+
+## Consolidación final parcial (2026-09-19)
+
+Matriz de autorización QA consolidada: Usuario normal es miembro sin privilegios admin/global;
+Admin 1 administra solo Tenant A; Admin 2 administra solo Tenant B; y Superadmin tiene
+`is_platform_admin()` verdadero sin acceso directo a la tabla de plataforma. Los negativos
+cross-tenant y globales están validados por SQL.
+
+El operador informó evidencia manual PASS para Magic Link y Google OAuth en
+`https://sportleagues-qa.vercel.app`. No se automatizó autenticación ni se registraron sesiones.
+
+`npm run typecheck` y `npm test` fueron ejecutados; `npm run build` PASS. `git diff --check` PASS.
+`supabase test db --linked` sigue **BLOCKED_EXTERNAL** por `dockerDesktopLinuxEngine` ausente.
+
+No se recomienda ACCEPTED todavía: falta ejecutar el happy path HTTP real de `branding-asset`
+con JWT Auth válido y el de `branding-reconciler` mediante su credencial interna autorizada. No se
+consultarán, registrarán ni rotarán secretos para suplir esos requisitos.
 
 ## Bloqueo operativo de Edge Functions (2026-09-17)
 

@@ -26,7 +26,7 @@ watch(
 <template>
   <AppShell variant="app" active="home" title="Quiniela" :user-name="auth.state.profile?.display_name">
     <section class="space-y-6 pt-2">
-      <div v-if="access.loading.value" class="flex items-center justify-center gap-2 py-16 text-sm text-ink-500">
+      <div v-if="access.loading.value" class="flex items-center justify-center gap-2 py-16 text-sm text-text-muted">
         <LoaderCircle class="h-4 w-4 animate-spin" />Verificando acceso…
       </div>
 
@@ -34,22 +34,22 @@ watch(
         <PoolCard :name="access.pool.value.name" variant="hero" status="active" />
 
         <div>
-          <h2 class="mb-3 font-display text-base font-bold text-ink-950">Próximos partidos</h2>
+          <h2 class="mb-3 font-display text-base font-bold text-text">Próximos partidos</h2>
           <div class="space-y-3">
             <MatchCard skeleton />
             <MatchCard skeleton />
           </div>
-          <p class="mt-2 text-center text-xs text-ink-400">Los partidos y jornadas se habilitan en la Fase 06.</p>
+          <p class="mt-2 text-center text-xs text-text-faint">Los partidos y jornadas se habilitan en la Fase 06.</p>
         </div>
 
         <div>
-          <h2 class="mb-3 font-display text-base font-bold text-ink-950">Ranking</h2>
-          <div class="space-y-1.5 rounded-2xl border border-mist-200 bg-white p-3">
+          <h2 class="mb-3 font-display text-base font-bold text-text">Ranking</h2>
+          <div class="space-y-1.5 app-surface p-3">
             <RankingRow skeleton />
             <RankingRow skeleton />
             <RankingRow skeleton />
           </div>
-          <p class="mt-2 text-center text-xs text-ink-400">El leaderboard se habilita en la Fase 08.</p>
+          <p class="mt-2 text-center text-xs text-text-faint">El leaderboard se habilita en la Fase 08.</p>
         </div>
       </template>
 

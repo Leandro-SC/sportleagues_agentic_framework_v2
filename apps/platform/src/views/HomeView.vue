@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { KeyRound, ListChecks, Sparkles, Target, Trophy } from 'lucide-vue-next'
 import AppShell from '../components/AppShell.vue'
@@ -22,6 +22,12 @@ const notice = ref('')
 const error = ref('')
 const sendingMagic = ref(false)
 const signingGoogle = ref(false)
+
+const initials = computed(() => {
+  const name = auth.state.profile?.display_name?.trim()
+  if (!name) return '?'
+  return name.split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('') || '?'
+})
 
 function goToJoin(): void {
   const normalized = normalizeJoinCode(code.value)
@@ -54,29 +60,36 @@ async function google(): Promise<void> {
     :user-name="auth.state.profile?.display_name"
   >
     <section v-if="!auth.isAuthenticated.value" class="space-y-7 pb-4 pt-2">
-      <div>
-        <h1 class="font-display text-[2rem] font-extrabold leading-tight text-ink-950">Tu quiniela,<br />sin hojas de cálculo.</h1>
-        <p class="mt-3 text-[15px] text-ink-600">Compite con tus amigos, predice resultados y sube en la tabla de tu quiniela favorita.</p>
-        <div class="mt-4 flex flex-wrap gap-2">
+      <div class="relative -mx-5 overflow-hidden px-5 pb-8 pt-6 text-center">
+        <div
+          class="pointer-events-none absolute inset-0 -z-10"
+          style="background: radial-gradient(120% 100% at 50% 0%, rgba(33,245,154,0.16) 0%, rgba(3,17,28,0) 60%)"
+        />
+        <span class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-canvas shadow-glow-primary">
+          <Trophy class="h-8 w-8" />
+        </span>
+        <h1 class="mt-4 font-display text-[1.75rem] font-extrabold leading-tight text-text">SportLeagues</h1>
+        <p class="mt-1 text-sm text-text-muted">Tu pasión, en cada partido.</p>
+        <div class="mt-4 flex flex-wrap items-center justify-center gap-2">
           <StatChip label="Multi-tenant seguro" :icon="Trophy" tone="brand" />
           <StatChip label="Elo + Poisson" :icon="Sparkles" tone="success" />
         </div>
       </div>
 
-      <div class="space-y-3 rounded-2xl border border-mist-200 bg-white p-5 shadow-md">
-        <h2 class="font-display text-base font-bold text-ink-950">Iniciar sesión</h2>
+      <div class="space-y-3 app-surface-raised p-5">
+        <h2 class="font-display text-base font-bold text-text">Iniciar sesión</h2>
         <form class="space-y-3" @submit.prevent="magicLink">
           <FormField id="email" v-model="email" type="email" label="Correo electrónico" autocomplete="email" required placeholder="tú@correo.com" />
           <PrimaryButton type="submit" :loading="sendingMagic">Enviar magic link</PrimaryButton>
         </form>
-        <div class="flex items-center gap-3 text-xs font-medium uppercase tracking-wide text-mist-400">
-          <span class="h-px flex-1 bg-mist-200" />o<span class="h-px flex-1 bg-mist-200" />
+        <div class="flex items-center gap-3 text-xs font-medium uppercase tracking-wide text-text-faint">
+          <span class="h-px flex-1 bg-border" />o<span class="h-px flex-1 bg-border" />
         </div>
         <SecondaryButton :loading="signingGoogle" @click="google">Continuar con Google</SecondaryButton>
       </div>
 
-      <div class="space-y-3 rounded-2xl border border-mist-200 bg-white p-5 shadow-sm">
-        <h2 class="flex items-center gap-2 font-display text-base font-bold text-ink-950"><KeyRound class="h-4 w-4 text-brand-600" />¿Tienes un código de invitación?</h2>
+      <div class="space-y-3 app-surface p-5">
+        <h2 class="flex items-center gap-2 font-display text-base font-bold text-text"><KeyRound class="h-4 w-4 text-primary" />¿Tienes un código de invitación?</h2>
         <form class="flex items-start gap-2" @submit.prevent="goToJoin">
           <div class="flex-1">
             <FormField
@@ -94,21 +107,24 @@ async function google(): Promise<void> {
         </form>
       </div>
 
-      <p v-if="error" class="rounded-xl bg-danger-100 p-3 text-sm font-medium text-danger-600" role="alert">{{ error }}</p>
-      <p v-if="notice" class="rounded-xl bg-success-100 p-3 text-sm font-medium text-success-600">{{ notice }}</p>
+      <p v-if="error" class="rounded-xl bg-danger-100 p-3 text-sm font-medium text-danger" role="alert">{{ error }}</p>
+      <p v-if="notice" class="rounded-xl bg-primary-100 p-3 text-sm font-medium text-primary">{{ notice }}</p>
     </section>
 
     <section v-else class="space-y-6 pb-4 pt-2">
-      <div v-if="!auth.state.profile" class="rounded-2xl border border-brand-300 bg-brand-100/60 p-5">
-        <h1 class="font-display text-lg font-bold text-ink-950">Un último paso</h1>
-        <p class="mt-1 text-sm text-ink-600">Completa tu perfil para acceder a tus quinielas.</p>
+      <div v-if="!auth.state.profile" class="rounded-2xl border border-primary/40 bg-primary-100/50 p-5">
+        <h1 class="font-display text-lg font-bold text-text">Un último paso</h1>
+        <p class="mt-1 text-sm text-text-muted">Completa tu perfil para acceder a tus quinielas.</p>
         <PrimaryButton class="mt-4" @click="router.push({ name: 'onboarding' })">Completar perfil</PrimaryButton>
       </div>
 
       <template v-else>
-        <div>
-          <h1 class="font-display text-xl font-bold text-ink-950">Hola, {{ auth.state.profile.display_name }}</h1>
-          <p class="text-sm text-ink-500">Este es tu resumen de actividad.</p>
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <h1 class="font-display text-xl font-bold text-text">Hola, {{ auth.state.profile.display_name }} 👋</h1>
+            <p class="text-sm text-text-muted">El deporte nos une.</p>
+          </div>
+          <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-2 font-display text-sm font-bold text-text ring-1 ring-primary/40">{{ initials }}</span>
         </div>
 
         <EmptyState :icon="Trophy" title="Aún no perteneces a ninguna quiniela" description="Únete con el código que te compartió el administrador para empezar a predecir y sumar puntos.">
@@ -121,17 +137,17 @@ async function google(): Promise<void> {
         </EmptyState>
 
         <div class="grid grid-cols-3 gap-3">
-          <div class="rounded-xl border border-mist-200 bg-white p-3 text-center">
-            <KeyRound class="mx-auto h-5 w-5 text-brand-600" />
-            <p class="mt-2 text-xs font-semibold text-ink-900">1. Únete</p>
+          <div class="app-surface p-3 text-center">
+            <KeyRound class="mx-auto h-5 w-5 text-primary" />
+            <p class="mt-2 text-xs font-semibold text-text">1. Únete</p>
           </div>
-          <div class="rounded-xl border border-mist-200 bg-white p-3 text-center">
-            <Target class="mx-auto h-5 w-5 text-brand-600" />
-            <p class="mt-2 text-xs font-semibold text-ink-900">2. Predice</p>
+          <div class="app-surface p-3 text-center">
+            <Target class="mx-auto h-5 w-5 text-primary" />
+            <p class="mt-2 text-xs font-semibold text-text">2. Predice</p>
           </div>
-          <div class="rounded-xl border border-mist-200 bg-white p-3 text-center">
-            <ListChecks class="mx-auto h-5 w-5 text-brand-600" />
-            <p class="mt-2 text-xs font-semibold text-ink-900">3. Compite</p>
+          <div class="app-surface p-3 text-center">
+            <ListChecks class="mx-auto h-5 w-5 text-primary" />
+            <p class="mt-2 text-xs font-semibold text-text">3. Compite</p>
           </div>
         </div>
       </template>

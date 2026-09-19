@@ -22,7 +22,7 @@ defineEmits<{ 'update:modelValue': [value: string] }>()
 
 <template>
   <div class="space-y-1.5">
-    <label :for="id" class="block text-sm font-medium text-ink-700">{{ label }}</label>
+    <label :for="id" class="block text-sm font-medium text-text-muted">{{ label }}</label>
     <input
       :id="id"
       :type="type"
@@ -32,11 +32,11 @@ defineEmits<{ 'update:modelValue': [value: string] }>()
       :autocomplete="autocomplete"
       :required="required"
       :disabled="disabled"
-      class="w-full rounded-xl border border-mist-300 bg-white px-4 py-3 text-[15px] text-ink-900 placeholder:text-mist-400 focus:border-brand-500"
-      :class="[error ? 'border-danger-500' : '', inputClass]"
+      class="field-surface w-full px-4 py-3 text-[15px] outline-none focus:border-primary disabled:opacity-50"
+      :class="[error ? 'border-danger!' : '', inputClass]"
       @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
     />
-    <p v-if="error" class="text-sm font-medium text-danger-600" role="alert">{{ error }}</p>
-    <p v-else-if="hint" class="text-sm text-ink-500">{{ hint }}</p>
+    <p v-if="error" class="text-sm font-medium text-danger" role="alert">{{ error }}</p>
+    <p v-else-if="hint" class="text-sm text-text-muted">{{ hint }}</p>
   </div>
 </template>

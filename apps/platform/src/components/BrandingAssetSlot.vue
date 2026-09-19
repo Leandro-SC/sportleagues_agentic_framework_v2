@@ -93,39 +93,39 @@ onBeforeUnmount(revokeLocalPreview)
   <section class="min-w-0" :aria-labelledby="`branding-${kind}`">
     <div class="mb-2 flex items-baseline justify-between gap-3">
       <div>
-        <h3 :id="`branding-${kind}`" class="text-sm font-semibold text-ink-900">{{ heading }}</h3>
-        <p class="mt-0.5 text-xs text-ink-500">{{ dimensionsCopy }}</p>
+        <h3 :id="`branding-${kind}`" class="text-sm font-semibold text-text">{{ heading }}</h3>
+        <p class="mt-0.5 text-xs text-text-muted">{{ dimensionsCopy }}</p>
       </div>
-      <span v-if="pending && !busy" class="text-xs font-medium text-warn-600">Listo para subir</span>
+      <span v-if="pending && !busy" class="text-xs font-medium text-warn">Listo para subir</span>
     </div>
 
     <div
-      class="relative overflow-hidden rounded-xl border border-mist-200 bg-mist-50"
+      class="relative overflow-hidden rounded-xl border border-border bg-surface-2"
       :class="isLogo ? 'aspect-square max-w-44' : 'aspect-[8/3] w-full'"
     >
       <img v-if="previewUrl" :src="previewUrl" :alt="`${heading} actual`" class="h-full w-full" :class="isLogo ? 'object-contain p-5' : 'object-cover'" />
-      <div v-else class="flex h-full flex-col items-center justify-center px-4 text-center text-ink-500">
-        <ImageIcon class="mb-2 h-5 w-5 text-mist-400" aria-hidden="true" />
-        <p class="text-sm font-medium text-ink-700">{{ isLogo ? 'Sin logo personalizado' : 'Sin banner personalizado' }}</p>
+      <div v-else class="flex h-full flex-col items-center justify-center px-4 text-center text-text-muted">
+        <ImageIcon class="mb-2 h-5 w-5 text-text-faint" aria-hidden="true" />
+        <p class="text-sm font-medium text-text">{{ isLogo ? 'Sin logo personalizado' : 'Sin banner personalizado' }}</p>
         <p class="mt-1 text-xs">{{ emptyCopy }}</p>
       </div>
-      <div v-if="busy" class="absolute inset-0 flex items-center justify-center gap-2 bg-white/80 text-sm font-medium text-ink-700" role="status">
-        <LoaderCircle class="h-4 w-4 animate-spin text-brand-600" />Subiendo {{ heading.toLowerCase() }}…
+      <div v-if="busy" class="absolute inset-0 flex items-center justify-center gap-2 bg-canvas/80 text-sm font-medium text-text" role="status">
+        <LoaderCircle class="h-4 w-4 animate-spin text-primary" />Subiendo {{ heading.toLowerCase() }}…
       </div>
     </div>
 
-    <p v-if="plan === 'free'" class="mt-3 text-sm text-ink-600">Logo y banner personalizados están disponibles en PRO.</p>
+    <p v-if="plan === 'free'" class="mt-3 text-sm text-text-muted">Logo y banner personalizados están disponibles en PRO.</p>
     <template v-else>
       <input ref="input" class="sr-only" type="file" accept="image/png,image/jpeg,image/webp" :aria-label="`Seleccionar ${heading.toLowerCase()}`" :disabled="busy" @change="selectFile" />
       <div class="mt-3 flex flex-wrap gap-2">
         <PrimaryButton :full-width="false" :disabled="busy" @click="openPicker"><Upload class="h-4 w-4" />{{ asset ? 'Reemplazar' : `Subir ${heading.toLowerCase()}` }}</PrimaryButton>
         <SecondaryButton v-if="asset" :full-width="false" tone="danger" :disabled="busy" @click="requestRemoval"><Trash2 class="h-4 w-4" />Eliminar</SecondaryButton>
       </div>
-      <div v-if="confirmingRemoval" class="mt-3 flex items-center justify-between gap-3 rounded-xl border border-mist-200 bg-white p-3 text-sm">
-        <p class="font-medium text-ink-800">¿Eliminar el {{ heading.toLowerCase() }}?</p>
-        <div class="flex shrink-0 gap-2"><button type="button" class="rounded-lg px-2.5 py-1.5 text-ink-600 hover:bg-mist-100" @click="confirmingRemoval = false">Cancelar</button><button type="button" class="rounded-lg bg-danger-100 px-2.5 py-1.5 font-semibold text-danger-600 hover:bg-danger-100/70" @click="confirmRemoval">Eliminar</button></div>
+      <div v-if="confirmingRemoval" class="mt-3 flex items-center justify-between gap-3 rounded-xl border border-border bg-surface-2 p-3 text-sm">
+        <p class="font-medium text-text">¿Eliminar el {{ heading.toLowerCase() }}?</p>
+        <div class="flex shrink-0 gap-2"><button type="button" class="rounded-lg px-2.5 py-1.5 text-text-muted hover:bg-surface-3" @click="confirmingRemoval = false">Cancelar</button><button type="button" class="rounded-lg bg-danger-100 px-2.5 py-1.5 font-semibold text-danger hover:bg-danger-100/70" @click="confirmRemoval">Eliminar</button></div>
       </div>
     </template>
-    <p v-if="localError || error" class="mt-2 text-sm font-medium text-danger-600" role="alert">{{ localError || error }}</p>
+    <p v-if="localError || error" class="mt-2 text-sm font-medium text-danger" role="alert">{{ localError || error }}</p>
   </section>
 </template>

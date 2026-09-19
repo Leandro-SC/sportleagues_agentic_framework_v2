@@ -34,17 +34,17 @@ async function submit(): Promise<void> {
   <AppShell variant="focus">
     <section class="w-full space-y-6">
       <div class="flex flex-col items-center gap-3 text-center">
-        <span class="flex h-16 w-16 items-center justify-center rounded-full bg-ink-900 font-display text-xl font-bold text-white">{{ initials }}</span>
+        <span class="flex h-16 w-16 items-center justify-center rounded-full bg-primary font-display text-xl font-bold text-canvas shadow-glow-primary">{{ initials }}</span>
         <div>
-          <h1 class="font-display text-xl font-bold text-ink-950">Completa tu perfil</h1>
-          <p class="mt-1 text-sm text-ink-500">Usaremos este nombre para mostrarte en tus quinielas.</p>
+          <h1 class="font-display text-xl font-bold text-text">Completa tu perfil</h1>
+          <p class="mt-1 text-sm text-text-muted">Usaremos este nombre para mostrarte en tus quinielas.</p>
         </div>
       </div>
-      <form class="space-y-4 rounded-2xl border border-mist-200 bg-white p-5 shadow-md" @submit.prevent="submit">
+      <form class="space-y-4 app-surface-raised p-5" @submit.prevent="submit">
         <FormField id="display-name" v-model="displayName" label="Nombre para mostrar" :maxlength="80" required placeholder="Como quieres que te vean" />
         <PrimaryButton type="submit" :loading="saving">Continuar</PrimaryButton>
       </form>
-      <p v-if="error" class="text-center text-sm font-medium text-danger-600" role="alert">{{ error }}</p>
+      <p v-if="error" class="text-center text-sm font-medium text-danger" role="alert">{{ error }}</p>
     </section>
   </AppShell>
 </template>

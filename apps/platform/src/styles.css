@@ -1,68 +1,87 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap");
 @import "tailwindcss";
 
+/*
+  SportLeagues Design System — dark navy / neon sport theme.
+  See docs/design/DESIGN-SYSTEM.md for the full token reference and usage rules.
+*/
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Manrope", "Inter", ui-sans-serif, system-ui, sans-serif;
 
-  --color-mist-50: #f8fafd;
-  --color-mist-100: #f1f4fa;
-  --color-mist-200: #e4e9f3;
-  --color-mist-300: #ccd4e6;
-  --color-mist-400: #a9b4ce;
+  /* Surfaces */
+  --color-canvas: #03111c;
+  --color-surface: #071b29;
+  --color-surface-2: #0a2434;
+  --color-surface-3: #0f2e3f;
 
-  --color-ink-500: #4b5875;
-  --color-ink-600: #38455f;
-  --color-ink-700: #26314a;
-  --color-ink-800: #16213a;
-  --color-ink-900: #0b1220;
-  --color-ink-950: #05070d;
+  /* Accents */
+  --color-primary: #21f59a;
+  --color-primary-600: #12c97d;
+  --color-primary-100: #0e3a2c;
+  --color-secondary: #16d8f4;
+  --color-secondary-600: #0fa9c2;
+  --color-secondary-100: #0b3440;
 
-  --color-brand-100: #e7eeff;
-  --color-brand-300: #a9beff;
-  --color-brand-500: #3b5be0;
-  --color-brand-600: #2c48c7;
-  --color-brand-700: #1f379e;
+  /* Text */
+  --color-text: #f7fafc;
+  --color-text-muted: #8fa6b5;
+  --color-text-faint: #5c7889;
 
-  --color-success-100: #e1f7ec;
-  --color-success-500: #1f9d6b;
-  --color-success-600: #17835a;
+  /* Borders */
+  --color-border: #12293a;
+  --color-border-strong: #1c3c50;
 
-  --color-warn-100: #fef2da;
-  --color-warn-500: #c2790e;
-  --color-warn-600: #a5670c;
+  /* Status */
+  --color-success: #21f59a;
+  --color-success-100: #0e3a2c;
+  --color-warn: #ffc24b;
+  --color-warn-100: #3a2a0c;
+  --color-danger: #ff5d7a;
+  --color-danger-100: #3a121f;
 
-  --color-danger-100: #fce4e8;
-  --color-danger-500: #d0304a;
-  --color-danger-600: #b22440;
-
-  --radius-lg: 1.125rem;
-  --radius-xl: 1.5rem;
-  --radius-2xl: 1.875rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
   --radius-pill: 999px;
 
-  --shadow-sm: 0 1px 2px rgba(11, 18, 32, 0.06);
-  --shadow-md: 0 8px 24px rgba(11, 18, 32, 0.1);
-  --shadow-lg: 0 20px 45px rgba(11, 18, 32, 0.16);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.24);
+  --shadow-md: 0 10px 30px rgba(2, 8, 14, 0.45);
+  --shadow-lg: 0 24px 60px rgba(2, 8, 14, 0.55);
+  --shadow-glow-primary: 0 0 0 1px rgba(33, 245, 154, 0.16), 0 8px 24px rgba(33, 245, 154, 0.18);
+  --shadow-glow-secondary: 0 0 0 1px rgba(22, 216, 244, 0.16), 0 8px 24px rgba(22, 216, 244, 0.16);
 }
 
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;
+    color-scheme: dark;
   }
 
   body {
-    @apply bg-mist-50 font-sans text-ink-900 antialiased;
+    @apply bg-canvas font-sans text-text antialiased;
+    background-image: radial-gradient(120% 60% at 50% 0%, rgba(22, 216, 244, 0.08) 0%, rgba(3, 17, 28, 0) 55%);
+    background-repeat: no-repeat;
   }
 
   h1,
   h2,
   h3 {
-    @apply font-display text-ink-950;
+    @apply font-display text-text;
+  }
+
+  ::selection {
+    background: rgba(33, 245, 154, 0.28);
   }
 
   :focus-visible {
-    @apply outline-2 outline-offset-2 outline-brand-500;
+    @apply outline-2 outline-offset-2 outline-primary;
+  }
+
+  input,
+  select,
+  textarea {
+    color-scheme: dark;
   }
 }
 
@@ -75,8 +94,20 @@
     padding-bottom: max(env(safe-area-inset-bottom), 0px);
   }
 
+  .app-surface {
+    @apply rounded-2xl border border-border bg-surface;
+  }
+
+  .app-surface-raised {
+    @apply rounded-2xl border border-border bg-surface shadow-md;
+  }
+
+  .field-surface {
+    @apply rounded-xl border border-border bg-surface-2 text-text placeholder:text-text-faint;
+  }
+
   .skeleton-shimmer {
-    background-image: linear-gradient(90deg, var(--color-mist-200) 25%, var(--color-mist-100) 37%, var(--color-mist-200) 63%);
+    background-image: linear-gradient(90deg, var(--color-surface-2) 25%, var(--color-surface-3) 37%, var(--color-surface-2) 63%);
     background-size: 400% 100%;
     animation: shimmer 1.6s ease-in-out infinite;
   }

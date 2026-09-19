@@ -6,11 +6,11 @@ withDefaults(defineProps<{ label: string; tone?: 'brand' | 'success' | 'warn' | 
 })
 
 const toneClasses: Record<string, string> = {
-  brand: 'bg-brand-100 text-brand-700',
-  success: 'bg-success-100 text-success-600',
-  warn: 'bg-warn-100 text-warn-600',
-  danger: 'bg-danger-100 text-danger-600',
-  neutral: 'bg-mist-100 text-ink-600',
+  brand: 'bg-secondary-100 text-secondary',
+  success: 'bg-primary-100 text-primary',
+  warn: 'bg-warn-100 text-warn',
+  danger: 'bg-danger-100 text-danger',
+  neutral: 'bg-surface-2 text-text-muted',
 }
 </script>
 

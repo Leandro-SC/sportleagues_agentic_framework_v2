@@ -19,16 +19,16 @@ const statusLabel: Record<string, string> = { active: 'Acceso confirmado', pendi
 
 <template>
   <div
-    class="rounded-2xl border border-mist-200 bg-gradient-to-br from-ink-900 to-ink-700 text-white shadow-md"
+    class="rounded-2xl border border-border bg-linear-to-br from-surface-2 to-surface text-text shadow-md"
     :class="variant === 'hero' ? 'p-6' : 'p-4'"
   >
     <div class="flex items-start justify-between gap-3">
       <div class="flex items-center gap-3">
-        <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10">
-          <Trophy class="h-5 w-5 text-brand-300" />
+        <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-100">
+          <Trophy class="h-5 w-5 text-primary" />
         </span>
         <div>
-          <p v-if="competition" class="text-xs font-medium uppercase tracking-wide text-white/60">{{ competition }}</p>
+          <p v-if="competition" class="text-xs font-medium uppercase tracking-wide text-text-muted">{{ competition }}</p>
           <h2 class="font-display font-bold" :class="variant === 'hero' ? 'text-xl' : 'text-base'">{{ name }}</h2>
         </div>
       </div>

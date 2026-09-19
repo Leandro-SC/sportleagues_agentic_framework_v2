@@ -72,6 +72,43 @@ No se desplegaron funciones: falta `CORS_ALLOWED_ORIGINS` en QA; `BRANDING_RECON
 quedó configurado posteriormente.
 Fase 06 permanece bloqueada por ese gate y por los pendientes manuales/fixtures/Superadmin.
 
+## Provisioning QA parcial (2026-09-19)
+
+- Superadmin bootstrap provisionado en `platform_admins`, confirmado por `is_platform_admin()`;
+  no existe acceso directo de `authenticated` a esa tabla.
+- Admin 2 provisionado como admin exclusivamente de Tenant B. Usuario quedó como member de
+  Tenant A; ambos negativos admin/global confirmados por helpers SQL.
+- Admin 1 completó onboarding y fue asignado como admin exclusivamente de Tenant A; Tenant B y
+  plataforma siguen denegados. No se modificó `auth.users`.
+- Happy paths de Functions pendientes: falta sesión Auth real/JWT de prueba y la credencial interna
+  no se recupera ni rota.
+
+Fase 05/05-bis sigue sin ACCEPTED; no iniciar Fase 06.
+
+## Consolidación final parcial (2026-09-19)
+
+- Matriz QA consolidada: Usuario normal sin admin/global; Admin 1 solo Tenant A; Admin 2 solo
+  Tenant B; Superadmin confirmado, sin acceso directo a `platform_admins`.
+- El operador informó Magic Link PASS y Google OAuth PASS en el frontend QA; no se almacenaron
+  sesiones ni se automatizó autenticación.
+- Build PASS y `git diff --check` PASS. `supabase test db --linked`: BLOCKED_EXTERNAL por Docker.
+- No recomendar ACCEPTED: faltan happy paths HTTP autenticados de branding-asset y reconciler;
+  no recuperar, registrar ni rotar JWT/secretos para reemplazarlos.
+
+No iniciar Fase 06.
+
+## Ejecución QA canónica (2026-09-19)
+
+- Migration list: 11/11 sincronizadas; `db push --dry-run`: sin pendientes, no se aplicó push.
+- SQL QA PASS: phase-03 RLS, phase-05 admin RPC, branding assets, security regression y
+  platform-admin; todas las suites revierten sus fixtures.
+- `supabase test db --linked`: BLOCKED_EXTERNAL por Docker Desktop ausente.
+- No se provisionaron QA User/Admin A/Admin B/Superadmin ni happy paths de Functions: faltan
+  identidades Auth accesibles, JWT de prueba y credencial interna segura. El bootstrap de
+  Superadmin requiere un UUID Auth real proporcionado/confirmado por el operador.
+
+Fase 05/05-bis sigue sin ACCEPTED; no iniciar Fase 06.
+
 ## Recuperación canónica (2026-09-19)
 
 - SQL remoto QA PASS: branding assets, admin RPC y RLS; todas las suites revierten sus fixtures.

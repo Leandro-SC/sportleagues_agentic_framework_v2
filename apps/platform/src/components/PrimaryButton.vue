@@ -13,7 +13,7 @@ withDefaults(defineProps<{ loading?: boolean; disabled?: boolean; fullWidth?: bo
   <button
     :type="type"
     :disabled="loading || disabled"
-    class="press-scale inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 py-3.5 text-[15px] font-semibold text-white shadow-sm transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-mist-300 disabled:text-mist-400 disabled:shadow-none"
+    class="press-scale inline-flex items-center justify-center gap-2 rounded-pill bg-primary px-5 py-3.5 text-[15px] font-bold text-text shadow-glow-primary transition-colors hover:bg-primary-600 disabled:cursor-not-allowed disabled:bg-surface-3 disabled:text-text-faint disabled:shadow-none"
     :class="fullWidth ? 'w-full' : ''"
   >
     <LoaderCircle v-if="loading" class="h-4 w-4 animate-spin" />

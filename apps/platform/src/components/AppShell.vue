@@ -18,7 +18,7 @@ const joinOpen = defineModel<boolean>('joinOpen', { default: false })
 </script>
 
 <template>
-  <div class="mx-auto flex min-h-screen max-w-lg flex-col">
+  <div class="mx-auto flex min-h-screen max-w-lg flex-col bg-canvas">
     <TopBar v-if="variant !== 'focus'" :variant="variant === 'app' ? 'app' : 'guest'" :title="title" :user-name="userName" />
     <main class="flex-1 px-5 pb-8" :class="variant === 'focus' ? 'safe-top flex items-center justify-center' : 'pt-1'">
       <div class="w-full">
@@ -28,7 +28,7 @@ const joinOpen = defineModel<boolean>('joinOpen', { default: false })
     <button
       v-if="variant === 'app'"
       type="button"
-      class="press-scale fixed bottom-20 right-5 z-20 flex h-14 w-14 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg"
+      class="press-scale fixed bottom-20 right-5 z-20 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-canvas shadow-glow-primary"
       aria-label="Unirme con código"
       @click="joinOpen = true"
     >

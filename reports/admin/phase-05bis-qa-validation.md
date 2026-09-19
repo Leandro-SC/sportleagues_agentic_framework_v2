@@ -282,6 +282,56 @@ Gates: `npm run typecheck` PASS; `npm test` PASS (10 archivos / 49 tests); `npm 
 ACCEPTED: faltan happy paths HTTP autenticados de ambas Functions, cuentas QA accesibles y QA
 manual crítica/Magic Link. No se registraron secretos ni JWT.
 
+## 26. Provisioning QA y autorización de base de datos (2026-09-19)
+
+Provisioning mediante tablas existentes, sin editar `auth.users` ni guardar UUIDs en el repositorio:
+
+- bootstrap de Superadmin en `platform_admins` según ADR-008;
+- Admin 2 como `admin` activo solo en Tenant B;
+- Usuario como `member` activo en Tenant A, sin privilegios admin/global;
+- la membership previa de Admin 2 en Tenant A fue desactivada para mantener el negativo
+  cross-tenant;
+- Admin 1 completó onboarding y fue asignado como `admin` activo exclusivamente en Tenant A.
+
+Verificación SQL con las identidades Auth: Usuario member=A/admin=false/platform=false; Admin
+2 admin=A=false/B=true/platform=false; Superadmin platform=true y SELECT directo sobre
+`platform_admins`=false; Admin 1 A=true/B=false/platform=false.
+
+Los happy paths HTTP de `branding-asset` y `branding-reconciler` quedan pendientes de una sesión
+Auth real/JWT de prueba y la credencial interna existente; no se consultaron, imprimieron ni
+rotaron secretos. No hay ACCEPTED.
+
+## 27. Consolidación final parcial (2026-09-19)
+
+Matriz QA consolidada: Usuario normal sin admin/global; Admin 1 admin solo Tenant A; Admin 2
+admin solo Tenant B; Superadmin `is_platform_admin()=true` sin SELECT directo sobre
+`platform_admins`. Los negativos cross-tenant y globales se validaron con helpers SQL.
+
+Evidencia manual declarada por el operador: Magic Link PASS y Google OAuth PASS en
+`https://sportleagues-qa.vercel.app`. No se automatizó login ni se almacenaron sesiones.
+
+Gates: typecheck y test ejecutados; build PASS; `git diff --check` PASS. `supabase test db
+--linked` sigue **BLOCKED_EXTERNAL** por Docker Desktop ausente.
+
+No recomendar ACCEPTED aún: faltan happy paths HTTP reales de `branding-asset` con JWT válido y
+de `branding-reconciler` mediante su mecanismo interno autorizado. No se expondrán ni rotarán
+credenciales para completar esos casos.
+
+## 25. Ejecución QA desde repositorio canónico (2026-09-19)
+
+`supabase migration list` confirmó 11 migraciones sincronizadas y `supabase db push --dry-run`
+no mostró migraciones pendientes; no se ejecutó `db push`.
+
+PASS remoto QA, todas transaccionales: `phase-03-rls`, `phase-05-admin-rpc`,
+`phase-05-branding-assets`, `phase-05-branding-asset-security-regression` y
+`phase-05bis-platform-admin`.
+
+`supabase test db --linked` es **BLOCKED_EXTERNAL** por ausencia de
+`dockerDesktopLinuxEngine`. No se provisionaron cuentas QA persistentes: el runbook de
+Superadmin requiere un UUID de una identidad Auth real y accesible, y los happy paths de ambas
+Functions requieren JWT o credencial interna que no se pueden recuperar, registrar ni rotar para
+esta validación. No hay ACCEPTED.
+
 ## 22. Preparación operativa de Edge Functions (2026-09-17)
 
 `BRANDING_RECONCILER_SECRET` fue configurado en QA desde un valor criptográficamente seguro

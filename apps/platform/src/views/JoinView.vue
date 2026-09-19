@@ -33,18 +33,18 @@ onMounted(() => { void continueJoin() })
   <AppShell variant="focus">
     <section class="w-full space-y-5 text-center">
       <template v-if="joiner.loading.value || (!status && !joiner.error.value)">
-        <span class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-brand-100 text-brand-600">
+        <span class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary-100 text-primary">
           <KeyRound class="h-7 w-7" />
         </span>
         <div>
-          <h1 class="font-display text-xl font-bold text-ink-950">Uniéndote a la quiniela</h1>
-          <p class="mt-1 flex items-center justify-center gap-2 text-sm text-ink-500"><LoaderCircle class="h-4 w-4 animate-spin" />Validando tu acceso…</p>
+          <h1 class="font-display text-xl font-bold text-text">Uniéndote a la quiniela</h1>
+          <p class="mt-1 flex items-center justify-center gap-2 text-sm text-text-muted"><LoaderCircle class="h-4 w-4 animate-spin" />Validando tu acceso…</p>
         </div>
       </template>
       <ErrorState v-if="joiner.error.value" :description="joiner.error.value">
         <template #action><SecondaryButton @click="router.push({ name: 'home' })">Volver al inicio</SecondaryButton></template>
       </ErrorState>
-      <p v-else-if="status" class="rounded-xl bg-success-100 p-4 text-sm font-medium text-success-600">{{ status }}</p>
+      <p v-else-if="status" class="rounded-xl bg-primary-100 p-4 text-sm font-medium text-primary">{{ status }}</p>
     </section>
   </AppShell>
 </template>
