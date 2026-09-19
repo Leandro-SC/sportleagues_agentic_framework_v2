@@ -129,4 +129,18 @@
     transform: scale(0.97);
     opacity: 0.9;
   }
+
+  /* Stadium lighting treatment from the approved visual reference, implemented
+     without a decorative raster asset or fabricated competition data. */
+  .stadium-hero {
+    background:
+      radial-gradient(110% 80% at 50% 0%, rgba(22, 216, 244, 0.20) 0%, rgba(3, 17, 28, 0) 55%),
+      radial-gradient(80% 52% at 50% 100%, rgba(33, 245, 154, 0.15) 0%, rgba(3, 17, 28, 0) 72%),
+      linear-gradient(160deg, rgba(10, 36, 52, 0.88) 0%, rgba(3, 17, 28, 0.97) 68%),
+      url('/images/stadium-night-alex-simpson.jpg') center / cover no-repeat;
+  }
+
+  .section-kicker {
+    @apply text-[11px] font-bold uppercase tracking-[0.16em] text-primary;
+  }
 }

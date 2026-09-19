@@ -46,6 +46,63 @@ Identificar:
 
 ---
 
+## Design System obligatorio
+
+Usar como referencia visual oficial:
+
+- `docs/design/reference/sportleagues-ui-reference.png`
+- `docs/design/DESIGN-SYSTEM.md`
+- `apps/platform/src/styles.css`
+
+Toda nueva UI debe continuar el diseño vigente de SportLeagues.
+
+No tratar el Design System como inspiración; tratarlo como una restricción del producto.
+
+Antes de diseñar o modificar una vista:
+1. Revisar los componentes existentes.
+2. Revisar los tokens actuales.
+3. Reutilizar patrones existentes cuando sea posible.
+4. Identificar si el nuevo requerimiento necesita extender el Design System.
+
+Mantener:
+- dark navy como canvas principal;
+- superficies oscuras;
+- primary verde neón;
+- secondary cyan;
+- cards redondeadas;
+- botones pill;
+- iconografía outline;
+- bordes sutiles;
+- jerarquía tipográfica vigente;
+- navegación coherente;
+- enfoque mobile-first.
+
+Evitar:
+- estilos legacy;
+- nuevos sistemas visuales paralelos;
+- componentes visualmente aislados;
+- colores arbitrarios;
+- radios inconsistentes;
+- spacing no alineado al sistema;
+- duplicación innecesaria de estilos.
+
+Si un requerimiento nuevo no cabe en los patrones actuales:
+1. ampliar primero `docs/design/DESIGN-SYSTEM.md`;
+2. añadir o extender tokens/componentes reutilizables;
+3. implementar después la feature.
+
+### Definition of Done UI
+
+Una funcionalidad frontend solo está terminada si:
+- funciona correctamente;
+- usa el Design System vigente;
+- es visualmente consistente con SportLeagues;
+- es responsive;
+- es accesible;
+- reutiliza componentes existentes cuando corresponde;
+- no introduce regresión visual al diseño legacy;
+- no contiene estilos ad hoc innecesarios.
+
 # 3. Jerarquía
 
 Cada pantalla debe tener:

@@ -177,6 +177,20 @@ No se recomienda ACCEPTED todavía: falta ejecutar el happy path HTTP real de `b
 con JWT Auth válido y el de `branding-reconciler` mediante su credencial interna autorizada. No se
 consultarán, registrarán ni rotarán secretos para suplir esos requisitos.
 
+## Alineación visual con la referencia (2026-09-19)
+
+Se actualizó la experiencia móvil de acceso, inicio, quiniela, unión y perfil para aplicar la
+jerarquía visual de la referencia aprobada: héroes deportivos oscuros, acentos verde neón/cian,
+cards redondeadas y navegación inferior Inicio/Partidos/Ligas/Perfil. El hero usa una fotografía
+local de estadio con licencia Unsplash y atribución documentada, bajo capas de contraste. Magic Link, Google OAuth,
+unión por código, administración y cierre de sesión mantienen sus contratos existentes.
+
+Partidos y Tabla son indicadores no interactivos de Fase 06/08; no se añadieron rutas, datos,
+notificaciones, búsqueda ni resultados ficticios. Gates de frontend: `npm run typecheck`, `npm
+test` (10 archivos / 49 tests) y `npm run build`: PASS; revisión visual local de la pantalla
+pública y `git diff --check`: PASS. Esta mejora no modifica el bloqueo de cierre de Fase 05/05-bis
+ni inicia Fase 06.
+
 ## Bloqueo operativo de Edge Functions (2026-09-17)
 
 `BRANDING_RECONCILER_SECRET` está configurado en QA con un valor criptográficamente seguro

@@ -29,8 +29,8 @@ async function logout(): Promise<void> {
 <template>
   <AppShell variant="app" active="profile" title="Perfil" :user-name="auth.state.profile?.display_name">
     <section class="space-y-6 pt-2">
-      <div class="flex flex-col items-center gap-3 app-surface-raised p-6 text-center">
-        <span class="flex h-16 w-16 items-center justify-center rounded-full bg-primary font-display text-xl font-bold text-canvas shadow-glow-primary">{{ initials }}</span>
+      <div class="stadium-hero flex flex-col items-center gap-3 rounded-3xl border border-secondary/25 p-6 text-center shadow-md">
+        <span class="flex h-20 w-20 items-center justify-center rounded-full border border-primary/50 bg-surface-2 font-display text-2xl font-bold text-primary shadow-glow-primary">{{ initials }}</span>
         <h1 class="text-lg font-bold text-text">{{ auth.state.profile?.display_name ?? 'Sin nombre' }}</h1>
         <p class="flex items-center gap-1.5 text-sm text-text-muted"><Mail class="h-4 w-4" />{{ auth.state.user?.email }}</p>
       </div>

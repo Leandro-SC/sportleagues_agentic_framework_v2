@@ -71,6 +71,9 @@ para fondos de badges/alertas, y el color base para texto/iconos/bordes.
 - `.press-scale`: microinteracción de presión (scale 0.97 + opacity en
   `:active`) para todo elemento pulsable.
 - `.skeleton-shimmer`: animación de carga sobre `surface-2` → `surface-3`.
+- `.stadium-hero`: fondo de luz de estadio con los acentos oficiales; se usa en
+  los héroes de acceso, quiniela y perfil. Usa una fotografía local de estadio
+  bajo capas de contraste; su atribución está en `docs/design/ASSET-ATTRIBUTIONS.md`.
 
 ## Componentes globales
 
@@ -78,7 +81,7 @@ para fondos de badges/alertas, y el color base para texto/iconos/bordes.
 | --- | --- |
 | `AppShell.vue` | Layout de página: `TopBar` + contenido + `BottomNav` + FAB de unión por código. Variantes `guest` / `app` / `focus` (pantallas centradas sin chrome, p. ej. onboarding). |
 | `TopBar.vue` | Header fijo compacto: logo (ícono trofeo en pill verde) + nombre de marca; en variante `app` agrega enlace "Admin" (cian) y avatar circular con anillo verde. |
-| `BottomNav.vue` | Navegación inferior fija, 4 accesos. Ítem activo: icono dentro de un círculo relleno verde neón (`bg-primary text-canvas`) + label en verde; ítems deshabilitados (fases futuras) quedan atenuados con badge de fase. |
+| `BottomNav.vue` | Navegación inferior fija, 4 accesos (Inicio, Partidos, Ligas y Perfil). Ítem activo: icono dentro de un círculo relleno verde neón (`bg-primary text-canvas`) + label en verde; ítems deshabilitados (fases futuras) quedan atenuados con badge de fase. |
 | `SuperadminShell.vue` | Layout del entorno de plataforma: header propio + navegación lateral/tabs con el mismo lenguaje visual (superficie oscura, acentos cian para "verificado"). |
 | `PrimaryButton.vue` | Botón pill sólido verde neón, texto blanco, glow sutil. Estado disabled en `surface-3`. |
 | `SecondaryButton.vue` | Botón pill outline (borde verde o rojo en `tone="danger"`), fondo transparente, texto blanco. |

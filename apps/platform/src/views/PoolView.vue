@@ -31,7 +31,15 @@ watch(
       </div>
 
       <template v-else-if="access.pool.value">
-        <PoolCard :name="access.pool.value.name" variant="hero" status="active" />
+        <div class="stadium-hero overflow-hidden rounded-3xl border border-secondary/25 p-1 shadow-md">
+          <PoolCard :name="access.pool.value.name" variant="hero" status="active" />
+        </div>
+
+        <div class="flex items-center gap-5 overflow-x-auto border-b border-border px-1 text-sm font-semibold" aria-label="Secciones de la quiniela">
+          <span class="border-b-2 border-primary pb-3 text-primary">Resumen</span>
+          <span class="pb-3 text-text-faint">Partidos · Fase 06</span>
+          <span class="pb-3 text-text-faint">Tabla · Fase 08</span>
+        </div>
 
         <div>
           <h2 class="mb-3 font-display text-base font-bold text-text">Próximos partidos</h2>

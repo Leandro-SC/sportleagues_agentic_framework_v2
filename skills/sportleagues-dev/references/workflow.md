@@ -13,6 +13,18 @@ El objetivo es evitar dos extremos:
 
 ---
 
+### Cambios frontend
+
+Toda implementación frontend nueva debe revisar primero:
+
+- `docs/design/DESIGN-SYSTEM.md`
+- `docs/design/reference/sportleagues-ui-reference.png`
+- `apps/platform/src/styles.css`
+
+El Design System vigente es obligatorio para features nuevas.
+
+No aprobar una tarea frontend si introduce estilos inconsistentes o vuelve al diseño legacy.
+
 # 1. Inicio
 
 Leer siempre:

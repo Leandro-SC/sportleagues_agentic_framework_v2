@@ -33,7 +33,7 @@ onMounted(() => { void continueJoin() })
   <AppShell variant="focus">
     <section class="w-full space-y-5 text-center">
       <template v-if="joiner.loading.value || (!status && !joiner.error.value)">
-        <span class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary-100 text-primary">
+        <span class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-canvas shadow-glow-primary">
           <KeyRound class="h-7 w-7" />
         </span>
         <div>

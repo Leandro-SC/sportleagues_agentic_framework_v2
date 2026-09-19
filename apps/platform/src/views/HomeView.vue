@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { KeyRound, ListChecks, Sparkles, Target, Trophy } from 'lucide-vue-next'
+import { ArrowRight, KeyRound, ListChecks, Sparkles, Target, Trophy } from 'lucide-vue-next'
 import AppShell from '../components/AppShell.vue'
 import EmptyState from '../components/EmptyState.vue'
 import FormField from '../components/FormField.vue'
@@ -59,17 +59,14 @@ async function google(): Promise<void> {
     title="Inicio"
     :user-name="auth.state.profile?.display_name"
   >
-    <section v-if="!auth.isAuthenticated.value" class="space-y-7 pb-4 pt-2">
-      <div class="relative -mx-5 overflow-hidden px-5 pb-8 pt-6 text-center">
-        <div
-          class="pointer-events-none absolute inset-0 -z-10"
-          style="background: radial-gradient(120% 100% at 50% 0%, rgba(33,245,154,0.16) 0%, rgba(3,17,28,0) 60%)"
-        />
-        <span class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-canvas shadow-glow-primary">
-          <Trophy class="h-8 w-8" />
+    <section v-if="!auth.isAuthenticated.value" class="space-y-5 pb-4 pt-2">
+      <div class="stadium-hero relative -mx-5 overflow-hidden rounded-b-3xl border-b border-secondary/20 px-5 pb-9 pt-8 text-center shadow-md">
+        <span class="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-primary text-canvas shadow-glow-primary">
+          <Trophy class="h-10 w-10" />
         </span>
-        <h1 class="mt-4 font-display text-[1.75rem] font-extrabold leading-tight text-text">SportLeagues</h1>
-        <p class="mt-1 text-sm text-text-muted">Tu pasión, en cada partido.</p>
+        <p class="section-kicker mt-6">Juega · Compite · Conecta</p>
+        <h1 class="mt-2 font-display text-4xl font-extrabold leading-none tracking-tight text-text">Sport<span class="text-primary">Leagues</span></h1>
+        <p class="mt-3 text-sm text-text-muted">Tu pasión, en cada partido.</p>
         <div class="mt-4 flex flex-wrap items-center justify-center gap-2">
           <StatChip label="Multi-tenant seguro" :icon="Trophy" tone="brand" />
           <StatChip label="Elo + Poisson" :icon="Sparkles" tone="success" />
@@ -77,10 +74,14 @@ async function google(): Promise<void> {
       </div>
 
       <div class="space-y-3 app-surface-raised p-5">
-        <h2 class="font-display text-base font-bold text-text">Iniciar sesión</h2>
+        <div>
+          <p class="section-kicker">Bienvenido</p>
+          <h2 class="mt-1 font-display text-xl font-bold text-text">Inicia sesión</h2>
+          <p class="mt-1 text-sm text-text-muted">Recibe un acceso seguro en tu correo.</p>
+        </div>
         <form class="space-y-3" @submit.prevent="magicLink">
           <FormField id="email" v-model="email" type="email" label="Correo electrónico" autocomplete="email" required placeholder="tú@correo.com" />
-          <PrimaryButton type="submit" :loading="sendingMagic">Enviar magic link</PrimaryButton>
+          <PrimaryButton type="submit" :loading="sendingMagic">Enviar magic link <ArrowRight class="h-4 w-4" /></PrimaryButton>
         </form>
         <div class="flex items-center gap-3 text-xs font-medium uppercase tracking-wide text-text-faint">
           <span class="h-px flex-1 bg-border" />o<span class="h-px flex-1 bg-border" />
@@ -121,33 +122,42 @@ async function google(): Promise<void> {
       <template v-else>
         <div class="flex items-center justify-between gap-3">
           <div>
+            <p class="section-kicker">Inicio</p>
             <h1 class="font-display text-xl font-bold text-text">Hola, {{ auth.state.profile.display_name }} 👋</h1>
             <p class="text-sm text-text-muted">El deporte nos une.</p>
           </div>
           <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-2 font-display text-sm font-bold text-text ring-1 ring-primary/40">{{ initials }}</span>
         </div>
 
-        <EmptyState :icon="Trophy" title="Aún no perteneces a ninguna quiniela" description="Únete con el código que te compartió el administrador para empezar a predecir y sumar puntos.">
+        <div class="stadium-hero overflow-hidden rounded-3xl border border-secondary/25 p-5 shadow-md">
+          <span class="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-canvas shadow-glow-primary"><Trophy class="h-5 w-5" /></span>
+          <p class="section-kicker mt-5">Tu próxima jugada</p>
+          <h2 class="mt-1 font-display text-xl font-bold text-text">Únete a una quiniela</h2>
+          <p class="mt-2 text-sm leading-5 text-text-muted">Ingresa el código que te compartió tu organizador y compite con tu comunidad.</p>
+          <PrimaryButton class="mt-5" @click="joinOpen = true"><KeyRound class="h-4 w-4" />Unirme con código</PrimaryButton>
+        </div>
+
+        <EmptyState :icon="Trophy" title="Aún no perteneces a ninguna quiniela" description="Cuando te unas, aquí verás tus próximos partidos y tu posición.">
           <template #action>
-            <PrimaryButton @click="joinOpen = true">
-              <KeyRound class="h-4 w-4" />
-              Unirme con código
-            </PrimaryButton>
+            <SecondaryButton @click="joinOpen = true">Ingresar código</SecondaryButton>
           </template>
         </EmptyState>
 
-        <div class="grid grid-cols-3 gap-3">
-          <div class="app-surface p-3 text-center">
-            <KeyRound class="mx-auto h-5 w-5 text-primary" />
-            <p class="mt-2 text-xs font-semibold text-text">1. Únete</p>
-          </div>
-          <div class="app-surface p-3 text-center">
-            <Target class="mx-auto h-5 w-5 text-primary" />
-            <p class="mt-2 text-xs font-semibold text-text">2. Predice</p>
-          </div>
-          <div class="app-surface p-3 text-center">
-            <ListChecks class="mx-auto h-5 w-5 text-primary" />
-            <p class="mt-2 text-xs font-semibold text-text">3. Compite</p>
+        <div>
+          <div class="mb-3 flex items-center justify-between"><h2 class="font-display text-base font-bold text-text">Cómo funciona</h2><span class="text-xs font-semibold text-primary">Empieza hoy</span></div>
+          <div class="grid grid-cols-3 gap-3">
+            <div class="app-surface p-3 text-center">
+              <KeyRound class="mx-auto h-5 w-5 text-primary" />
+              <p class="mt-2 text-xs font-semibold text-text">1. Únete</p>
+            </div>
+            <div class="app-surface p-3 text-center">
+              <Target class="mx-auto h-5 w-5 text-primary" />
+              <p class="mt-2 text-xs font-semibold text-text">2. Predice</p>
+            </div>
+            <div class="app-surface p-3 text-center">
+              <ListChecks class="mx-auto h-5 w-5 text-primary" />
+              <p class="mt-2 text-xs font-semibold text-text">3. Compite</p>
+            </div>
           </div>
         </div>
       </template>
