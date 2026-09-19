@@ -72,6 +72,18 @@ No se desplegaron funciones: falta `CORS_ALLOWED_ORIGINS` en QA; `BRANDING_RECON
 quedó configurado posteriormente.
 Fase 06 permanece bloqueada por ese gate y por los pendientes manuales/fixtures/Superadmin.
 
+## Recuperación canónica (2026-09-19)
+
+- SQL remoto QA PASS: branding assets, admin RPC y RLS; todas las suites revierten sus fixtures.
+- Fixtures de Fase 05 autocontenidos; no se crearon usuarios QA persistentes.
+- Migraciones `20260918000100` y `20260918000200` recuperadas; Storage valida denegación efectiva
+  de INSERT de cliente por RLS, sin policies de escritura branding.
+- `npm run typecheck`, `npm test` (49 tests) y `npm run build`: PASS.
+- `npx supabase test db --linked`: BLOCKED_EXTERNAL por Docker Desktop ausente.
+
+No cerrar Fase 05/05-bis ni iniciar Fase 06. Quedan cuentas QA reales/accesibles, browser para
+Magic Link/OAuth y QA manual, y happy paths autenticados de ambas Functions.
+
 ## Actualización de configuración (2026-09-17)
 
 `BRANDING_RECONCILER_SECRET` está configurado en QA con un secreto nuevo criptográficamente

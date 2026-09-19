@@ -4,8 +4,8 @@
 
 - Fase actual: `05` / `05-bis`
 - Última fase completada: `04 - Auth, onboarding y memberships`
-- Estado: `PHASE_05_SECURITY_FIX_VALIDATED_EDGE_FUNCTION_CONFIG_PENDING_SUPERADMIN_NOT_PROVISIONED`
-- Entorno QA/UAT: proyecto Supabase Cloud `plataforma_bet` (`juoftaofzepxbrrxbkhx`). Las 9
+- Estado: `PHASE_05_EDGE_FUNCTIONS_ACTIVE_PARTIAL_QA_SUPERADMIN_NOT_PROVISIONED`
+- Entorno QA/UAT: proyecto Supabase Cloud `plataforma_bet` (`juoftaofzepxbrrxbkhx`). Las 11
   migraciones del proyecto (incluidas las 5 de Fase 05/05-bis) están aplicadas y confirmadas
   (`supabase migration list --linked` sin pendientes). No es producción; producción se creará
   cuando el producto esté validado.
@@ -21,11 +21,9 @@
 - [x] 03 — Modelo de datos + multi-tenancy + RLS
 - [x] 04 — Auth, onboarding y memberships
 - [ ] 05 — Admin: quinielas, branding, reglas y participantes. Schema/RPC/migraciones aplicados y
-      validados en QA (`reports/admin/phase-05bis-qa-validation.md`). Bloqueado para cierre por:
-      (a) Edge Functions `branding-asset`/`branding-reconciler` sin desplegar por configuración
-      de secretos pendiente, (b) fixture de QA incompleto (falta `Admin B`/
-      `Pending A`), (d) validación manual en navegador de `/admin` pendiente (ver
-      `reports/admin/phase-05bis-e2e-manual-checklist.md`).
+      validados en QA (`reports/admin/phase-05bis-qa-validation.md`). Bloqueado para cierre por
+      happy paths remotos autenticados y QA manual de `/admin`/Magic Link; las fixtures SQL son
+      autocontenidas y ya no requieren datos QA preexistentes.
 - [ ] 05-bis — Superadmin de plataforma (frontera de autorización global, ver `ADR-008`,
       `reports/admin/phase-05bis-hardening.md` y `reports/admin/phase-05bis-qa-validation.md`):
       infraestructura completa y **validada exhaustivamente contra QA real** (tabla
@@ -102,6 +100,24 @@ No hay funciones desplegadas porque falta el origen HTTPS QA para configurar
 `CORS_ALLOWED_ORIGINS`. `BRANDING_RECONCILER_SECRET` ya está configurado. Provisioning del
 Superadmin, fixtures QA faltantes y validaciones manuales de navegador siguen pendientes; Fase 06
 continúa bloqueada.
+
+## Recuperación canónica y validación QA (2026-09-19)
+
+Se recuperaron en este repositorio las suites transaccionales autocontenidas
+`phase-05-branding-assets.sql` y `phase-05-admin-rpc.sql`, además del ajuste de
+`phase-03-rls.sql`. Las tres suites pasaron contra QA dentro de `BEGIN`/`ROLLBACK`.
+ADR-002 admite tanto la denegación por privilegio mínimo como el filtrado RLS; el positivo de
+admin usa el helper de autorización porque los writes directos se sustituyeron por RPCs en Fase 05.
+
+Las migraciones incrementales `20260918000100` y `20260918000200` están presentes y aplicadas en
+QA. El test de Storage verifica la protección efectiva: no hay policy de escritura de branding y
+un INSERT de `authenticated` es rechazado por RLS. Las Functions `branding-asset` y
+`branding-reconciler` están activas; CORS QA y rechazos de credenciales inválidas fueron validados.
+
+Gates: `npm run typecheck`, `npm test` (10 archivos / 49 tests) y `npm run build`: PASS.
+`npx supabase test db --linked`: **BLOCKED_EXTERNAL** por Docker Desktop ausente
+(`dockerDesktopLinuxEngine`). No hay cuentas QA persistentes accesibles para los happy paths
+manuales; no se registraron JWT ni secretos. Fase 05/05-bis no está ACCEPTED y Fase 06 no inicia.
 
 ## Bloqueo operativo de Edge Functions (2026-09-17)
 

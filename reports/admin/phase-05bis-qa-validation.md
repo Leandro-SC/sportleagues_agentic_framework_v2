@@ -266,6 +266,22 @@ El hallazgo 001 queda cerrado.
 También pasó contra QA `supabase/tests/phase-05bis-platform-admin.sql` con la aserción corregida
 para `anon`; sus fixtures son transaccionales y se revierten.
 
+## 24. Recuperación canónica y suites SQL (2026-09-19)
+
+- `phase-05-branding-assets.sql`: PASS remoto QA, transaccional.
+- `phase-05-admin-rpc.sql`: PASS remoto QA, transaccional.
+- `phase-03-rls.sql`: PASS remoto QA, transaccional.
+
+Los suites de Fase 05 crean fixtures mínimas dentro de la transacción y no requieren Admin B,
+Pending A ni participantes existentes. La expectativa RLS se alinea con privilegio mínimo más
+aislamiento RLS; el timestamp de fixture se estabiliza solo dentro de ROLLBACK. Storage valida la
+denegación efectiva de INSERT autenticado y ausencia de policies de escritura branding.
+
+Gates: `npm run typecheck` PASS; `npm test` PASS (10 archivos / 49 tests); `npm run build` PASS.
+`npx supabase test db --linked` permanece **BLOCKED_EXTERNAL** por Docker Desktop ausente. No hay
+ACCEPTED: faltan happy paths HTTP autenticados de ambas Functions, cuentas QA accesibles y QA
+manual crítica/Magic Link. No se registraron secretos ni JWT.
+
 ## 22. Preparación operativa de Edge Functions (2026-09-17)
 
 `BRANDING_RECONCILER_SECRET` fue configurado en QA desde un valor criptográficamente seguro

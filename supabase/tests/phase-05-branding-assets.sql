@@ -1,10 +1,36 @@
 -- Run after all Phase 05 migrations and phase-03-development.sql using a
 -- privileged local test role. Every assertion rolls back its data changes.
 begin;
+-- Self-contained transaction fixtures. They intentionally create Admin B and
+-- every actor/tenant entitlement needed by this suite, then ROLLBACK removes
+-- them; no linked QA seed or persistent QA account is a prerequisite.
+insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at) values
+('00000000-0000-0000-0000-000000000000','11111111-1111-1111-1111-111111111111','authenticated','authenticated','owner-a@example.test','not-used',now(),'{}','{}',now(),now()),
+('00000000-0000-0000-0000-000000000000','44444444-4444-4444-4444-444444444444','authenticated','authenticated','owner-b@example.test','not-used',now(),'{}','{}',now(),now()),
+('00000000-0000-0000-0000-000000000000','55555555-5555-5555-5555-555555555555','authenticated','authenticated','member-b@example.test','not-used',now(),'{}','{}',now(),now()),
+('00000000-0000-0000-0000-000000000000','88888888-8888-8888-8888-888888888888','authenticated','authenticated','admin-b@example.test','not-used',now(),'{}','{}',now(),now())
+on conflict (id) do nothing;
+insert into public.profiles(id, display_name) values
+('11111111-1111-1111-1111-111111111111','Owner A'),('44444444-4444-4444-4444-444444444444','Owner B'),('55555555-5555-5555-5555-555555555555','Member B'),('88888888-8888-8888-8888-888888888888','Admin B')
+on conflict (id) do nothing;
+insert into public.tenants(id,name,timezone) values
+('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','Phase 05 Branding Tenant A','America/Lima'),('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','Phase 05 Branding Tenant B','America/Lima')
+on conflict (id) do update set name = excluded.name, timezone = excluded.timezone;
+insert into public.tenant_entitlements(tenant_id,plan_code) values
+('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','free'),('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','pro')
+on conflict (tenant_id) do update set plan_code = excluded.plan_code;
+insert into public.tenant_memberships(tenant_id,profile_id,role) values
+('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','11111111-1111-1111-1111-111111111111','owner'),('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','44444444-4444-4444-4444-444444444444','owner'),('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','55555555-5555-5555-5555-555555555555','member'),('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','88888888-8888-8888-8888-888888888888','admin')
+on conflict (tenant_id,profile_id) do update set role = excluded.role, is_active = true;
 set local role authenticated;
 
 -- Owner B (PRO) can start, verify through the internal server path and activate a logo.
 select set_config('request.jwt.claim.sub', '44444444-4444-4444-4444-444444444444', true);
+do $$ begin
+  if not public.is_tenant_admin('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb') then
+    raise exception 'branding fixture did not establish an active owner/admin membership';
+  end if;
+end $$;
 select set_config('test.logo_one', (select (public.begin_branding_asset('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'logo')).id::text), true);
 do $$ begin
   if (select storage_path from public.branding_assets where id = current_setting('test.logo_one')::uuid) <> ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb/' || current_setting('test.logo_one')) then
@@ -192,16 +218,31 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub', '55555555-5555-5555-5555-555555555555', true);
 do $$ begin
   if exists (select 1 from public.get_active_branding_assets('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb')) then raise exception 'FREE tenant still resolved active branding'; end if;
-  begin perform public.begin_branding_asset('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'logo'); raise exception 'downgraded FREE tenant began branding'; exception when others then if sqlerrm <> 'pro branding is required' then raise; end if; end;
 end $$;
+-- Use an administrator for the plan gate: a member is correctly rejected earlier
+-- by authorization and therefore cannot demonstrate the FREE entitlement rule.
+select set_config('request.jwt.claim.sub', '88888888-8888-8888-8888-888888888888', true);
+do $$ begin begin perform public.begin_branding_asset('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'logo'); raise exception 'downgraded FREE tenant began branding'; exception when others then if sqlerrm <> 'pro branding is required' then raise; end if; end; end $$;
 
--- Storage grants/policies intentionally expose no browser write path and no extension rule.
+-- Supabase's managed roles retain table-level Storage grants; the enforceable
+-- client boundary is the absence of write policies. Assert an actual browser
+-- write is rejected rather than treating the platform's base ACL as a grant to
+-- this product's branding pipeline.
 set local role service_role;
 do $$ begin
-  if has_table_privilege('authenticated', 'storage.objects', 'INSERT, UPDATE, DELETE') then raise exception 'authenticated still has Storage write privilege'; end if;
   if not exists (select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname = 'branding_assets_storage_select_active_member') then raise exception 'restricted branding Storage read policy is missing'; end if;
   if exists (select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname = 'branding_assets_storage_select_active_member' and qual ilike '%extension%') then raise exception 'branding Storage policy still depends on extension'; end if;
   if exists (select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname in ('branding_assets_storage_insert', 'branding_assets_storage_update', 'branding_assets_storage_delete')) then raise exception 'legacy extension-based Storage write policy remains'; end if;
+end $$;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '88888888-8888-8888-8888-888888888888', true);
+do $$ begin
+  begin
+    insert into storage.objects(bucket_id, name, owner_id, metadata)
+    values ('branding-assets', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb/00000000-0000-0000-0000-000000000201', auth.uid(), '{}'::jsonb);
+    raise exception 'authenticated browser write to Storage was accepted';
+  exception when insufficient_privilege then null;
+  end;
 end $$;
 
 -- Concurrent sessions are not available in this SQL file. The migration serializes
@@ -260,6 +301,7 @@ end $$;
 update public.tenant_entitlements set plan_code = 'free' where tenant_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
 
 set local role authenticated;
+select set_config('request.jwt.claim.role', 'authenticated', true);
 do $$ begin
   begin perform public.claim_branding_assets_for_reconciliation(1, now() - interval '1 hour', interval '15 minutes'); raise exception 'authenticated caller invoked reconciler RPC'; exception when insufficient_privilege then null; end;
 end $$;

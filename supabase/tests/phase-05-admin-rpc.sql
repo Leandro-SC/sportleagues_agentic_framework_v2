@@ -1,6 +1,35 @@
 -- Run after the Phase 03 migration/seed and the Phase 05 admin RPC migration using a
 -- privileged local test role.
 begin;
+-- The suite is self-contained: the transaction creates its own minimum actor,
+-- tenant, pool and participant graph, then ROLLBACK removes it. The fixed IDs
+-- are test-only and must not be provisioned in the linked QA project beforehand.
+insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at) values
+('00000000-0000-0000-0000-000000000000','11111111-1111-1111-1111-111111111111','authenticated','authenticated','owner-a@example.test','not-used',now(),'{}','{}',now(),now()),
+('00000000-0000-0000-0000-000000000000','22222222-2222-2222-2222-222222222222','authenticated','authenticated','admin-a@example.test','not-used',now(),'{}','{}',now(),now()),
+('00000000-0000-0000-0000-000000000000','33333333-3333-3333-3333-333333333333','authenticated','authenticated','member-a@example.test','not-used',now(),'{}','{}',now(),now()),
+('00000000-0000-0000-0000-000000000000','55555555-5555-5555-5555-555555555555','authenticated','authenticated','member-b@example.test','not-used',now(),'{}','{}',now(),now()),
+('00000000-0000-0000-0000-000000000000','66666666-6666-6666-6666-666666666666','authenticated','authenticated','outsider@example.test','not-used',now(),'{}','{}',now(),now()),
+('00000000-0000-0000-0000-000000000000','77777777-7777-7777-7777-777777777777','authenticated','authenticated','pending-a@example.test','not-used',now(),'{}','{}',now(),now())
+on conflict (id) do nothing;
+insert into public.profiles(id, display_name) values
+('11111111-1111-1111-1111-111111111111','Owner A'),('22222222-2222-2222-2222-222222222222','Admin A'),('33333333-3333-3333-3333-333333333333','Member A'),('55555555-5555-5555-5555-555555555555','Member B'),('66666666-6666-6666-6666-666666666666','Outsider'),('77777777-7777-7777-7777-777777777777','Pending A')
+on conflict (id) do nothing;
+insert into public.tenants(id,name,timezone) values
+('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','Phase 05 Admin Tenant A','America/Lima'),('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','Phase 05 Admin Tenant B','America/Lima')
+on conflict (id) do update set name = excluded.name, timezone = excluded.timezone;
+insert into public.tenant_entitlements(tenant_id,plan_code) values
+('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','free'),('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','pro')
+on conflict (tenant_id) do update set plan_code = excluded.plan_code;
+insert into public.tenant_memberships(tenant_id,profile_id,role) values
+('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','11111111-1111-1111-1111-111111111111','owner'),('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','22222222-2222-2222-2222-222222222222','admin'),('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','33333333-3333-3333-3333-333333333333','member'),('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','77777777-7777-7777-7777-777777777777','member'),('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','55555555-5555-5555-5555-555555555555','member')
+on conflict (tenant_id,profile_id) do update set role = excluded.role, is_active = true;
+insert into public.pools(id,tenant_id,name,status,lock_offset) values
+('aaaaaaaa-0000-0000-0000-000000000001','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','Phase 05 Admin Pool A','open',interval '15 minutes'),('bbbbbbbb-0000-0000-0000-000000000001','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','Phase 05 Admin Pool B','open',interval '15 minutes')
+on conflict (id) do update set tenant_id = excluded.tenant_id, name = excluded.name, status = excluded.status, lock_offset = excluded.lock_offset;
+insert into public.participants(id,tenant_id,pool_id,profile_id,approval_status,payment_status) values
+('aaaaaaaa-0000-0000-0000-000000000052','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','aaaaaaaa-0000-0000-0000-000000000001','33333333-3333-3333-3333-333333333333','approved','pending'),('aaaaaaaa-0000-0000-0000-000000000053','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','aaaaaaaa-0000-0000-0000-000000000001','77777777-7777-7777-7777-777777777777','pending','invited'),('bbbbbbbb-0000-0000-0000-000000000052','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','bbbbbbbb-0000-0000-0000-000000000001','55555555-5555-5555-5555-555555555555','approved','pending')
+on conflict (id) do update set tenant_id = excluded.tenant_id, pool_id = excluded.pool_id, profile_id = excluded.profile_id, approval_status = excluded.approval_status, payment_status = excluded.payment_status;
 set local role authenticated;
 
 -- 1. Admin A can approve a pending participant in Tenant A.
