@@ -94,6 +94,14 @@ para fondos de badges/alertas, y el color base para texto/iconos/bordes.
 | `LoadingSkeleton.vue` | Bloque shimmer para estados de carga. |
 | `EmptyState.vue` / `ErrorState.vue` | Estados vacíos/erróneos con icono en badge tintado y CTA opcional. |
 
+## Portada pública
+
+`HomeView.vue` muestra una portada sin chrome para visitantes. Usa los assets internos
+`src/assets/backgrounds/fondo_app_tablo.png` y `src/assets/branding/logo_app_tablo.png`, con la
+misma estructura de la referencia: marca, tagline, iconos deportivos, CTA primario, CTA outline y
+pie de marca. Los CTAs no autentican por sí mismos: abren el formulario existente de Magic Link y
+Google OAuth para preservar el contrato de Auth.
+
 ## Diferencias inevitables frente a la referencia
 
 1. **Contenido de partidos, ligas, tablas de posiciones y feed en vivo**: la

@@ -185,6 +185,10 @@ cards redondeadas y navegación inferior Inicio/Partidos/Ligas/Perfil. El hero u
 local de estadio con licencia Unsplash y atribución documentada, bajo capas de contraste. Magic Link, Google OAuth,
 unión por código, administración y cierre de sesión mantienen sus contratos existentes.
 
+La portada pública se ajustó además a la composición exacta aprobada usando los assets internos
+`fondo_app_tablo.png` y `logo_app_tablo.png`; sus botones llevan al formulario Auth existente y no
+alteran permisos ni autenticación.
+
 Partidos y Tabla son indicadores no interactivos de Fase 06/08; no se añadieron rutas, datos,
 notificaciones, búsqueda ni resultados ficticios. Gates de frontend: `npm run typecheck`, `npm
 test` (10 archivos / 49 tests) y `npm run build`: PASS; revisión visual local de la pantalla
