@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { CalendarX2 } from 'lucide-vue-next'
 import AppShell from '../components/AppShell.vue'
+import CatalogBoundary from '../components/CatalogBoundary.vue'
 import EmptyState from '../components/EmptyState.vue'
 import PreviewBadge from '../components/PreviewBadge.vue'
 import ScoreboardCard from '../components/ScoreboardCard.vue'
@@ -67,6 +68,7 @@ const emptyCopy = computed(() => {
         </button>
       </div>
 
+      <CatalogBoundary :loading="sports.loading.value" :failed="sports.failed.value" :rows="4" @retry="sports.retry">
       <ul v-if="matches.length" class="space-y-3" aria-label="Partidos">
         <li v-for="match in matches" :key="match.id">
           <ScoreboardCard
@@ -79,6 +81,7 @@ const emptyCopy = computed(() => {
         </li>
       </ul>
       <EmptyState v-else :icon="CalendarX2" :title="emptyCopy.title" :description="emptyCopy.description" />
+      </CatalogBoundary>
     </div>
   </AppShell>
 </template>

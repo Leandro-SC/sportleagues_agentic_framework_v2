@@ -1,16 +1,44 @@
 import { computed, ref } from 'vue'
 import { isPreviewDataEnabled } from '../lib/preview-mode'
 import { EMPTY_CATALOG, type Competition, type SportsCatalog, type Team } from '../lib/sports-catalog'
-import { buildPreviewCatalog } from '../lib/sports-preview'
 
 // Única puerta de entrada al catálogo deportivo para las pantallas. Hoy solo existe la fuente de
 // vista previa; cuando Fase 06 publique tournaments/teams/matches, este composable cambiará de
-// fuente sin que las vistas dependan de dónde vienen los datos.
-const previewEnabled = isPreviewDataEnabled()
+// fuente (ver lib/sports-source.ts) sin que las vistas dependan de dónde vienen los datos.
+let previewEnabled = isPreviewDataEnabled()
 const now = ref(new Date())
-const catalog = ref<SportsCatalog>(previewEnabled ? buildPreviewCatalog(now.value) : EMPTY_CATALOG)
+const catalog = ref<SportsCatalog>(EMPTY_CATALOG)
+const status = ref<'loading' | 'ready' | 'error'>(previewEnabled ? 'loading' : 'ready')
+let started = false
+
+async function loadCatalog(): Promise<void> {
+  if (started) return
+  started = true
+  if (!previewEnabled) return
+  try {
+    // La condición usa constantes de build de Vite (no una función) para que, en un build sin
+    // vista previa, el bundler elimine esta rama y el dataset de ejemplo no se incluya en el
+    // JavaScript de QA/producción. `npm run verify:bundle` lo comprueba.
+    if (import.meta.env.DEV || import.meta.env.VITE_PREVIEW_DATA === 'true') {
+      const { buildPreviewCatalog } = await import('../lib/sports-preview')
+      catalog.value = buildPreviewCatalog(now.value)
+    }
+    status.value = 'ready'
+  } catch {
+    status.value = 'error'
+  }
+}
+
+export function resetSportsCatalogForTests(): void {
+  previewEnabled = isPreviewDataEnabled()
+  started = false
+  catalog.value = EMPTY_CATALOG
+  status.value = previewEnabled ? 'loading' : 'ready'
+}
 
 export function useSportsCatalog() {
+  void loadCatalog()
+
   const competitionsById = computed(() => new Map(catalog.value.competitions.map((competition) => [competition.id, competition])))
   const teamsById = computed(() => new Map(catalog.value.teams.map((team) => [team.id, team])))
 
@@ -26,5 +54,21 @@ export function useSportsCatalog() {
     return teamsById.value.get(id)?.name ?? id
   }
 
-  return { preview: previewEnabled, now, catalog, competition, team, teamName }
+  function retry(): void {
+    started = false
+    status.value = previewEnabled ? 'loading' : 'ready'
+    void loadCatalog()
+  }
+
+  return {
+    preview: previewEnabled,
+    now,
+    catalog,
+    loading: computed(() => status.value === 'loading'),
+    failed: computed(() => status.value === 'error'),
+    retry,
+    competition,
+    team,
+    teamName,
+  }
 }

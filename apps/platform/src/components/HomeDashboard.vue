@@ -25,7 +25,7 @@ const router = useRouter()
 const auth = useAuth()
 const sports = useSportsCatalog()
 const myPools = useMyPools()
-const followed = useFollowedTeams(sports.catalog.value.followedTeamIds)
+const followed = useFollowedTeams(() => sports.catalog.value.followedTeamIds)
 
 const query = ref('')
 const searchOpen = ref(false)
@@ -115,7 +115,7 @@ const resultIcon = { pool: Trophy, competition: ListOrdered, team: UsersRound }
       <QuickActionTile :icon="ChartColumn" label="Estadísticas" :to="followedTeams[0] ? { name: 'team', params: { teamId: followedTeams[0].id }, query: { tab: 'estadisticas' } } : { name: 'matches' }" />
     </nav>
 
-    <section v-if="sports.preview">
+    <section v-if="sports.preview && !sports.loading.value">
       <SectionHeader title="Mis equipos" :to="{ name: 'profile', query: { tab: 'equipos' } }" />
       <div v-if="followedTeams.length" class="-mx-5 flex snap-x gap-3 overflow-x-auto px-5 pb-1 scrollbar-none">
         <FollowedTeamCard

@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { BadgeInfo, CalendarX2, SearchX, Shirt, Star } from 'lucide-vue-next'
 import AppShell from '../components/AppShell.vue'
+import CatalogBoundary from '../components/CatalogBoundary.vue'
 import BottomSheet from '../components/BottomSheet.vue'
 import CompetitionEmblem from '../components/CompetitionEmblem.vue'
 import CountryFlag from '../components/CountryFlag.vue'
@@ -26,7 +27,7 @@ type Tab = (typeof TABS)[number]
 const route = useRoute()
 const auth = useAuth()
 const sports = useSportsCatalog()
-const followed = useFollowedTeams(sports.catalog.value.followedTeamIds)
+const followed = useFollowedTeams(() => sports.catalog.value.followedTeamIds)
 const tab = useRouteTab<Tab>(TABS, 'partidos')
 const infoOpen = ref(false)
 
@@ -74,7 +75,12 @@ const formLabels = { G: 'Ganado', E: 'Empatado', P: 'Perdido' }
 
 <template>
   <AppShell variant="app" active="leagues" :user-name="auth.state.profile?.display_name">
-    <template v-if="team">
+    <template v-if="sports.loading.value || sports.failed.value">
+      <ScreenHeader title="Equipo" back />
+      <CatalogBoundary :loading="sports.loading.value" :failed="sports.failed.value" @retry="sports.retry" />
+    </template>
+
+    <template v-else-if="team">
       <ScreenHeader back>
         <template #actions>
           <button type="button" class="press-scale rounded-full p-2 text-text hover:bg-surface-2" aria-label="Información del equipo" @click="infoOpen = true">

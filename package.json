@@ -10,7 +10,8 @@
     "dev": "vite --config apps/platform/vite.config.ts",
     "build": "vue-tsc --project apps/platform/tsconfig.app.json --noEmit && vite build --config apps/platform/vite.config.ts",
     "typecheck": "vue-tsc --project apps/platform/tsconfig.app.json --noEmit",
-    "test": "vitest run --config apps/platform/vitest.config.ts"
+    "test": "vitest run --config apps/platform/vitest.config.ts",
+    "verify:bundle": "npm run build && node scripts/verify-preview-bundle.mjs"
   },
   "keywords": [],
   "author": "",

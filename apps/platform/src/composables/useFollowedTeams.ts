@@ -22,25 +22,35 @@ function writeStored(ids: string[]): void {
   }
 }
 
-const followed = ref<string[] | null>(null)
+// null = el usuario todavía no ha elegido; se muestran los valores por defecto vigentes.
+const chosen = ref<string[] | null>(null)
+let hydrated = false
 
-export function useFollowedTeams(defaults: string[] = []) {
-  if (followed.value === null) followed.value = readStored() ?? [...defaults]
+function hydrate(): void {
+  if (hydrated) return
+  hydrated = true
+  chosen.value = readStored()
+}
 
-  const ids = computed(() => followed.value ?? [])
+// `defaults` es un getter porque el catálogo puede cargarse después de montar la pantalla.
+export function useFollowedTeams(defaults: () => string[] = () => []) {
+  hydrate()
+
+  const ids = computed(() => chosen.value ?? defaults())
 
   function isFollowing(teamId: string): boolean {
     return ids.value.includes(teamId)
   }
 
   function toggle(teamId: string): void {
-    followed.value = isFollowing(teamId) ? ids.value.filter((id) => id !== teamId) : [...ids.value, teamId]
-    writeStored(followed.value)
+    chosen.value = isFollowing(teamId) ? ids.value.filter((id) => id !== teamId) : [...ids.value, teamId]
+    writeStored(chosen.value)
   }
 
   return { ids, isFollowing, toggle }
 }
 
 export function resetFollowedTeamsForTests(): void {
-  followed.value = null
+  chosen.value = null
+  hydrated = false
 }

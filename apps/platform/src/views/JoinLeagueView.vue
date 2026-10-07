@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ChevronRight, KeyRound, SearchX } from 'lucide-vue-next'
 import AppShell from '../components/AppShell.vue'
+import CatalogBoundary from '../components/CatalogBoundary.vue'
 import CommunityLeagueRow from '../components/CommunityLeagueRow.vue'
 import EmptyState from '../components/EmptyState.vue'
 import PreviewBadge from '../components/PreviewBadge.vue'
@@ -110,7 +111,9 @@ function submit(): void {
 
       <p v-if="previewNotice" class="rounded-xl border border-warn/30 bg-warn-100 p-3 text-sm text-warn" role="status">{{ previewNotice }}</p>
 
-      <section v-if="sports.preview && (recommended.length || parsed.kind !== 'code')">
+      <CatalogBoundary v-if="sports.loading.value || sports.failed.value" :loading="sports.loading.value" :failed="sports.failed.value" :rows="3" row-height="5rem" @retry="sports.retry" />
+
+      <section v-else-if="sports.preview && (recommended.length || parsed.kind !== 'code')">
         <div class="mb-3 flex items-center justify-between">
           <h2 class="font-display text-base font-bold text-text">Ligas recomendadas</h2>
           <button

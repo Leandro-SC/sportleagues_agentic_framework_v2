@@ -4,6 +4,7 @@ import { RouterLink, useRoute } from 'vue-router'
 import { CalendarX2, SearchX } from 'lucide-vue-next'
 import heroBackground from '../assets/backgrounds/fondo_app_tablo.png'
 import AppShell from '../components/AppShell.vue'
+import CatalogBoundary from '../components/CatalogBoundary.vue'
 import CompetitionEmblem from '../components/CompetitionEmblem.vue'
 import CountryFlag from '../components/CountryFlag.vue'
 import EmptyState from '../components/EmptyState.vue'
@@ -47,7 +48,12 @@ const shortName = computed(() => competition.value?.name.replace(/\s+(CL|AP)?\s*
 
 <template>
   <AppShell variant="app" active="leagues" :user-name="auth.state.profile?.display_name">
-    <template v-if="competition">
+    <template v-if="sports.loading.value || sports.failed.value">
+      <ScreenHeader title="Liga" :back="{ name: 'leagues' }" />
+      <CatalogBoundary :loading="sports.loading.value" :failed="sports.failed.value" @retry="sports.retry" />
+    </template>
+
+    <template v-else-if="competition">
       <div class="relative -mx-5 overflow-hidden px-5 pb-12">
         <img :src="heroBackground" alt="" class="pointer-events-none absolute inset-0 h-full w-full object-cover object-[50%_72%]" />
         <div class="pointer-events-none absolute inset-0 bg-linear-to-b from-canvas/80 via-canvas/30 to-canvas" />

@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { Award, BadgeCheck, ChevronLeft, History, LayoutDashboard, LogOut, Settings, Star, UsersRound } from 'lucide-vue-next'
 import ActivityRow from '../components/ActivityRow.vue'
 import AppShell from '../components/AppShell.vue'
+import CatalogBoundary from '../components/CatalogBoundary.vue'
 import BottomSheet from '../components/BottomSheet.vue'
 import EmptyState from '../components/EmptyState.vue'
 import FollowedTeamCard from '../components/FollowedTeamCard.vue'
@@ -25,7 +26,7 @@ const auth = useAuth()
 const sports = useSportsCatalog()
 const myPools = useMyPools()
 const adminAccess = useTenantAdminAccess()
-const followed = useFollowedTeams(sports.catalog.value.followedTeamIds)
+const followed = useFollowedTeams(() => sports.catalog.value.followedTeamIds)
 const tab = useRouteTab<Tab>(TABS, 'actividad')
 
 const settingsOpen = ref(false)
@@ -103,7 +104,9 @@ async function logout(): Promise<void> {
 
       <SegmentedTabs v-model="tab" :options="tabOptions" label="Secciones del perfil" variant="underline" />
 
-      <template v-if="tab === 'actividad'">
+      <CatalogBoundary v-if="sports.loading.value || sports.failed.value" :loading="sports.loading.value" :failed="sports.failed.value" :rows="3" row-height="5rem" @retry="sports.retry" />
+
+      <template v-else-if="tab === 'actividad'">
         <ul v-if="sports.catalog.value.activity.length" class="space-y-2.5">
           <ActivityRow v-for="item in sports.catalog.value.activity" :key="item.id" :item="item" :now="sports.now.value" />
         </ul>
