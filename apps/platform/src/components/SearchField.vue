@@ -18,7 +18,7 @@ defineEmits<{ submit: [] }>()
       :placeholder="placeholder"
       class="field-surface w-full rounded-pill bg-surface-2/80 py-3 pl-11 pr-10 text-sm outline-none focus:border-primary [&::-webkit-search-cancel-button]:hidden"
     />
-    <button v-if="model" type="button" class="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-text-muted hover:text-text" aria-label="Limpiar búsqueda" @click="model = ''">
+    <button v-if="model" type="button" class="absolute right-0.5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-text-muted hover:text-text" aria-label="Limpiar búsqueda" @click="model = ''">
       <X class="h-4 w-4" />
     </button>
   </form>

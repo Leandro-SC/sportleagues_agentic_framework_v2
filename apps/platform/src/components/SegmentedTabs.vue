@@ -38,7 +38,7 @@ function move(event: KeyboardEvent, index: number): void {
         'flex-1 whitespace-nowrap rounded-pill border px-2 py-2 text-[13px]': variant === 'pill',
         'border-primary bg-primary text-canvas shadow-glow-primary': variant === 'pill' && model === option.value,
         'border-border-strong bg-surface-2/70 text-text-muted hover:text-text': variant === 'pill' && model !== option.value,
-        'rounded-lg px-3.5 py-2 text-sm': variant === 'chip',
+        'min-w-0 flex-1 rounded-lg px-1.5 py-2 text-[13px] min-[360px]:text-sm': variant === 'chip',
         'bg-primary text-canvas': variant === 'chip' && model === option.value,
         'text-text-muted hover:text-text': variant !== 'pill' && model !== option.value,
         'relative flex-1 pb-3 pt-1 text-sm': variant === 'underline',

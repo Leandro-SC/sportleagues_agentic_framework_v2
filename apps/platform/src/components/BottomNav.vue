@@ -17,7 +17,7 @@ const items: Array<{ key: NavKey; label: string; icon: Component; to: RouteLocat
 
 <template>
   <nav aria-label="Navegación principal" class="safe-bottom sticky bottom-0 z-30 border-t border-border bg-canvas/95 backdrop-blur">
-    <div class="mx-auto flex max-w-lg items-stretch justify-around px-2 pt-1.5">
+    <div class="mx-auto flex h-(--bottom-nav-h) max-w-lg items-stretch justify-around px-2 pt-1.5">
       <RouterLink
         v-for="item in items"
         :key="item.key"

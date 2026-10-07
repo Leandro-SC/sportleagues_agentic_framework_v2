@@ -60,7 +60,7 @@ function goTo(index: number): void {
         v-for="(match, index) in matches"
         :key="match.id"
         type="button"
-        class="h-1.5 rounded-pill transition-all"
+        class="relative h-1.5 rounded-pill transition-all before:absolute before:-inset-x-1.5 before:-inset-y-3 before:content-['']"
         :class="index === active ? 'w-4 bg-text' : 'w-1.5 bg-text/40'"
         :aria-label="`Ver partido ${index + 1} de ${matches.length}`"
         :aria-current="index === active ? 'true' : undefined"

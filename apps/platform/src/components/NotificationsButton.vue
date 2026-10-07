@@ -9,7 +9,7 @@ const open = ref(false)
 </script>
 
 <template>
-  <button type="button" class="press-scale rounded-full p-2 text-text hover:bg-surface-2" aria-label="Notificaciones" @click="open = true">
+  <button type="button" class="press-scale icon-button" aria-label="Notificaciones" @click="open = true">
     <Bell class="h-5.5 w-5.5" />
   </button>
   <BottomSheet v-model:open="open" title="Notificaciones">

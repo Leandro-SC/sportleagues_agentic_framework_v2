@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { CalendarDays, ChartColumn, ChevronRight, KeyRound, ListOrdered, Trophy, UsersRound } from 'lucide-vue-next'
 import { useAuth } from '../composables/useAuth'
@@ -29,6 +29,7 @@ const followed = useFollowedTeams(() => sports.catalog.value.followedTeamIds)
 
 const query = ref('')
 const searchOpen = ref(false)
+const searchRoot = ref<HTMLElement | null>(null)
 
 const firstName = computed(() => firstNameOf(auth.state.profile?.display_name))
 const initials = computed(() => initialsOf(auth.state.profile?.display_name))
@@ -39,7 +40,17 @@ const featuredCompetition = computed(() => sports.catalog.value.competitions[0])
 const results = computed(() => searchCatalog(query.value, sports.catalog.value, myPools.pools.value))
 
 watch(() => auth.state.user?.id, (profileId) => { void myPools.load(profileId) })
-onMounted(() => { void myPools.load(auth.state.user?.id) })
+// Cierra los resultados al tocar fuera. Se usa pointerdown en el documento (no focusout) porque en
+// Safari iOS los botones no reciben foco al tocarlos y el clic se perdería.
+function closeOnOutsidePointer(event: PointerEvent): void {
+  if (searchRoot.value && !searchRoot.value.contains(event.target as Node)) searchOpen.value = false
+}
+
+onMounted(() => {
+  void myPools.load(auth.state.user?.id)
+  document.addEventListener('pointerdown', closeOnOutsidePointer)
+})
+onBeforeUnmount(() => document.removeEventListener('pointerdown', closeOnOutsidePointer))
 watch(query, (value) => { searchOpen.value = value.trim().length >= 2 })
 
 function openResult(result: CatalogSearchResult): void {
@@ -68,13 +79,13 @@ const resultIcon = { pool: Trophy, competition: ListOrdered, team: UsersRound }
         <NotificationsButton />
         <RouterLink
           :to="{ name: 'profile' }"
-          class="press-scale flex h-10 w-10 items-center justify-center rounded-full bg-surface-3 font-display text-sm font-bold text-text ring-1 ring-white/15"
+          class="press-scale flex h-11 w-11 items-center justify-center rounded-full bg-surface-3 font-display text-sm font-bold text-text ring-1 ring-white/15"
           aria-label="Ver perfil"
         >{{ initials }}</RouterLink>
       </div>
     </header>
 
-    <div class="relative -mt-2" @keydown.esc="searchOpen = false">
+    <div ref="searchRoot" class="relative -mt-2" @keydown.esc="searchOpen = false" @focusin="searchOpen = query.trim().length >= 2">
       <SearchField id="home-search" v-model="query" label="Buscar liga, equipo o jugador" placeholder="Buscar liga, equipo o jugador..." @submit="submitSearch" />
       <div v-if="searchOpen" class="absolute inset-x-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border border-border-strong bg-surface shadow-lg">
         <ul v-if="results.length" aria-label="Resultados de búsqueda">
@@ -117,13 +128,13 @@ const resultIcon = { pool: Trophy, competition: ListOrdered, team: UsersRound }
 
     <section v-if="sports.preview && !sports.loading.value">
       <SectionHeader title="Mis equipos" :to="{ name: 'profile', query: { tab: 'equipos' } }" />
-      <div v-if="followedTeams.length" class="-mx-5 flex snap-x gap-3 overflow-x-auto px-5 pb-1 scrollbar-none">
+      <div v-if="followedTeams.length" class="-mx-5 flex snap-x scroll-px-5 gap-3 overflow-x-auto px-5 pb-1 scrollbar-none">
         <FollowedTeamCard
           v-for="team in followedTeams"
           :key="team.id"
           :team="team"
           :subtitle="`${sports.competition(team.competition_id)?.name ?? ''} - ${team.country_name}`"
-          class="w-[46%] shrink-0 snap-start"
+          class="w-[72%] shrink-0 snap-start min-[380px]:w-[46%]"
         />
       </div>
       <p v-else class="app-surface px-4 py-5 text-center text-sm text-text-muted">Sigue equipos desde su ficha para verlos aquí.</p>

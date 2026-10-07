@@ -83,7 +83,7 @@ const formLabels = { G: 'Ganado', E: 'Empatado', P: 'Perdido' }
     <template v-else-if="team">
       <ScreenHeader back>
         <template #actions>
-          <button type="button" class="press-scale rounded-full p-2 text-text hover:bg-surface-2" aria-label="Información del equipo" @click="infoOpen = true">
+          <button type="button" class="press-scale icon-button" aria-label="Información del equipo" @click="infoOpen = true">
             <BadgeInfo class="h-5.5 w-5.5" />
           </button>
           <NotificationsButton />
@@ -146,7 +146,7 @@ const formLabels = { G: 'Ganado', E: 'Empatado', P: 'Perdido' }
         </section>
       </div>
 
-      <div class="pointer-events-none fixed inset-x-0 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 mx-auto max-w-lg px-5">
+      <div class="pointer-events-none fixed inset-x-0 bottom-[calc(var(--bottom-nav-h)+env(safe-area-inset-bottom))] z-20 mx-auto max-w-lg bg-linear-to-t from-canvas via-canvas/85 to-transparent px-5 pb-3 pt-8">
         <button
           type="button"
           class="press-scale pointer-events-auto flex w-full items-center justify-center gap-2 rounded-pill py-3.5 text-[15px] font-bold shadow-glow-primary"

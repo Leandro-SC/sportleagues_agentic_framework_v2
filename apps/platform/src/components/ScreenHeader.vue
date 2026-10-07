@@ -17,7 +17,7 @@ function goBack(): void {
 
 <template>
   <header class="safe-top flex items-center gap-3 pb-3 pt-4">
-    <button v-if="back" type="button" class="press-scale -ml-1.5 rounded-full p-1.5 text-text hover:bg-surface-2" aria-label="Volver" @click="goBack">
+    <button v-if="back" type="button" class="press-scale icon-button -ml-2.5" aria-label="Volver" @click="goBack">
       <ArrowLeft class="h-6 w-6" />
     </button>
     <h1 v-if="title" class="min-w-0 flex-1 truncate font-display font-bold text-text" :class="large ? 'text-[26px]' : 'text-lg'">{{ title }}</h1>

@@ -53,6 +53,11 @@
 }
 
 @layer base {
+  :root {
+    /* Alto de la navegación inferior; lo usan BottomNav y los elementos fijos que van encima. */
+    --bottom-nav-h: 4.5rem;
+  }
+
   html {
     -webkit-tap-highlight-color: transparent;
     color-scheme: dark;
@@ -121,6 +126,11 @@
     }
   }
 
+  /* Botón de icono con objetivo táctil de 44×44 px (WCAG 2.5.5 / guías móviles). */
+  .icon-button {
+    @apply inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-text hover:bg-surface-2;
+  }
+
   .press-scale {
     transition: transform 120ms ease, opacity 120ms ease;
   }
@@ -142,5 +152,16 @@
 
   .section-kicker {
     @apply text-[11px] font-bold uppercase tracking-[0.16em] text-primary;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

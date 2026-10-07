@@ -68,11 +68,11 @@ async function logout(): Promise<void> {
 <template>
   <AppShell variant="app" active="profile" :user-name="auth.state.profile?.display_name">
     <header class="safe-top flex items-center justify-between pb-2 pt-4">
-      <button type="button" class="press-scale -ml-1.5 rounded-full p-1.5 text-text hover:bg-surface-2" aria-label="Volver al inicio" @click="router.push({ name: 'home' })">
+      <button type="button" class="press-scale icon-button -ml-2.5" aria-label="Volver al inicio" @click="router.push({ name: 'home' })">
         <ChevronLeft class="h-6 w-6" />
       </button>
       <h1 class="sr-only">Perfil</h1>
-      <button type="button" class="press-scale rounded-full p-1.5 text-text hover:bg-surface-2" aria-label="Ajustes de la cuenta" @click="settingsOpen = true">
+      <button type="button" class="press-scale icon-button -mr-2.5" aria-label="Ajustes de la cuenta" @click="settingsOpen = true">
         <Settings class="h-6 w-6" />
       </button>
     </header>

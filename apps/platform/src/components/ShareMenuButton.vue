@@ -16,7 +16,7 @@ async function share(): Promise<void> {
 </script>
 
 <template>
-  <button type="button" class="press-scale rounded-full p-2 text-text hover:bg-surface-2" aria-label="Más opciones" @click="open = true; feedback = ''">
+  <button type="button" class="press-scale icon-button" aria-label="Más opciones" @click="open = true; feedback = ''">
     <EllipsisVertical class="h-5.5 w-5.5" />
   </button>
   <BottomSheet v-model:open="open" :title="title">
