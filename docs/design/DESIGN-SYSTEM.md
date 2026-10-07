@@ -12,8 +12,10 @@ No dupliques valores de color/radio fuera de ese archivo.
 - Mobile-first, compacto, cards oscuras con borde cian sutil.
 - Botones pill (`rounded-pill`), iconografía outline (Lucide).
 - Navegación inferior fija con estado activo en verde neón.
-- Nunca inventar datos o funcionalidades que no existen: usar `EmptyState` /
-  `LoadingSkeleton` en vez de contenido de ejemplo.
+- Nunca presentar datos inventados como reales. En builds de QA/producción las pantallas sin
+  contrato de datos muestran `EmptyState` / `LoadingSkeleton`. Los datos de ejemplo solo existen
+  con la vista previa activa (desarrollo local o `VITE_PREVIEW_DATA=true`) y siempre llevan
+  `PreviewBadge` (ver "Vista previa pre-acceptance").
 
 ## Tokens de color
 
@@ -50,7 +52,7 @@ para fondos de badges/alertas, y el color base para texto/iconos/bordes.
 | `radius-xl` | `1.25rem` | Cards de contenido (`MatchCard`, `app-surface`) |
 | `radius-2xl` | `1.5rem` | Cards destacadas (`PoolCard` hero, sheets) |
 | `radius-pill` | `999px` | Botones, chips, BottomSheet handle |
-| `shadow-glow-primary` | glow verde | Botón primario, FAB, avatar/ítem activo |
+| `shadow-glow-primary` | glow verde | Botón primario, ítem activo de navegación, avatar |
 | `shadow-glow-secondary` | glow cian | Reservado para acentos secundarios |
 
 ## Tipografía
@@ -79,11 +81,11 @@ para fondos de badges/alertas, y el color base para texto/iconos/bordes.
 
 | Componente | Rol visual |
 | --- | --- |
-| `AppShell.vue` | Layout de página: `TopBar` + contenido + `BottomNav` + FAB de unión por código. Variantes `guest` / `app` / `focus` (pantallas centradas sin chrome, p. ej. onboarding). |
-| `TopBar.vue` | Header fijo compacto: logo (ícono trofeo en pill verde) + nombre de marca; en variante `app` agrega enlace "Admin" (cian) y avatar circular con anillo verde. |
-| `BottomNav.vue` | Navegación inferior fija, 4 accesos (Inicio, Partidos, Ligas y Perfil). Ítem activo: icono dentro de un círculo relleno verde neón (`bg-primary text-canvas`) + label en verde; ítems deshabilitados (fases futuras) quedan atenuados con badge de fase. |
+| `AppShell.vue` | Layout de página. `app`: contenido + `BottomNav` (cada pantalla trae su `ScreenHeader`); `guest`: `TopBar` de marca; `focus`: pantalla centrada sin chrome (onboarding, unión). Ya no incluye FAB: unirse con código vive en Ligas → Unirme a una liga. |
+| `TopBar.vue` | Header de marca para visitantes (variante `guest`). El acceso al panel de administración pasó a Perfil → Ajustes y solo se ofrece a owner/admin. |
+| `BottomNav.vue` | Navegación inferior fija con 4 accesos habilitados (Inicio, Partidos, Ligas y Perfil). Ítem activo: icono y label en verde sobre pastilla `primary-100` con glow y `aria-current="page"`. |
 | `SuperadminShell.vue` | Layout del entorno de plataforma: header propio + navegación lateral/tabs con el mismo lenguaje visual (superficie oscura, acentos cian para "verificado"). |
-| `PrimaryButton.vue` | Botón pill sólido verde neón, texto blanco, glow sutil. Estado disabled en `surface-3`. |
+| `PrimaryButton.vue` | Botón pill sólido verde neón, texto `canvas` (oscuro, contraste ≈ 14:1; el blanco daba ≈ 1,5:1), glow sutil. Estado disabled en `surface-3`. |
 | `SecondaryButton.vue` | Botón pill outline (borde verde o rojo en `tone="danger"`), fondo transparente, texto blanco. |
 | `PoolCard.vue` | Card de quiniela con gradiente `surface-2` → `surface`, icono trofeo en badge verde, chips de estado. |
 | `MatchCard.vue` | Card de partido (`app-surface`), fila de equipos, marcador o "vs", chip de estado (en vivo / bloqueado / finalizado). |
@@ -93,6 +95,19 @@ para fondos de badges/alertas, y el color base para texto/iconos/bordes.
 | `BottomSheet.vue` | Hoja inferior con overlay `canvas/70` + blur, handle superior, borde superior sutil. |
 | `LoadingSkeleton.vue` | Bloque shimmer para estados de carga. |
 | `EmptyState.vue` / `ErrorState.vue` | Estados vacíos/erróneos con icono en badge tintado y CTA opcional. |
+| `ScreenHeader.vue` | Cabecera de pantalla: volver, título (normal o `large`) y slot de acciones. |
+| `SearchField.vue` | Buscador pill con icono, botón limpiar y `role="search"`. |
+| `SegmentedTabs.vue` | Tablist accesible (flechas ←/→). Variantes `pill` (Hoy/Mañana/Esta semana), `chip` (Resumen/Equipos/…) y `underline` (Partidos/Plantilla/Estadísticas). |
+| `SectionHeader.vue` | Título de sección + enlace "Ver todos" opcional. |
+| `ScoreboardCard.vue` / `UpcomingMatchCard.vue` / `TeamMatchRow.vue` / `LiveMatchCarousel.vue` | Tarjetas de partido: listado de Partidos, próximos partidos, fila compacta de equipo y carrusel "En vivo" de Inicio. |
+| `MatchStatusPill.vue` | Estado de partido: En vivo (verde con pulso), Finalizado, Hoy · hora, Mañana · hora. |
+| `StandingsTable.vue` | Tabla de posiciones (compacta o `detailed` con G/E/P/DG); líder resaltado. |
+| `TeamCrest.vue` | Escudo genérico SVG con colores e iniciales del equipo; texto con contraste calculado. No reproduce escudos oficiales. |
+| `CompetitionEmblem.vue` / `CountryFlag.vue` | Emblema circular de competición y banderas SVG simplificadas (Windows no renderiza banderas emoji). |
+| `SportIcon.vue` | Balón de fútbol, básquet y tenis dibujados en la grilla de Lucide (Lucide no los incluye); vóley usa `Volleyball` de Lucide. |
+| `QuickActionTile.vue`, `FollowedTeamCard.vue`, `CommunityLeagueRow.vue`, `ActivityRow.vue` | Accesos rápidos, equipos seguidos, ligas recomendadas y actividad del perfil. |
+| `NotificationsButton.vue` / `ShareMenuButton.vue` | Campana con estado vacío (las notificaciones son de Fase 11) y menú ⋮ con Compartir (Web Share o copiar enlace). |
+| `PreviewBadge.vue` | Marca ámbar "Vista previa" obligatoria en todo bloque con datos de ejemplo. |
 
 ## Portada pública
 
@@ -102,19 +117,40 @@ misma estructura de la referencia: marca, tagline, iconos deportivos, CTA primar
 pie de marca. Los CTAs no autentican por sí mismos: abren el formulario existente de Magic Link y
 Google OAuth para preservar el contrato de Auth.
 
+## Vista previa pre-acceptance (2026-10-05)
+
+El rediseño completo de la referencia (Inicio, Partidos, Ligas, Unirme a una liga, detalle de
+liga, ficha de equipo y Perfil) se implementó en la rama `prep/ui-redesign-pre-acceptance` antes del
+cierre de Fase 05/05-bis. **No es inicio de Fase 06.**
+
+- **Datos reales:** nombre, correo e iniciales del perfil; "Mis ligas" (`participants` + `pools`
+  bajo RLS); unión por código (`/j/:code` → `join_pool`); acceso a `/admin` solo para owner/admin.
+- **Datos de ejemplo:** partidos, competiciones, equipos, tablas, ligas recomendadas, actividad y
+  nivel/puntos del perfil. Salen de `lib/sports-preview.ts` vía `useSportsCatalog()` y solo se
+  muestran con `isPreviewDataEnabled()`: activo en `npm run dev` y desactivado en cualquier build
+  salvo que se defina `VITE_PREVIEW_DATA=true`. Sin vista previa, esas secciones muestran estados
+  vacíos.
+- **Contrato de presentación:** `lib/sports-catalog.ts` usa los nombres de columna de Fase 03
+  (`tournaments`, `teams`, `matches`, `match_status`) para que Fase 06 sustituya la fuente sin
+  tocar las vistas. No es autoridad para lock ni scoring.
+- **Seguir equipo:** preferencia local del dispositivo (`localStorage`, solo ids de equipo). No existe
+  modelo de equipos seguidos en la base.
+
 ## Diferencias inevitables frente a la referencia
 
-1. **Contenido de partidos, ligas, tablas de posiciones y feed en vivo**: la
-   referencia muestra datos reales (marcadores, jornadas, standings). Esas
-   funcionalidades no existen aún (Fase 06 en adelante), así que las pantallas
-   equivalentes (`PoolView`) usan skeletons y notas explícitas ("se habilita en
-   la Fase 06/08") en vez de datos inventados.
-2. **Buscador global y accesos rápidos de Home** (Calendario, Tabla,
-   Estadísticas) no están implementados; se conservan solo los pasos
-   funcionales existentes (Unirse / Predecir / Competir).
-3. **Bell de notificaciones** de la referencia no se agregó: no existe un
-   sistema de notificaciones en el producto y agregar el icono sin función
-   sería inventar una feature.
-4. **Adaptación desktop**: la referencia es 100% mobile; en `sm:`/`md:` el
-   `SuperadminShell` y los formularios de `AdminView` usan grillas más anchas
-   manteniendo los mismos tokens.
+1. **Marca:** la referencia muestra el texto "SportLeagues"; la portada usa el logo aprobado
+   `logo_app_tablo.png` (Tablo). Unificar la marca es una decisión de producto pendiente.
+2. **Escudos, logos de ligas y foto del jugador:** no se usan marcas ni imágenes oficiales. Se
+   generan escudos SVG con colores e iniciales y emblemas con bandera; el banner de liga usa el
+   escudo del líder en lugar de la fotografía.
+3. **Códigos de ligas recomendadas:** la referencia muestra `#LIGAMX2020`; los ejemplos usan el
+   formato real de 6 caracteres (`[A-Z0-9]{6}`).
+4. **Números de ejemplo:** la tabla y las estadísticas son coherentes entre sí (PJ = G + E + P,
+   PTS = 3·G + E), por eso no copian cifras inconsistentes de la referencia.
+5. **Usuario:** el perfil muestra el correo real en lugar de un `@usuario`, porque el modelo
+   `profiles` no tiene handle. El icono de cámara del avatar se reemplazó por una insignia de
+   verificación: no existe la subida de foto de perfil.
+6. **Plantilla y Logros:** no forman parte del modelo del MVP; muestran estados vacíos explicados.
+7. **Cerrar sesión** está en Perfil → Ajustes (⚙), junto al acceso al panel de administración.
+8. **Adaptación desktop:** la referencia es 100% mobile; las pantallas mantienen una columna
+   `max-w-lg` centrada y el `SuperadminShell` y `AdminView` usan grillas más anchas.

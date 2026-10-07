@@ -7,6 +7,7 @@ import ErrorState from '../components/ErrorState.vue'
 import MatchCard from '../components/MatchCard.vue'
 import PoolCard from '../components/PoolCard.vue'
 import RankingRow from '../components/RankingRow.vue'
+import ScreenHeader from '../components/ScreenHeader.vue'
 import SecondaryButton from '../components/SecondaryButton.vue'
 import { usePoolAccess } from '../composables/usePoolAccess'
 import { useAuth } from '../composables/useAuth'
@@ -24,8 +25,9 @@ watch(
 </script>
 
 <template>
-  <AppShell variant="app" active="home" title="Quiniela" :user-name="auth.state.profile?.display_name">
-    <section class="space-y-6 pt-2">
+  <AppShell variant="app" active="leagues" title="Quiniela" :user-name="auth.state.profile?.display_name">
+    <ScreenHeader :title="access.pool.value?.name ?? 'Liga'" :back="{ name: 'leagues' }" />
+    <section class="space-y-6">
       <div v-if="access.loading.value" class="flex items-center justify-center gap-2 py-16 text-sm text-text-muted">
         <LoaderCircle class="h-4 w-4 animate-spin" />Verificando acceso…
       </div>

@@ -1,22 +1,23 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowLeft, ArrowRight, KeyRound, ListChecks, Sparkles, Target, Trophy } from 'lucide-vue-next'
+import { ArrowLeft, ArrowRight, KeyRound, Sparkles, Trophy } from 'lucide-vue-next'
 import coverBackground from '../assets/backgrounds/fondo_app_tablo.png'
 import coverLogo from '../assets/branding/logo_app_tablo.png'
 import AppShell from '../components/AppShell.vue'
-import EmptyState from '../components/EmptyState.vue'
+import HomeDashboard from '../components/HomeDashboard.vue'
 import FormField from '../components/FormField.vue'
 import PrimaryButton from '../components/PrimaryButton.vue'
 import SecondaryButton from '../components/SecondaryButton.vue'
+import SportIcon from '../components/SportIcon.vue'
 import StatChip from '../components/StatChip.vue'
 import { useAuth } from '../composables/useAuth'
 import { normalizeJoinCode } from '../lib/join-intent'
+import type { SportKey } from '../lib/sports-catalog'
 
 const router = useRouter()
 const auth = useAuth()
 
-const joinOpen = ref(false)
 const code = ref('')
 const codeError = ref('')
 const email = ref('')
@@ -26,13 +27,7 @@ const sendingMagic = ref(false)
 const signingGoogle = ref(false)
 const authPanel = ref(false)
 const authMode = ref<'sign-in' | 'sign-up'>('sign-in')
-const coverIcons = [Trophy, Target, Sparkles, ListChecks, KeyRound]
-
-const initials = computed(() => {
-  const name = auth.state.profile?.display_name?.trim()
-  if (!name) return '?'
-  return name.split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('') || '?'
-})
+const coverSports: SportKey[] = ['football', 'volleyball', 'basketball', 'tennis']
 
 function goToJoin(): void {
   const normalized = normalizeJoinCode(code.value)
@@ -65,7 +60,6 @@ function openAuth(mode: 'sign-in' | 'sign-up'): void {
 
 <template>
   <AppShell
-    v-model:join-open="joinOpen"
     :variant="auth.isAuthenticated.value ? 'app' : authPanel ? 'guest' : 'focus'"
     active="home"
     title="Inicio"
@@ -78,8 +72,8 @@ function openAuth(mode: 'sign-in' | 'sign-up'): void {
         <img :src="coverLogo" alt="Tablo" class="mx-auto mt-[5dvh] w-48 drop-shadow-[0_8px_24px_rgba(0,0,0,0.65)]" />
         <p class="mx-auto mt-2 max-w-44 font-display text-base font-bold leading-tight text-text">Tu pasión,<br />en cada partido</p>
         <div class="mt-5 flex items-center justify-center gap-2" aria-label="Deportes disponibles">
-          <span v-for="(icon, index) in coverIcons" :key="index" class="flex h-8 w-8 items-center justify-center rounded-full border border-text/20 bg-canvas/45 text-text backdrop-blur-sm">
-            <component :is="icon" class="h-4 w-4" aria-hidden="true" />
+          <span v-for="sport in coverSports" :key="sport" class="flex h-8 w-8 items-center justify-center rounded-full border border-text/20 bg-canvas/45 text-text backdrop-blur-sm">
+            <SportIcon :sport="sport" class="h-4 w-4" />
           </span>
         </div>
         <div class="flex-1" />
@@ -147,55 +141,6 @@ function openAuth(mode: 'sign-in' | 'sign-up'): void {
       <p v-if="notice" class="rounded-xl bg-primary-100 p-3 text-sm font-medium text-primary">{{ notice }}</p>
     </section>
 
-    <section v-else class="space-y-6 pb-4 pt-2">
-      <div v-if="!auth.state.profile" class="rounded-2xl border border-primary/40 bg-primary-100/50 p-5">
-        <h1 class="font-display text-lg font-bold text-text">Un último paso</h1>
-        <p class="mt-1 text-sm text-text-muted">Completa tu perfil para acceder a tus quinielas.</p>
-        <PrimaryButton class="mt-4" @click="router.push({ name: 'onboarding' })">Completar perfil</PrimaryButton>
-      </div>
-
-      <template v-else>
-        <div class="flex items-center justify-between gap-3">
-          <div>
-            <p class="section-kicker">Inicio</p>
-            <h1 class="font-display text-xl font-bold text-text">Hola, {{ auth.state.profile.display_name }} 👋</h1>
-            <p class="text-sm text-text-muted">El deporte nos une.</p>
-          </div>
-          <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-2 font-display text-sm font-bold text-text ring-1 ring-primary/40">{{ initials }}</span>
-        </div>
-
-        <div class="stadium-hero overflow-hidden rounded-3xl border border-secondary/25 p-5 shadow-md">
-          <span class="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-canvas shadow-glow-primary"><Trophy class="h-5 w-5" /></span>
-          <p class="section-kicker mt-5">Tu próxima jugada</p>
-          <h2 class="mt-1 font-display text-xl font-bold text-text">Únete a una quiniela</h2>
-          <p class="mt-2 text-sm leading-5 text-text-muted">Ingresa el código que te compartió tu organizador y compite con tu comunidad.</p>
-          <PrimaryButton class="mt-5" @click="joinOpen = true"><KeyRound class="h-4 w-4" />Unirme con código</PrimaryButton>
-        </div>
-
-        <EmptyState :icon="Trophy" title="Aún no perteneces a ninguna quiniela" description="Cuando te unas, aquí verás tus próximos partidos y tu posición.">
-          <template #action>
-            <SecondaryButton @click="joinOpen = true">Ingresar código</SecondaryButton>
-          </template>
-        </EmptyState>
-
-        <div>
-          <div class="mb-3 flex items-center justify-between"><h2 class="font-display text-base font-bold text-text">Cómo funciona</h2><span class="text-xs font-semibold text-primary">Empieza hoy</span></div>
-          <div class="grid grid-cols-3 gap-3">
-            <div class="app-surface p-3 text-center">
-              <KeyRound class="mx-auto h-5 w-5 text-primary" />
-              <p class="mt-2 text-xs font-semibold text-text">1. Únete</p>
-            </div>
-            <div class="app-surface p-3 text-center">
-              <Target class="mx-auto h-5 w-5 text-primary" />
-              <p class="mt-2 text-xs font-semibold text-text">2. Predice</p>
-            </div>
-            <div class="app-surface p-3 text-center">
-              <ListChecks class="mx-auto h-5 w-5 text-primary" />
-              <p class="mt-2 text-xs font-semibold text-text">3. Compite</p>
-            </div>
-          </div>
-        </div>
-      </template>
-    </section>
+    <HomeDashboard v-else />
   </AppShell>
 </template>

@@ -218,6 +218,47 @@ resultados. `supabase db query --linked` agotó el tiempo de conexión desde est
 el paso A7 lo detecta. Fase 05/05-bis no está ACCEPTED hasta recibir esa evidencia y la validación
 manual de `/admin` y `/superadmin`. Fase 06 no inicia.
 
+## Rediseño UI pre-acceptance (2026-10-05) — rama `prep/ui-redesign-pre-acceptance`
+
+QA de Supabase no está disponible (pausado o sin DNS), así que los happy paths HTTP siguen sin
+ejecutarse. **Fase 05/05-bis siguen sin ACCEPTED y Fase 06 no se inicia formalmente.**
+
+Mientras tanto se implementaron, como trabajo de preparación en la rama
+`prep/ui-redesign-pre-acceptance` (sin merge a `main` ni push), las 8 pantallas de la referencia:
+
+- portada;
+- Inicio;
+- Partidos;
+- detalle de liga;
+- ficha de equipo;
+- Ligas;
+- Unirme a una liga;
+- Perfil.
+
+**Datos reales:**
+
+- perfil;
+- "Mis ligas" (`participants` + `pools` bajo RLS);
+- unión por código (`join_pool`);
+- acceso admin solo para owner/admin.
+
+**Datos de ejemplo:** partidos, tablas y actividad. Son **preparación técnica / draft de Fase 06**:
+solo se muestran con `VITE_PREVIEW_DATA` o en `npm run dev`, siempre marcados como "Vista previa",
+y quedan desactivados en cualquier build.
+
+No se tocaron migraciones, RLS, RPC, Edge Functions ni Auth.
+
+Gates:
+
+- `npm run typecheck`: PASS.
+- `npm test` (20 archivos / 98 tests): PASS.
+- `npm run build`: PASS.
+- `git diff --check`: PASS.
+- Revisión visual a 390 px: PASS.
+- **NO EJECUTADO:** validación contra QA real.
+
+Detalle: `docs/agents/HANDOFF-UI-REDESIGN-PRE-ACCEPTANCE-20261005.md`.
+
 ## Bloqueo operativo de Edge Functions (2026-09-17)
 
 `BRANDING_RECONCILER_SECRET` está configurado en QA con un valor criptográficamente seguro

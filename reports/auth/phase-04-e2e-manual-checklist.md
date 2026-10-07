@@ -175,7 +175,7 @@ Para cada caso conserva: captura de la UI sin datos sensibles, URL final, Consol
 
 - **Objetivo:** comprobar limpieza de estado local y guard de UX.
 - **Precondiciones:** sesión, perfil y una ruta `/p/<pool_id>` autorizada.
-- **Pasos:** pulsa **Cerrar sesión**; inspecciona UI y `sessionStorage`; abre/reintenta `/p/<pool_id>`.
+- **Pasos:** en **Perfil**, abre **Ajustes** (⚙) y pulsa **Cerrar sesión**; inspecciona UI y `sessionStorage`; abre/reintenta `/p/<pool_id>`.
 - **Esperado/PASS:** no hay sesión/perfil visibles; el guard redirige a `/`; no se muestran datos privados. El join code ya consumido no reaparece.
 - **FAIL:** la ruta sigue mostrando recurso privado, sesión/profile queda visible, o navegación produce acceso a datos tras logout.
 - **Evidencia/observaciones:** URL final, UI, storage sin intención consumida y Console/Network.
