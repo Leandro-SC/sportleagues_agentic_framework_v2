@@ -88,7 +88,7 @@ Rutas nuevas, todas protegidas por sesión y perfil: `/partidos`, `/ligas`, `/li
 - `npm test`: PASS, 20 archivos / 98 tests (antes 10 / 49).
 - `npm run build`: PASS. Las vistas nuevas se generan como chunks diferidos; el chunk compartido
   `EmptyState-*.js` (312 kB, 92 kB gzip) es `@supabase/supabase-js`, que antes iba en el bundle
-  principal.
+  principal. (Iteración 2: el dataset de ejemplo ya no viaja en el bundle de producción.)
 - `git diff --check`: PASS.
 - Revisión visual a 390 px con Chrome headless (DevTools Protocol) y auth simulada en un servidor
   temporal fuera del repo: las 8 pantallas, estados alternativos y modo sin vista previa.
@@ -105,7 +105,9 @@ Rutas nuevas, todas protegidas por sesión y perfil: `/partidos`, `/ligas`, `/li
   dicen "SportLeagues". Es una decisión de producto pendiente.
 - "Seguir equipo" es local al dispositivo hasta que exista un modelo en la base.
 - Un despliegue con `VITE_PREVIEW_DATA=true` mostraría datos de ejemplo, marcados como tal. No
-  activarlo en producción.
+  activarlo en producción. Desde la iteración 2 el dataset ya no viaja en builds sin esa variable
+  (carga diferida) y `npm run verify:bundle` lo comprueba; en un build de demo queda en su propio
+  chunk.
 
 ## Bloqueos
 
@@ -120,3 +122,56 @@ validación manual en navegador, ambos pendientes de que QA vuelva a estar dispo
    con un usuario real.
 3. Fase 06 (cuando se autorice): implementar la fuente real de `useSportsCatalog()` con
    `tournaments`, `teams`, `rounds`, `matches` y `official_results`, sin cambiar las vistas.
+
+---
+
+## Iteración 2 (2026-10-06) — misma rama, trabajo pre-acceptance
+
+Tres commits sobre la rama, sin push ni merge a `main`. Fase 05/05-bis siguen sin ACCEPTED y Fase 06
+no se inicia formalmente.
+
+### 1. `chore(platform): lazy-load preview data outside production bundle`
+
+- `useSportsCatalog` importa el dataset con `import()` tras una guarda con constantes de build; en un
+  build normal la rama y el chunk desaparecen. Comprobado: 12 chunks JS sin el dataset; con
+  `VITE_PREVIEW_DATA=true` queda aislado en `sports-preview-*`.
+- La carga pasó a ser asíncrona: nuevo `CatalogBoundary` (skeleton / error + reintentar) aplicado en
+  Partidos, Detalle de liga, Ficha de equipo, Perfil y Unirme a una liga, para no mostrar "no
+  encontrado" ni vacíos mientras carga. `useFollowedTeams` recibe sus valores por defecto como getter.
+- Nuevo `npm run verify:bundle` (`scripts/verify-preview-bundle.mjs`): construye y falla si el
+  dataset está en un bundle de producción, o si no está aislado en un build de demo.
+
+### 2. `feat(platform): refine mobile-first UX across redesigned screens`
+
+Verificado a 320, 390 y 430 px. Botones de icono de 44 px (`.icon-button`), pestañas de liga que caben
+en 320 px, nombres de equipo que se parten en lugar de truncarse, "Seguir equipo" anclado al token
+`--bottom-nav-h`, cierre del buscador al tocar fuera, `prefers-reduced-motion`. Detalle en
+`DESIGN-SYSTEM.md` ("Patrones móvil").
+
+### 3. `feat(platform): add phase 06 frontend data contract draft (not connected)`
+
+`sports-adapters`, `sports-source` y `prediction-ux` (ver
+`docs/design/PHASE-06-FRONTEND-DATA-CONTRACT-DRAFT.md`). Solo frontend: la fuente Supabase solo hace
+`SELECT` sobre tablas de Fase 03, **no está conectada** y no se ejecutó contra QA. `Team.competition_id`
+y `Team.country` pasan a admitir `null`.
+
+### Pruebas de la iteración
+
+- `npm run typecheck`, `npm test` (29 archivos / 173 tests; antes 20 / 98), `npm run build`,
+  `npm run verify:bundle` (producción y demo) y `git diff --check`: PASS (ver el cierre en la entrega).
+- Nuevos tests: carga diferida y estados con/sin vista previa por pantalla, carga antes que "no
+  encontrado", permisos con clientes simulados (crear liga y panel admin solo para owner/admin),
+  buscador de Inicio, objetivos táctiles, tabla de rutas (falla si una pantalla autenticada no está
+  protegida por el guard), adaptador (integridad, estados fuera del MVP, revisiones de resultado,
+  referencias rotas), fuente Supabase simulada y ayudas de lock/marcador.
+- Revisión visual con Chrome headless a 320 y 390 px en un servidor temporal fuera del repo.
+- **NO EJECUTADO:** nada contra Supabase QA (sigue inaccesible).
+
+### Riesgos / pendientes nuevos
+
+- El contrato de Fase 06 tiene brechas **(BD)** que requieren migración o ADR (deporte/país/color en
+  torneos, país/colores/torneo en equipos, política de escudos, RPC `manage_schedule` y
+  `publish_official_result`). No se tocaron; están listadas en el documento del contrato.
+- Partidos usa el alcance del tenant; el contrato prevé alcance por liga (`pool_matches`) y por
+  `lock_offset` de cada liga. Pendiente de decidir con datos reales.
+- La tabla de posiciones derivada en el cliente puede requerir paginación o una función SQL.

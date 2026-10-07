@@ -259,6 +259,21 @@ Gates:
 
 Detalle: `docs/agents/HANDOFF-UI-REDESIGN-PRE-ACCEPTANCE-20261005.md`.
 
+### Iteración 2 (2026-10-06) — pre-acceptance / draft técnico
+
+Tres commits adicionales en la misma rama (sin push ni merge a `main`):
+
+- los datos de ejemplo se cargan de forma diferida y ya no viajan en el bundle de QA/producción;
+  `npm run verify:bundle` lo comprueba;
+- refinamiento mobile-first verificado a 320/390/430 px (objetivos táctiles de 44 px, estados de
+  carga y error, pestañas y tarjetas que caben en pantallas estrechas);
+- **borrador técnico** del contrato de datos del frontend para Fase 06 (adaptador, fuente Supabase
+  no conectada y ayudas de lock/marcador), con sus brechas documentadas en
+  `docs/design/PHASE-06-FRONTEND-DATA-CONTRACT-DRAFT.md`. **No es el inicio formal de Fase 06**:
+  no hay migraciones, RLS, RPC ni Edge Functions nuevas y no se conectó a la app.
+
+Fase 05/05-bis siguen sin ACCEPTED. Nada se ejecutó contra Supabase QA.
+
 ## Bloqueo operativo de Edge Functions (2026-09-17)
 
 `BRANDING_RECONCILER_SECRET` está configurado en QA con un valor criptográficamente seguro

@@ -108,6 +108,7 @@ para fondos de badges/alertas, y el color base para texto/iconos/bordes.
 | `QuickActionTile.vue`, `FollowedTeamCard.vue`, `CommunityLeagueRow.vue`, `ActivityRow.vue` | Accesos rápidos, equipos seguidos, ligas recomendadas y actividad del perfil. |
 | `NotificationsButton.vue` / `ShareMenuButton.vue` | Campana con estado vacío (las notificaciones son de Fase 11) y menú ⋮ con Compartir (Web Share o copiar enlace). |
 | `PreviewBadge.vue` | Marca ámbar "Vista previa" obligatoria en todo bloque con datos de ejemplo. |
+| `CatalogBoundary.vue` | Frontera de carga/error del catálogo: skeleton accesible (`role="status"`), error con "Reintentar" y contenido cuando está listo. Evita mostrar "no encontrado" o vacío mientras se carga. |
 
 ## Portada pública
 
@@ -116,6 +117,23 @@ para fondos de badges/alertas, y el color base para texto/iconos/bordes.
 misma estructura de la referencia: marca, tagline, iconos deportivos, CTA primario, CTA outline y
 pie de marca. Los CTAs no autentican por sí mismos: abren el formulario existente de Magic Link y
 Google OAuth para preservar el contrato de Auth.
+
+## Patrones móvil (verificados a 320, 390 y 430 px)
+
+- **Objetivo táctil mínimo 44×44 px:** los botones de solo icono usan `.icon-button` (`styles.css`).
+  Los puntos del carrusel amplían su zona táctil con un pseudo-elemento sin cambiar su tamaño.
+- **Los nombres de equipo se parten en dos líneas** (`line-clamp-2`) en lugar de truncarse con "…";
+  los textos auxiliares bajan a 10–13 px por debajo de 360 px (`min-[360px]:`).
+- **Pestañas:** la variante `chip` reparte el ancho (`flex-1 min-w-0`) para que 4 pestañas quepan
+  en 320 px; la `pill` no se parte (`whitespace-nowrap`).
+- **Elementos fijos sobre la navegación** (botón "Seguir equipo") se posicionan con el token
+  `--bottom-nav-h` (`styles.css`), el mismo alto que usa `BottomNav`, más el área segura del
+  dispositivo, y llevan degradado para no tapar contenido de forma ilegible.
+- **Listas horizontales** usan `scroll-px-5` para que el primer elemento se alinee con el margen.
+- **Movimiento reducido:** con `prefers-reduced-motion` se desactivan animaciones y transiciones
+  (skeleton, pulso de "En vivo").
+- **Búsqueda:** el desplegable se cierra con Escape y al tocar fuera (`pointerdown` en el
+  documento, porque `focusout` pierde el clic en Safari iOS) y se reabre al enfocar.
 
 ## Vista previa pre-acceptance (2026-10-05)
 
@@ -129,10 +147,13 @@ cierre de Fase 05/05-bis. **No es inicio de Fase 06.**
   nivel/puntos del perfil. Salen de `lib/sports-preview.ts` vía `useSportsCatalog()` y solo se
   muestran con `isPreviewDataEnabled()`: activo en `npm run dev` y desactivado en cualquier build
   salvo que se defina `VITE_PREVIEW_DATA=true`. Sin vista previa, esas secciones muestran estados
-  vacíos.
+  vacíos. El dataset se importa de forma diferida (`import()`) tras una guarda con constantes de
+  build: en builds sin vista previa **no está en el JavaScript** y con `VITE_PREVIEW_DATA=true`
+  queda en un chunk `sports-preview-*` propio. `npm run verify:bundle` lo comprueba.
 - **Contrato de presentación:** `lib/sports-catalog.ts` usa los nombres de columna de Fase 03
   (`tournaments`, `teams`, `matches`, `match_status`) para que Fase 06 sustituya la fuente sin
-  tocar las vistas. No es autoridad para lock ni scoring.
+  tocar las vistas. No es autoridad para lock ni scoring. Borrador de la conexión real y sus
+  brechas: `docs/design/PHASE-06-FRONTEND-DATA-CONTRACT-DRAFT.md`.
 - **Seguir equipo:** preferencia local del dispositivo (`localStorage`, solo ids de equipo). No existe
   modelo de equipos seguidos en la base.
 
