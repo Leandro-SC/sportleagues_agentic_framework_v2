@@ -195,6 +195,29 @@ test` (10 archivos / 49 tests) y `npm run build`: PASS; revisión visual local d
 pública y `git diff --check`: PASS. Esta mejora no modifica el bloqueo de cierre de Fase 05/05-bis
 ni inicia Fase 06.
 
+## Preparación del cierre formal de Fase 05/05-bis (2026-10-05)
+
+Se prepararon los happy paths HTTP pendientes como scripts que ejecuta el operador, sin exponer
+secretos: `scripts/qa/branding-asset-happy-path.sh` (11 pasos con JWT real de Admin 2: CORS,
+401/403/404/415/409 y carga, activación y verificación WebP) y
+`scripts/qa/branding-reconciler-happy-path.sh` (5 pasos: 405/401 y dos corridas autorizadas).
+Runbook y resultados esperados: `docs/operations/PHASE-05-HTTP-HAPPY-PATHS.md`. Fixture:
+`supabase/tests/fixtures/branding/qa-logo-512.png`. Se añadió `.gitattributes` para fijar los `.sh`
+en LF.
+
+`branding-asset-happy-path.sh` respalda y verifica el logo activo antes de cualquier cambio y lo
+restaura al terminar, también ante errores intermedios o interrupción. Como el lifecycle no permite
+reactivar un asset reemplazado, el original se vuelve a cargar como asset nuevo con la misma imagen,
+o se retira el logo de prueba si no había logo previo.
+
+Ambos scripts se validaron contra un servidor local simulado con estado que replica el lifecycle
+(happy paths PASS; también PASS los casos de JWT expirado/mal formado, plan no PRO, tenant sin logo,
+respaldo corrupto, corte de red tras A9 y fallo de restauración con respaldo conservado).
+**Todavía no se ejecutaron contra QA:** el operador los ejecutará y devolverá solo códigos y
+resultados. `supabase db query --linked` agotó el tiempo de conexión desde este entorno, así que no se pudo confirmar desde aquí que Tenant B tenga plan `pro`;
+el paso A7 lo detecta. Fase 05/05-bis no está ACCEPTED hasta recibir esa evidencia y la validación
+manual de `/admin` y `/superadmin`. Fase 06 no inicia.
+
 ## Bloqueo operativo de Edge Functions (2026-09-17)
 
 `BRANDING_RECONCILER_SECRET` está configurado en QA con un valor criptográficamente seguro
