@@ -97,7 +97,7 @@ const formLabels = { G: 'Ganado', E: 'Empatado', P: 'Perdido' }
           <RouterLink v-if="competition" :to="{ name: 'league', params: { leagueId: competition.id } }" class="mt-1 flex items-center gap-2 text-sm text-text hover:underline">
             <CompetitionEmblem :name="competition.name" :country="competition.country" :accent="competition.accent" />{{ competition.name }}
           </RouterLink>
-          <p class="mt-1.5 flex items-center gap-2 text-sm text-text-muted"><CountryFlag :country="team.country" />{{ team.country_name }}</p>
+          <p v-if="team.country || team.country_name" class="mt-1.5 flex items-center gap-2 text-sm text-text-muted"><CountryFlag v-if="team.country" :country="team.country" />{{ team.country_name }}</p>
           <PreviewBadge v-if="sports.preview" class="mt-3" />
         </div>
 
@@ -162,7 +162,7 @@ const formLabels = { G: 'Ganado', E: 'Empatado', P: 'Perdido' }
       <BottomSheet v-model:open="infoOpen" :title="team.name">
         <dl class="space-y-3 text-sm">
           <div class="flex justify-between gap-3"><dt class="text-text-muted">Competición</dt><dd class="text-right font-semibold text-text">{{ competition?.name ?? '–' }}</dd></div>
-          <div class="flex justify-between gap-3"><dt class="text-text-muted">País</dt><dd class="text-right font-semibold text-text">{{ team.country_name }}</dd></div>
+          <div class="flex justify-between gap-3"><dt class="text-text-muted">País</dt><dd class="text-right font-semibold text-text">{{ team.country_name || '–' }}</dd></div>
           <div class="flex justify-between gap-3"><dt class="text-text-muted">Temporada</dt><dd class="text-right font-semibold text-text">{{ competition?.season_label ?? '–' }}</dd></div>
         </dl>
         <p class="mt-4 text-xs text-text-faint">“Seguir equipo” se guarda solo en este dispositivo.</p>

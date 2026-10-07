@@ -133,7 +133,7 @@ const resultIcon = { pool: Trophy, competition: ListOrdered, team: UsersRound }
           v-for="team in followedTeams"
           :key="team.id"
           :team="team"
-          :subtitle="`${sports.competition(team.competition_id)?.name ?? ''} - ${team.country_name}`"
+          :subtitle="[sports.competition(team.competition_id)?.name, team.country_name].filter(Boolean).join(' - ')"
           class="w-[72%] shrink-0 snap-start min-[380px]:w-[46%]"
         />
       </div>

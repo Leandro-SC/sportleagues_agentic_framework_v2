@@ -14,7 +14,7 @@ defineProps<{ team: Team; subtitle: string }>()
     <TeamCrest :name="team.name" :short-name="team.short_name" :colors="team.colors" size="md" />
     <span class="min-w-0">
       <span class="line-clamp-2 block text-sm font-semibold leading-tight text-text">{{ team.name }}</span>
-      <span class="block truncate text-xs text-text-muted">{{ subtitle }}</span>
+      <span v-if="subtitle" class="block truncate text-xs text-text-muted">{{ subtitle }}</span>
     </span>
   </RouterLink>
 </template>

@@ -20,14 +20,18 @@ export type Competition = {
   season_label: string
 }
 
+// `country`, `country_name` y `competition_id` son opcionales en datos reales: la tabla `teams` de
+// Fase 03 no tiene país ni torneo (un equipo pertenece al tenant, no a una competición). La vista
+// previa los rellena; el adaptador de Fase 06 los deriva o los deja en null/vacío.
 export type Team = {
   id: string
   name: string
   short_name: string
   colors: [string, string]
-  competition_id: string
-  country: CountryCode
+  competition_id: string | null
+  country: CountryCode | null
   country_name: string
+  crest_path?: string | null
 }
 
 export type Match = {
@@ -253,7 +257,7 @@ export function searchCatalog(
     ...catalog.competitions.filter((competition) => matchesText(competition.name, query))
       .map((competition) => ({ kind: 'competition' as const, id: competition.id, title: competition.name, subtitle: competition.country_name })),
     ...catalog.teams.filter((team) => matchesText(team.name, query))
-      .map((team) => ({ kind: 'team' as const, id: team.id, title: team.name, subtitle: competitionName.get(team.competition_id) ?? team.country_name })),
+      .map((team) => ({ kind: 'team' as const, id: team.id, title: team.name, subtitle: (team.competition_id ? competitionName.get(team.competition_id) : undefined) ?? team.country_name })),
   ].slice(0, limit)
 }
 

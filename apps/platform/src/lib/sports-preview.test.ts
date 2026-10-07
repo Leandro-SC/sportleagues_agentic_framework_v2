@@ -16,7 +16,7 @@ describe('preview catalog integrity', () => {
       expect(match.home_team_id).not.toBe(match.away_team_id)
       expect(competitionIds.has(match.tournament_id), match.id).toBe(true)
     }
-    for (const team of catalog.teams) expect(competitionIds.has(team.competition_id), team.id).toBe(true)
+    for (const team of catalog.teams) expect(team.competition_id !== null && competitionIds.has(team.competition_id), team.id).toBe(true)
     for (const id of catalog.followedTeamIds) expect(teamIds.has(id), id).toBe(true)
   })
 

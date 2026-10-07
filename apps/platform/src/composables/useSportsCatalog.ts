@@ -20,8 +20,10 @@ async function loadCatalog(): Promise<void> {
     // vista previa, el bundler elimine esta rama y el dataset de ejemplo no se incluya en el
     // JavaScript de QA/producción. `npm run verify:bundle` lo comprueba.
     if (import.meta.env.DEV || import.meta.env.VITE_PREVIEW_DATA === 'true') {
-      const { buildPreviewCatalog } = await import('../lib/sports-preview')
-      catalog.value = buildPreviewCatalog(now.value)
+      // Fase 06 (cuando se autorice): sustituir por createSupabaseSportsSource(getSupabaseClient())
+      // de lib/sports-source.ts. Las vistas no cambian porque solo ven este composable.
+      const { createPreviewSource } = await import('../lib/sports-preview')
+      catalog.value = (await createPreviewSource(now.value).load()).catalog
     }
     status.value = 'ready'
   } catch {

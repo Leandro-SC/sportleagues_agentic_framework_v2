@@ -3,6 +3,7 @@
 // Los nombres de equipos y competiciones son ilustrativos; no se usan escudos ni marcas oficiales.
 // Fechas relativas a `now` para que Hoy/Mañana/Esta semana se puedan revisar en cualquier día.
 import type { Competition, CommunityLeague, Match, MatchStatus, SportsCatalog, StandingRow, Team } from './sports-catalog'
+import type { SportsDataSource } from './sports-source'
 
 const MINUTE = 60 * 1000
 const DAY = 24 * 60 * MINUTE
@@ -133,4 +134,9 @@ export function buildPreviewCatalog(now: Date = new Date()): SportsCatalog {
     followedTeamIds: ['sporting-cristal', 'real-madrid'],
     profileStats: { tournaments: 5, points: 98, level: 'Nivel Pro', weeklyPoints: 12 },
   }
+}
+
+// Implementación de SportsDataSource para la vista previa; la carga diferida de useSportsCatalog la usa.
+export function createPreviewSource(now: Date = new Date()): SportsDataSource {
+  return { kind: 'preview', load: async () => ({ catalog: buildPreviewCatalog(now), warnings: [] }) }
 }

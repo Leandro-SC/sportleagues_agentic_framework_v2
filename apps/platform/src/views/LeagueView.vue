@@ -69,7 +69,7 @@ const shortName = computed(() => competition.value?.name.replace(/\s+(CL|AP)?\s*
             <div class="min-w-0">
               <h1 class="truncate font-display text-[22px] font-bold text-text">{{ competition.name }}</h1>
               <p class="mt-1 flex items-center gap-2 text-sm text-text">
-                <CountryFlag v-if="competition.country" :country="competition.country" />{{ competition.country_name }}
+                <CountryFlag v-if="competition.country" :country="competition.country" />{{ competition.country_name || 'Competición' }}
               </p>
             </div>
           </div>
