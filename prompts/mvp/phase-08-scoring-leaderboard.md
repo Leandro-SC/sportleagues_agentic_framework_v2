@@ -46,7 +46,8 @@ Incluye un dataset pequeño con resultados conocidos y asserts exactos para:
 - [ ] recálculo repetido no altera totales;
 - [ ] corrección de resultado deja ranking correcto;
 - [ ] reglas y desempates coinciden con contrato;
-- [ ] consultas principales tienen rendimiento razonable con dataset de prueba.
+- [ ] consultas principales tienen rendimiento razonable con dataset de prueba;
+- [ ] ranking y elegibilidad excluyen a perfiles incompatibles aunque existan filas heredadas (ADR-015, INC-05).
 ## Instrucciones generales de ejecución
 
 1. **Inspecciona antes de editar.** Lee los archivos relacionados y el historial/reportes existentes.

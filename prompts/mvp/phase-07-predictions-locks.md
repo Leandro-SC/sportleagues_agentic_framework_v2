@@ -37,7 +37,8 @@ Construir la experiencia central del participante: seleccionar marcadores rápid
 - [ ] lock real es server-side;
 - [ ] aislamiento y ownership están probados;
 - [ ] visibilidad ajena cumple contrato;
-- [ ] race conditions básicas están cubiertas.
+- [ ] race conditions básicas están cubiertas;
+- [ ] administradores de la quiniela no pueden pronosticar ni emitir tickets, ni siquiera tras perder el rol; sí en otras quinielas (ADR-015, INC-04/09/10/C3).
 ## Instrucciones generales de ejecución
 
 1. **Inspecciona antes de editar.** Lee los archivos relacionados y el historial/reportes existentes.

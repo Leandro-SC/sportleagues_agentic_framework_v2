@@ -5,6 +5,7 @@
 - Decisores: Architecture (preparación de tickets). Requiere aprobación del Product Owner (sección «Decisiones pendientes»).
 - Detalle técnico (DDL conceptual, RPC, RLS, pruebas): [`ADR-014-ANNEX-tickets-technical-design.md`](../ADR-014-ANNEX-tickets-technical-design.md)
 - Revisión 2 (Security, Data, Backend, Product): [`ADR-014-REVIEW-20261011.md`](../ADR-014-REVIEW-20261011.md) — **este texto la incorpora; prevalece sobre el anexo donde difieran**.
+- Gobernanza, lock inmutable e incompatibilidad administrador/participante: [`ADR-015`](ADR-015-pool-integrity-and-admin-participant-incompatibility.md) (**precondición** de este ADR).
 - Relacionados: ADR-002, ADR-003, ADR-005, ADR-008, ADR-010, ADR-011, ADR-012; `docs/product/ROADMAP-MOVIL-TICKETS-PRONOSTICOS-APIS.md`.
 
 > Solo diseño. No autoriza migraciones, cambios de RLS/grants, pagos reales ni el inicio de la Fase 06.
@@ -63,7 +64,8 @@ apuestas. Este ADR **registra** pagos hechos fuera de la plataforma; no procesa 
    del tenant no basta**. Solo el `owner` del tenant asigna personal, con auditoría; el creador de la quiniela queda
    asignado. Reembolsos, reversos y ajustes: capacidad separada. Superadmin no hereda acceso (ADR-008 §9). El
    organizador no ve selecciones de un ticket antes de su lock (ADR-005). Las funciones de Fase 05 basadas en
-   `is_tenant_admin` no cambian aquí; migrar toda la administración a alcance por quiniela requiere un ADR aparte.
+   `is_tenant_admin` no cambian aquí; **toda capacidad de `pool_staff` es capacidad administrativa y es incompatible con
+   participar, comprar tickets o figurar en ranking de la misma quiniela (ADR-015 §2)**; migrar toda la administración a alcance por quiniela requiere un ADR aparte.
 9. **Pasarela futura**: `payments.provider`/`provider_ref` y un conjunto de estados ya compatibles; una
    pasarela solo podrá confirmar mediante un webhook verificado (Edge Function con firma) que invoque la
    misma RPC interna de confirmación. Requiere ADR propio (proveedor, SDK, dinero real; AGENTS §12).
@@ -89,7 +91,10 @@ apuestas. Este ADR **registra** pagos hechos fuera de la plataforma; no procesa 
     `none→tickets` y solo si el pool no tiene predicciones.
 12. **Numeración gap-tolerant**: `ticket_no` por secuencia, sin contador por pool-jornada; la numeración visible
     se deriva. Un correlativo estricto solo se adopta si producto lo exige y tras benchmark.
-13. **Fase y secuencia (D1, aprobada)**: `pool_rounds` y P1/P5 en Fase 06; `pool_staff`, tickets (solo precio 0),
+13. **Regla de incompatibilidad (aprobada, ADR-015)**: `create_ticket`, `save_ticket_selections` y `submit_ticket` rechazan
+    a quien tenga capacidad administrativa actual o histórica sobre el pool; `eligibility` y el ranking excluyen a esos perfiles.
+    Esto elimina la autoconfirmación con la misma cuenta (D14 resuelta); `confirm_payment` ya no necesita comprobarla.
+14. **Fase y secuencia (D1, aprobada)**: `pool_rounds` y P1/P5 en Fase 06; `pool_staff`, tickets (solo precio 0),
     selecciones y P4 en Fase 07; elegibilidad y ranking en Fase 08; payments, ledger, sello e ingresos en una
     **fase comercial posterior a la 07**, inicialmente con pagos manuales y sin procesamiento de dinero.
 
@@ -106,6 +111,7 @@ apuestas. Este ADR **registra** pagos hechos fuera de la plataforma; no procesa 
 | C7 | ADR-011 y `save_prediction` comparan con `now()` (inicio de transacción); una transacción que espera un bloqueo podría validar con hora vieja. | Extensión, no ruptura: en RPC de tickets se usa `clock_timestamp()` tras bloquear. Se propone aplicar lo mismo a `save_prediction` en Fase 07. |
 | C8 | Roles actuales solo `owner/admin/member`; D7 exige autorización por quiniela. | `pool_staff` + `can_manage_pool_finance` por capacidad (decisión 8). |
 | C9 | ADR-005/011 afirman que el lock no puede reabrirse, pero el admin tiene DML directo sobre `pools`, `matches` y `pool_matches`. | Precondición P1 (decisión 11). Defecto existente, anterior a este ADR. |
+| C11 | Un organizador podía participar y competir en su propia quiniela (el seed lo hace). | ADR-015: incompatibilidad actual e histórica, impuesta en DB. Ranking/tickets excluyen incompatibles. |
 | C10 | Las FK de Fase 03 son `ON DELETE CASCADE`; los registros financieros exigen `RESTRICT`. | Reemplazar las FK (P5); archivar en lugar de borrar. |
 
 ## Alternativas consideradas
@@ -150,5 +156,5 @@ por jornada, gratis admitido · **D5** cierre antes del primer bloqueo · **D7**
 auditado · **D12** auditoría inmutable (ver P3).
 Aprobadas con diseño propuesto y detalle abierto: **D6-b** gracia de confirmación tardía · **D8** regla de «mejor
 ticket válido» · **D11** límites Free por capacidad/coste/modelo (sin números; procedimiento en la revisión) ·
-**D13** retención y baja. Nuevas: **D14** autoconfirmación (bloquear vs. marcar y publicar) · **D15** cadena de hash
+**D13** retención y baja. Nuevas: **D14** resuelta por ADR-015 · **D15** cadena de hash
 del ledger · **D16** roles de `pool_staff`. Criterios para aceptar el ADR: revisión §7 (A1–A9).

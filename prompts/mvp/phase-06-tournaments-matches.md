@@ -36,7 +36,8 @@ Permitir carga y operación fiable de la parrilla deportiva que alimentará pron
 - [ ] kickoff/lock se manejan consistentemente;
 - [ ] resultados oficiales usan operación autorizada;
 - [ ] correcciones quedan preparadas para recálculo idempotente;
-- [ ] RLS impide operación cross-tenant.
+- [ ] RLS impide operación cross-tenant;
+- [ ] hardening de ADR-015 aplicado (lock/horarios inmutables, `audit_log` inmutable) y transferencia de administración auditada (INC-13/14/C4).
 ## Instrucciones generales de ejecución
 
 1. **Inspecciona antes de editar.** Lee los archivos relacionados y el historial/reportes existentes.

@@ -39,7 +39,8 @@ Crear el panel mobile-responsive para que owner/admin gestione quinielas, reglas
 - [ ] roles respetados;
 - [ ] estado de participantes funciona sin convertirlo en wallet;
 - [ ] branding y límites tienen UX consistente;
-- [ ] errores backend no son silenciados.
+- [ ] errores backend no son silenciados;
+- [ ] un administrador no puede inscribirse ni ser aprobado como participante de su quiniela y no se concede rol administrativo a participantes (ADR-015, INC-01/02/06/07/15).
 ## Instrucciones generales de ejecución
 
 1. **Inspecciona antes de editar.** Lee los archivos relacionados y el historial/reportes existentes.

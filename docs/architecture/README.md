@@ -2,7 +2,7 @@
 
 El contrato implementable de Fase 02 esta en
 [`phase-02-contracts.md`](phase-02-contracts.md). Los ADRs aceptados de esta fase
-son ADR-004, ADR-005 y ADR-006. Propuesta de tickets y libro financiero: [`adr/ADR-014`](adr/ADR-014-multi-tenant-tickets-payments-and-ledger.md) y su [anexo](ADR-014-ANNEX-tickets-technical-design.md) (estado Proposed).
+son ADR-004, ADR-005 y ADR-006. Propuesta de tickets y libro financiero: [`adr/ADR-014`](adr/ADR-014-multi-tenant-tickets-payments-and-ledger.md) y su [anexo](ADR-014-ANNEX-tickets-technical-design.md) (estado Proposed). Integridad del lock e incompatibilidad administrador/participante: [`adr/ADR-015`](adr/ADR-015-pool-integrity-and-admin-participant-incompatibility.md) (Proposed).
 
 ## Diagrama lógico
 

@@ -7,3 +7,4 @@
 - Scoring estándar: exacto, resultado 1X2 y bonos configurables.
 - Desempates configurables, inicialmente: exactos y fecha de registro.
 - Recálculo idempotente ante corrección de resultado.
+- Inscripción, tickets, pronósticos y ranking excluyen a perfiles con capacidad administrativa (actual o histórica) sobre la quiniela (ADR-015).

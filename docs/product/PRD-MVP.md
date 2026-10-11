@@ -37,6 +37,13 @@ Se une mediante código/deep link, registra pronósticos, consulta ranking y com
 - leaderboard general, por jornada y rachas;
 - visibilidad de pronósticos ajenos solo cuando corresponda.
 
+### Regla de integridad: administrar o competir
+
+Un usuario con capacidad administrativa sobre una quiniela (owner/admin del tenant o colaborador de la quiniela) **no puede
+participar, emitir tickets, pronosticar ni figurar en el ranking de esa quiniela**, y la incompatibilidad se mantiene aunque
+luego pierda el rol (desde la apertura de la quiniela). Sí puede participar en otras quinielas donde no tenga permisos
+administrativos. Se impone en el servidor; ver ADR-015.
+
 ### Estadística
 
 - Elo dinámico;

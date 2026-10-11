@@ -373,3 +373,12 @@ H2 (borrado en cascada de predicciones) y H3 (acciones administrativas sin audit
 REFERENCES/TRIGGER` están concedidos a `anon`/`authenticated`, pero no explotables por la API pública. Remediación R1–R6
 **propuesta, no aplicada**; explotación no ejecutada (requiere autorización). Sin migraciones, RLS ni código cambiados.
 Se suspende el avance de tickets/pronósticos/Fase 06 hasta aprobar R1. ADR-014 sigue Proposed.
+
+## Regla de producto aprobada: administrar o competir (2026-10-11) — solo diseño
+
+Un perfil con capacidad administrativa sobre una quiniela (owner/admin del tenant o colaborador) no puede participar,
+emitir tickets, pronosticar ni figurar en el ranking de esa quiniela, ni antes ni después de perder el rol (incompatibilidad
+histórica desde `opened_at`); sí en otras quinielas. Fuente única: `ADR-015` (Proposed), que también recoge la remediación
+H1–H6 de la auditoría (no sustituida). PRD, requisitos 02/03, matriz de pruebas, prompts de fases 05–08 y ADR-014 enlazan a ella.
+D14 de ADR-014 resuelta. Pendientes: D17–D20. Los datos de QA ya contienen conflictos (el seed hace participante al owner).
+Sin migraciones, RLS, permisos ni despliegues. Fases sin cambio de estado.
