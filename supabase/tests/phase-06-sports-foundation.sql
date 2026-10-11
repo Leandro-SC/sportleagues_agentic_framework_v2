@@ -162,7 +162,7 @@ begin
   v_r := pg_temp.as_user(v_a1, format($q$select public.publish_official_result(%L, -1, 1, 0)$q$, v_match));
   perform pg_temp.rec('RES5 marcador negativo rechazado', pg_temp.is_err(v_r, '22023'), v_r);
   v_r := pg_temp.as_user(v_a1, format($q$select public.publish_official_result(%L, 2, 1, 3)$q$, v_match));
-  perform pg_temp.rec('RES6 primera publicación con revisión esperada ≠ 0 → conflicto', pg_temp.is_err(v_r, '40001'), v_r);
+  perform pg_temp.rec('RES6 primera publicación con revisión esperada ≠ 0 → conflicto', pg_temp.is_err(v_r, 'PT409'), v_r);
   v_r := pg_temp.as_user(v_a1, format($q$insert into public.official_results(tenant_id, match_id, home_score, away_score, published_by) values (%L, %L, 9, 9, %L)$q$, v_t1, v_match, v_a1));
   perform pg_temp.rec('RES7 sin INSERT directo en official_results', pg_temp.is_err(v_r, '42501'), v_r);
 
@@ -189,7 +189,7 @@ begin
     (select coalesce(sum(se.points), -1) from public.scoring_events se join public.predictions pr on pr.id = se.prediction_id
       where pr.pool_match_id = v_pm and se.result_revision = 2) = 0, '');
   v_r := pg_temp.as_user(v_a1, format($q$select public.publish_official_result(%L, 3, 3, 1)$q$, v_match));
-  perform pg_temp.rec('RES12 una revisión obsoleta se rechaza (sin pérdida de actualización)', pg_temp.is_err(v_r, '40001'), v_r);
+  perform pg_temp.rec('RES12 una revisión obsoleta se rechaza (sin pérdida de actualización)', pg_temp.is_err(v_r, 'PT409'), v_r);
   v_r := pg_temp.as_user(v_a1, format($q$update public.official_results set home_score = 7 where match_id = %L$q$, v_match));
   perform pg_temp.rec('RES13 sin UPDATE directo en official_results', pg_temp.is_err(v_r, '42501'), v_r);
   v_r := pg_temp.as_role('postgres', format($q$delete from public.official_results where match_id = %L$q$, v_match));

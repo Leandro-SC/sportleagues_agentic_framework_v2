@@ -105,7 +105,7 @@ export function humanizeSportsRpcError(message: string | null | undefined, code?
   if (/both teams must be enrolled/.test(text)) return 'Los dos equipos deben estar inscritos en el torneo.'
   if (/round does not belong/.test(text)) return 'La jornada no pertenece a este torneo.'
   if (/cannot play itself|23514/.test(text)) return 'Local y visita deben ser equipos distintos.'
-  if (/revision conflict|40001/.test(text) || code === '40001') return 'El resultado cambió mientras lo editabas. Recarga y vuelve a intentarlo.'
+  if (/revision conflict|40001|PT409/.test(text) || code === '40001' || code === 'PT409') return 'El resultado cambió mientras lo editabas. Recarga y vuelve a intentarlo.'
   if (/has not started/.test(text)) return 'No puedes publicar un resultado antes de que empiece el partido.'
   if (/only scheduled matches/.test(text)) return 'Solo se editan partidos programados.'
   if (/team with matches cannot be removed/.test(text)) return 'Un equipo con partidos no puede salir del torneo.'
