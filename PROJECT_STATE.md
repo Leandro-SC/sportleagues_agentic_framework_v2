@@ -382,3 +382,12 @@ histórica desde `opened_at`); sí en otras quinielas. Fuente única: `ADR-015` 
 H1–H6 de la auditoría (no sustituida). PRD, requisitos 02/03, matriz de pruebas, prompts de fases 05–08 y ADR-014 enlazan a ella.
 D14 de ADR-014 resuelta. Pendientes: D17–D20. Los datos de QA ya contienen conflictos (el seed hace participante al owner).
 Sin migraciones, RLS, permisos ni despliegues. Fases sin cambio de estado.
+
+## Política sin Docker y remediación H1–H6 preparada (2026-10-11) — nada aplicado
+
+**Política aprobada:** sin Docker ni servicios locales; todo en la nube (`docs/operations/CLOUD-ONLY-TESTING-POLICY.md`; pruebas SQL clases A/B/C).
+**Remediación H1–H6 + incompatibilidad administrador/participante** (D17–D20 cerradas; D21 aplazamiento y D22 baja de tenants/PII abiertas):
+migraciones en `supabase/proposed/` (+ `down/`), pruebas en `supabase/tests/proposed/`, ejecutores `scripts/qa/remediation/`, diseño en ADR-015 §13–§20 e
+informe `reports/security/remediation-h1-h6-review-20261011.md`. Dictámenes independientes de Security y Data (estáticos): aprobar con cambios → corregidos en diseño;
+falta segunda revisión. **Verificado:** sintaxis (parser local sin BD) y línea base clase A en QA (3 PASS / 11 FAIL = remediación no aplicada). **BLOCKED:** suites C, concurrencia,
+reproducción y rollback hasta autorizar un proyecto Supabase descartable. Sin migraciones aplicadas, RLS/permisos modificados ni despliegues; ADR-014/015 siguen Proposed; Fase 06 no inicia.

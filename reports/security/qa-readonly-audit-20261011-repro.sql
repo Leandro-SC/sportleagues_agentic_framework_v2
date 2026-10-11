@@ -1,4 +1,4 @@
--- REPRODUCCIÓN H1/H2 — SOLO PARA UNA BASE DESCARTABLE (Supabase local: `npx supabase start`, migraciones + seed de Fase 03).
+-- REPRODUCCIÓN H1/H2 — SOLO PARA UN PROYECTO SUPABASE CLOUD DESCARTABLE (clase C; sin Docker; migraciones + seed sintético de Fase 03).
 -- NO EJECUTAR EN QA NI EN PRODUCCIÓN. Está pendiente de autorización del usuario (informe §9-A).
 -- Todo ocurre dentro de una transacción con ROLLBACK. Usa solo el seed sintético de supabase/seed/phase-03-development.sql:
 --   Owner A (11111111-…) es owner del Tenant A y participante aprobado de Pool A (lock_offset 15 min); Match …030 / pool_match …040.

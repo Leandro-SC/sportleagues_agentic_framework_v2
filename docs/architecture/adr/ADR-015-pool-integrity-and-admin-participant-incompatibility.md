@@ -184,7 +184,7 @@ solo si el producto lo decide (fuera de este ADR).
 - Cambia **autorización** (AGENTS §12): por eso este ADR. Añade tablas/columnas aditivas y triggers; no cambia firmas de RPC existentes.
 - Afecta Fases 03–05 (RPC y seed) y condiciona 06–08 (ver §12). ADR-014 pierde la decisión D14 (autoconfirmación): queda
   resuelta por esta regla (misma cuenta imposible); solo permanece el riesgo de §9.
-- **Decisiones pendientes** (no afectan a la regla): **D17** mientras la administración sea tenant-level, ¿se acepta que
+- **Decisiones D17–D20: cerradas** (ver §13). Texto original de la propuesta, conservado por trazabilidad: **D17** mientras la administración sea tenant-level, ¿se acepta que
   `owner`/`admin` queden excluidos de todas las quinielas del tenant (recomendado) o se adelanta la administración por quiniela? ·
   **D18** tratamiento de conflictos heredados (marcar y excluir, recomendado) · **D19** confirmar `opened_at` como inicio
   de la incompatibilidad histórica y la retirada de participación hasta el primer lock · **D20** confirmar que no hay
@@ -206,3 +206,102 @@ Orden: **(1)** R1–R6 de H1–H6 → **(2)** incompatibilidad (§4) → resto d
 descartable (incl. bloqueo asesor y orden de bloqueos); INC-01–C4 con casos nombrados y ejecutados en base descartable;
 conciliación de conflictos heredados descrita; reproducción H1/H2 ejecutada y corregida (autorización pendiente);
 D17–D20 cerradas; evidencia de privilegios (`has_table_privilege`) adjunta; aprobación explícita del usuario.
+
+
+## 13. Cierre de decisiones D17–D20 (aprobadas) y diseño preparado
+
+| ID | Decisión aprobada | Diseño |
+| --- | --- | --- |
+| D17 | La exclusión por administración de tenant se mantiene mientras no existan permisos granulares por quiniela | Owner/admin del tenant cuentan **siempre** como capacidad administrativa (también con `pool_admin_model='pool'`) mientras las RLS/RPC de Fases 03–05 autoricen con `is_tenant_admin`. El modelo `pool` solo cambia `_has_pool_capability` (no la exclusión). Relajar la exclusión exige migrar antes esas RLS/RPC y un ADR. §14 |
+| D18 | Conflictos heredados: se conservan, se identifican y se regularizan con auditoría; no se borra nada | `legacy_admin_conflicts` + `regularize_legacy_conflict`. §16 |
+| D19 | `opened_at` inicia la incompatibilidad histórica; el primer lock limita la resolución previa a asumir administración | `pools.opened_at`, `pool_admin_exclusions`, `_first_lock_passed`. §4 y §5 |
+| D20 | Ningún administrador participa en la misma quiniela que administra; sin excepciones | Sin parámetro, rol ni función de excepción; Superadmin incluido (§15) |
+| — | El administrador saliente sigue excluido de la edición que administró | La exclusión no se elimina (append-only, sin `DELETE`) |
+
+Implementación **preparada, no aplicada**: `supabase/proposed/20261012000{100,200,300}_*.sql` (+ `down/`), pruebas
+`supabase/tests/proposed/`, ejecutores `scripts/qa/remediation/`. Política de pruebas: `docs/operations/CLOUD-ONLY-TESTING-POLICY.md`.
+
+## 14. Modelo definitivo de permisos por quiniela (`pool_staff`)
+
+- `pool_staff(pool_id, profile_id, role, is_active, granted_by, revoked_at)` único por `(pool_id, profile_id)`; FK compuestas a
+  `pools` y `tenant_memberships` con `ON DELETE RESTRICT`. Roles: `pool_owner`, `pool_manager`, `pool_finance`. Capacidades
+  (`pool_staff_role_capabilities`): `schedule`, `results`, `participants`, `codes`, `rules`, `read_tickets`, `finance`, `refund`, `staff`.
+- **Una sola puerta de autorización**: `has_pool_capability(pool, capacidad, perfil)`. En modo `tenant` el owner del tenant tiene todas
+  las capacidades y el admin todas salvo `refund` y `staff`; en modo `pool` solo cuenta `pool_staff`. RLS/RPC de tickets, ingresos y
+  gestión llamarán a esta función; nada almacena «quién administra» dentro de tickets, pagos o rankings.
+- **Por qué la separación futura no obliga a reconstruir tickets ni rankings:** tickets/pronósticos/ranking se anclan a
+  `(pool_id, participant_id)`; la exclusión histórica está **materializada** en `pool_admin_exclusions` (instantánea al abrir y en cada
+  concesión), de modo que conmutar `pool_admin_model` cambia quién *administra* hoy pero no quién *no puede competir*. Las
+  elegibilidades ya calculadas no se invalidan; solo se amplía el conjunto de quiénes pueden recibir capacidad.
+- Cierre de la fuga de gobernanza: `has_pool_capability(pool, capacidad)` solo informa de la capacidad **propia**; la variante con perfil arbitrario (`_has_pool_capability`) y `participation_competes` no se conceden a clientes.
+- Pendiente de fases posteriores (no en esta migración): migrar `is_tenant_admin` de las RPC/RLS de Fases 03–05 a `has_pool_capability` por capacidad; con el modelo `pool`, `manage_pool('create')` deberá asignar al creador como `pool_owner` (hoy una quiniela nueva en modelo `pool` necesita asignación de servicio).
+
+## 15. Superadmin: privilegio global vs. intervención en una quiniela
+
+- Ser Superadmin (ADR-008) no excluye a nadie por sí mismo: puede participar en cualquier quiniela como un usuario normal y no recibe
+  acceso implícito a datos competitivos (RLS de pronósticos exige participación aprobada).
+- Toda actuación de plataforma sobre una quiniela concreta que pueda tocar información competitiva sensible (pronósticos no revelados,
+  resultados no publicados, horarios previos al lock, regularización de conflictos, soporte) debe iniciar con
+  `register_platform_intervention(pool, tipo, motivo ≥ 10 caracteres)`: registra auditoría y **excluye** a ese perfil de la quiniela
+  para siempre (`source = 'platform_intervention'`). Un Superadmin que participa en la quiniela **no puede** intervenir en ella.
+- No existe RPC de lectura de pronósticos no revelados para Superadmin; cualquier futura función de soporte debe llamar primero a la intervención.
+
+## 16. Conflictos heredados (D18)
+
+- Detección **al migrar**: participantes sin retirar con capacidad administrativa vigente → `legacy_admin_conflicts(status='open')`. QA ya contiene al menos
+  el caso del seed (owner del Tenant A participante de Pool A). Historial de roles anterior a la migración: **no existe** (los cambios de rol nunca se auditaron);
+  solo se detectan administradores vigentes — riesgo residual §19.
+- Mientras esté `open`: la participación no puntúa ni figura en ranking (`participation_competes = false`), no puede aprobarse ni pronosticar. No se borra
+  ningún participante, ticket, predicción ni punto; los puntos existentes se conservan.
+- Regularización auditada (`regularize_legacy_conflict`, nota ≥ 10 caracteres): la ejecuta otro `owner` de la quiniela (o Superadmin con intervención
+  registrada), **nunca el propio conflictuado**; deja la participación `withdrawn` (terminal), cierra el conflicto y es idempotente. No existe resolución
+  que mantenga a la vez rol y participación (D20).
+
+## 17. Compatibilidad con actualizaciones deportivas automáticas
+
+- El lock se **persiste** en `pool_matches.lock_at` y es inmutable una vez alcanzado; un aplazamiento posterior al lock no reabre pronósticos.
+- Estado del partido monótono (`scheduled → live → final`); pasar a `live/final` bloquea los pools que lo usan. Los resultados siguen el flujo de ADR-012
+  (`publish_official_result`, Fase 06); `official_results` no se borra, se revisa.
+- Un sincronizador de servidor (`service_role`, Edge Function) usa `apply_fixture_update`: cambios de horario/estado con las mismas validaciones y, si un partido
+  se adelanta, **bloquea ahora** (nunca revela antes). Un cliente autenticado no puede invocarla ni activar las banderas `sl.*`.
+- Decisión de producto abierta **D21**: aplazamiento tras el lock — por defecto los pronósticos siguen bloqueados; alternativa: anular el partido en la quiniela.
+- Decisión abierta **D22** (baja de tenants y supresión de PII): con `audit_log` inmutable y FK en cascada heredadas, un tenant con historial no puede eliminarse y las cuentas con colaboraciones tampoco. Se propone: baja lógica + exportación + procedimiento de purga controlado por ADR propio; `audit_log.actor_id` deja de ser FK (el uuid se conserva) para no bloquear la supresión de cuentas. Retención legal = D13.
+
+## 18. Plan de aplicación a QA y reversión (todo condicionado a autorización)
+
+0. **Precondiciones:** (a) proyecto Supabase descartable autorizado y creado; (b) `run-suite.mjs all` y `concurrency.mjs` en PASS allí; (c) dictámenes
+   de Security y Data sin hallazgos críticos/altos abiertos tras la corrección; (d) autorización expresa del usuario para tocar QA.
+1. **Preparación sin Docker:** `run-suite.mjs baseline-qa` y `acl-snapshot linked` (clase A) guardados como evidencia previa; revisar con SELECT agregados la cuenta de conflictos que
+   se detectarán (sin PII); congelar despliegues de funciones/branding durante la ventana; confirmar PITR/copias del panel o exportar tablas sin PII por `db query`.
+2. **Aplicación** (cada archivo por separado, con `lock_timeout`/`statement_timeout` ya incluidos): 1/3 → verificar P09/P10 → 2/3 → verificar P01–P08, P13, P14 y snapshot de
+   ACL (authenticated no pierde funciones legítimas) → 3/3 → verificar P11/P12 y número de conflictos. Al promover a `supabase/migrations/` con la marca de tiempo definitiva,
+   `db push --linked --dry-run` primero.
+3. **Verificación posterior en QA (clase A + humo manual):** baseline 14/14; `verify_audit_protection()` (como service_role); flujo manual con cuentas de prueba: unirse por código,
+   guardar pronóstico, panel de organizador, `manage_pool` válido y rechazado. Las suites C **no** se ejecutan en QA.
+4. **Reversión:** primero corrección hacia adelante; si no es viable, `down/` en orden 3→2→1 con `sl.allow_destructive_rollback=on` (guarda explícita). Efectos: se pierde historial
+   de gobernanza (exportarlo antes), se retira la protección de audit_log y **no** se restauran los privilegios inseguros (requiere aprobación de Security). Disparadores: baseline en
+   fallo, error persistente en `join_pool`/`save_prediction`/`manage_pool`, deadlocks sostenidos, o conflicto de datos no previsto.
+5. **Validación de reversión:** `run-suite.mjs rollback-cycle` en el descartable antes de QA (down → estado previo comprobado → re-aplicar → baseline 14/14).
+
+## 19. Riesgos residuales y límites
+
+- **Propietario/superusuario de la base** puede deshabilitar triggers (`ALTER TABLE … DISABLE TRIGGER`) o usar `supabase_admin`; mitigación parcial: `verify_audit_protection()`,
+  exportación externa periódica de `audit_log`, revisión de DDL. No se puede crear un trigger de eventos porque `postgres` no es superusuario en Supabase.
+- **Banderas `sl.*`** (`set_config`) solo las activan funciones propias; quien tenga SQL directo (rol de base) podría fijarlas: fuera de la API pública, mismo modelo de amenaza que el anterior.
+- **Dos cuentas de la misma persona** no son detectables.
+- **Historial de administradores previo a la migración** desconocido; solo se detectan los vigentes.
+- **Triggers de eventos no disponibles** y `verify_audit_protection()` comprueba trigger habilitado, tipo, cuerpo y privilegios, pero un propietario con `session_replication_role = replica` o `CREATE OR REPLACE` coordinado con exportación externa ausente podría eludirlo.
+- **Fricción de D17:** con administración por tenant, un owner/admin queda excluido de todas las quinielas de su tenant hasta el modelo `pool`.
+- **Rechazos no auditables dentro de la transacción fallida** (se registran en la capa API).
+- **Semántica de sesión de la Management API** (varios statements por petición; `SET ROLE`) sin verificar aquí: la primera ejecución en el descartable debe confirmar que `_helpers.sql` funciona; si no, usar una conexión
+  PostgreSQL directa (`psql`/driver) sin Docker contra el proyecto descartable.
+- **Ninguna prueba de clase C se ha ejecutado** (sin entorno descartable autorizado): el estado de la solución es «diseñada, validada solo sintácticamente», no «verificada».
+
+## 20. Criterios verificables para aceptar la remediación (adicionales a §12)
+
+1. `00-readonly-baseline` da 14/14 PASS en el descartable tras aplicar 1/3–3/3 y falla donde corresponde antes (evidencia guardada).
+2. `10-lock-integrity` (L00–L18), `20-privileges-audit` (A01–R5/X3) y `30-admin-participant` (INC-01…INC-17, SA, LEG, MODEL) en PASS; `concurrency.mjs` en PASS (INC-C1…C4, R6, LOCK) con ≥ 25 iteraciones y 0 deadlocks.
+3. Reproducción `reports/security/qa-readonly-audit-20261011-repro.sql` ejecutada antes (vulnerable) y después (protegido) de la remediación.
+4. Suites `phase-03…05` existentes en PASS sin debilitarlas (la semilla con el owner participante se carga **antes** de aplicar 3/3).
+5. `rollback-cycle` en PASS. `acl-snapshot` sin pérdida de EXECUTE legítimo para `authenticated`/`service_role`.
+6. Dictámenes de Security y Data sin hallazgos críticos/altos abiertos; D21 cerrada; ADR-015 aprobado explícitamente por el usuario.

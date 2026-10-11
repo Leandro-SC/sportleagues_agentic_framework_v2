@@ -37,9 +37,9 @@ operativa al aplicar cambios.
 - [ ] `npx supabase migration list --linked` confirma que solo faltan exactamente las 5
       migraciones listadas arriba (no una lista distinta ni desincronizada).
 - [ ] `npx supabase db push --linked --dry-run` confirma el mismo orden y contenido, sin errores.
-- [ ] `supabase/tests/phase-05bis-platform-admin.sql` corrido contra Postgres real (local vía
-      Docker, o directamente contra QA en una transacción `begin/rollback` si Docker sigue sin
-      disponibilidad) — **con resultado PASS**, incluida la nueva aserción de `granted_by` +
+- [ ] `supabase/tests/phase-05bis-platform-admin.sql` corrido contra Postgres real (proyecto
+      descartable en la nube, o con aprobación expresa QA en transacción `begin/rollback`; **sin Docker**,
+      ver `docs/operations/CLOUD-ONLY-TESTING-POLICY.md`) — **con resultado PASS**, incluida la nueva aserción de `granted_by` +
       `on delete set null`. No aplicar el push sin esto en verde.
 - [ ] Ningún archivo de migración contiene un email, UUID real o secreto (revisión visual de las
       5 migraciones antes del push).

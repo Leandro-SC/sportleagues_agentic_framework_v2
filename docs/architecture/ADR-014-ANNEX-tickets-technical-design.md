@@ -289,7 +289,7 @@ alternativa si satura: `ticket_no` por secuencia global y numeración visible de
 
 Cada migración: aditiva, con nombre `YYYYMMDDHHMMSS_phase_NN_*.sql`, `lock_timeout`/`statement_timeout`
 explícitos, índices `CONCURRENTLY` cuando la tabla ya tenga volumen, backfill por lotes, y verificación previa
-(`select count(*)` de violaciones antes de añadir constraints). Se prueban sobre un clon con datos de Fase 03.
+(`select count(*)` de violaciones antes de añadir constraints). Se prueban en el proyecto Supabase Cloud descartable con datos sintéticos de Fase 03 (sin Docker).
 Cualquier cambio de RLS/grants de tablas existentes (`predictions`, `pool_matches`, `audit_log`) pasa por
 revisión Security antes de aplicarse.
 
@@ -325,7 +325,7 @@ devuelve 0 violaciones tras la suite y detecta una violación sembrada.
 **Criterios de aceptación globales:** todas las pruebas anteriores PASS con evidencia de comandos;
 revisión Security/RLS firmada; `EXPLAIN` de las consultas de listado/ingresos con índices esperados;
 benchmark documentado del punto caliente; UI con estados vacío/error y sin cifras simuladas;
-migraciones probadas sobre clon; ningún secreto en el bundle; PROJECT_STATE y handoff actualizados.
+migraciones probadas en el proyecto descartable; ningún secreto en el bundle; PROJECT_STATE y handoff actualizados.
 
 ## 12. Dependencias con Fases 06, 07 y 08 y decisiones de producto
 

@@ -39,4 +39,6 @@ Cada entorno debe usar proyecto/configuración Supabase separada cuando sea viab
 
 ## Restricciones de hardware/desarrollo
 
+**Sin Docker ni servicios locales de Supabase (decisión aprobada).** Todo corre en la nube; ver `docs/operations/CLOUD-ONLY-TESTING-POLICY.md`.
+
 El proyecto busca ser utilizable en equipos de desarrollo modestos; evitar toolchains innecesariamente pesados. Android/iOS requieren toolchain nativo únicamente al producir/verificar builds nativos.
