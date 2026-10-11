@@ -29,7 +29,7 @@ const inputType = computed(() => (isPassword.value && revealed.value ? 'text' : 
   <div class="space-y-1.5">
     <label :for="id" class="sr-only">{{ placeholder }}</label>
     <div
-      class="flex items-center gap-3 rounded-pill border bg-canvas/40 px-5 transition-colors focus-within:border-primary"
+      class="flex items-center gap-3 rounded-pill border bg-canvas/40 px-4 transition-colors focus-within:border-primary"
       :class="error ? 'border-danger' : 'border-secondary/25'"
     >
       <component :is="icon" class="h-5 w-5 shrink-0 text-secondary" aria-hidden="true" />
@@ -41,7 +41,7 @@ const inputType = computed(() => (isPassword.value && revealed.value ? 'text' : 
         :autocomplete="autocomplete"
         :maxlength="maxlength"
         :required="required"
-        class="min-h-14 w-full min-w-0 bg-transparent text-[15px] text-text outline-none placeholder:text-text-muted"
+        class="min-h-12 w-full min-w-0 [@media(max-height:700px)]:min-h-11 bg-transparent text-[15px] text-text outline-none placeholder:text-text-muted"
         @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
       />
       <button

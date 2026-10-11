@@ -67,7 +67,7 @@ async function logout(): Promise<void> {
 
 <template>
   <AppShell variant="app" active="profile" :user-name="auth.state.profile?.display_name">
-    <header class="safe-top flex items-center justify-between pb-2 pt-4">
+    <header class="safe-top flex items-center justify-between pb-1 pt-2">
       <button type="button" class="press-scale icon-button -ml-2.5" aria-label="Volver al inicio" @click="router.push({ name: 'home' })">
         <ChevronLeft class="h-6 w-6" />
       </button>
@@ -77,15 +77,15 @@ async function logout(): Promise<void> {
       </button>
     </header>
 
-    <section class="space-y-5 pb-4">
+    <section class="space-y-3.5 pb-2">
       <div class="flex flex-col items-center text-center">
-        <span class="relative flex h-24 w-24 items-center justify-center rounded-full border-2 border-text/80 bg-canvas font-display text-3xl font-bold text-text">
+        <span class="relative flex h-16 w-16 items-center justify-center rounded-full border-2 border-text/80 bg-canvas font-display text-xl font-bold text-text">
           {{ initials }}
-          <BadgeCheck class="absolute -bottom-0.5 -right-0.5 h-7 w-7 rounded-full bg-canvas text-primary" aria-label="Cuenta verificada" />
+          <BadgeCheck class="absolute -bottom-0.5 -right-0.5 h-5 w-5 rounded-full bg-canvas text-primary" aria-label="Cuenta verificada" />
         </span>
-        <p class="mt-3 font-display text-xl font-bold text-text">{{ auth.state.profile?.display_name ?? 'Sin nombre' }}</p>
+        <p class="mt-2 font-display text-lg font-bold text-text">{{ auth.state.profile?.display_name ?? 'Sin nombre' }}</p>
         <p class="text-sm text-text-muted">{{ auth.state.user?.email }}</p>
-        <div v-if="previewStats" class="mt-3 flex items-center gap-2">
+        <div v-if="previewStats" class="mt-2 flex items-center gap-2">
           <span class="inline-flex items-center gap-1.5 rounded-lg border border-primary/60 bg-primary-100 px-2.5 py-1 text-xs font-semibold text-primary">
             <Star class="h-3.5 w-3.5" aria-hidden="true" />{{ previewStats.level }}
           </span>
@@ -94,10 +94,10 @@ async function logout(): Promise<void> {
         </div>
       </div>
 
-      <dl class="grid grid-cols-3 divide-x divide-border rounded-2xl border border-border bg-linear-to-b from-surface-2/70 to-surface py-4">
+      <dl class="grid grid-cols-3 divide-x divide-border rounded-2xl border border-border bg-linear-to-b from-surface-2/70 to-surface py-2.5">
         <div v-for="item in stats" :key="item.label" class="flex flex-col-reverse items-center gap-0.5">
-          <dt class="text-sm text-text-muted">{{ item.label }}</dt>
-          <dd class="font-display text-2xl font-bold text-text">{{ item.value }}</dd>
+          <dt class="text-xs text-text-muted">{{ item.label }}</dt>
+          <dd class="font-display text-xl font-bold text-text">{{ item.value }}</dd>
         </div>
       </dl>
       <p v-if="myPools.error.value" class="text-center text-xs text-danger" role="alert">{{ myPools.error.value }}</p>

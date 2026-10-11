@@ -90,10 +90,10 @@ const formLabels = { G: 'Ganado', E: 'Empatado', P: 'Perdido' }
         </template>
       </ScreenHeader>
 
-      <div class="space-y-5 pb-28">
+      <div class="space-y-4 pb-28">
         <div class="flex flex-col items-center text-center">
           <TeamCrest :name="team.name" :short-name="team.short_name" :colors="team.colors" size="xl" />
-          <h1 class="mt-3 font-display text-[26px] font-bold text-text">{{ team.name }}</h1>
+          <h1 class="mt-2 font-display text-2xl font-bold text-text">{{ team.name }}</h1>
           <RouterLink v-if="competition" :to="{ name: 'league', params: { leagueId: competition.id } }" class="mt-1 flex items-center gap-2 text-sm text-text hover:underline">
             <CompetitionEmblem :name="competition.name" :country="competition.country" :accent="competition.accent" />{{ competition.name }}
           </RouterLink>

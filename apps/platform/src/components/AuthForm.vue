@@ -88,16 +88,16 @@ async function google(): Promise<void> {
 </script>
 
 <template>
-  <div class="space-y-4">
-    <div class="rounded-3xl border border-secondary/20 bg-surface/90 p-5 shadow-md backdrop-blur-sm">
-      <h2 class="font-display text-3xl font-extrabold leading-tight tracking-tight text-text">
+  <div class="space-y-2.5">
+    <div class="rounded-3xl border border-secondary/20 bg-surface/90 p-4 shadow-md backdrop-blur-sm">
+      <h2 class="font-display text-2xl font-extrabold leading-tight tracking-tight text-text">
         {{ mode === 'sign-in' ? 'Bienvenido' : mode === 'sign-up' ? 'Crea tu cuenta' : 'Recupera tu contraseña' }}
       </h2>
-      <p class="mt-1 text-base text-secondary">
+      <p class="mt-0.5 text-sm text-secondary [@media(max-height:700px)]:hidden">
         {{ mode === 'sign-in' ? 'Inicia sesión para continuar' : mode === 'sign-up' ? 'Usa tu correo o Google para empezar' : 'Te enviaremos un enlace para crear una nueva contraseña.' }}
       </p>
 
-      <form class="mt-6 space-y-4" novalidate @submit.prevent="submit">
+      <form class="mt-3 space-y-2.5" novalidate @submit.prevent="submit">
         <AuthField
           v-if="mode === 'sign-up'"
           id="full-name"
@@ -116,10 +116,9 @@ async function google(): Promise<void> {
           v-model="password"
           :icon="Lock"
           type="password"
-          placeholder="Contraseña"
+          :placeholder="mode === 'sign-up' ? 'Contraseña (mínimo 8)' : 'Contraseña'"
           :autocomplete="mode === 'sign-up' ? 'new-password' : 'current-password'"
           required
-          :hint="mode === 'sign-up' ? 'Mínimo 8 caracteres, con letras y números.' : undefined"
           :error="errors.password"
         />
         <AuthField
@@ -145,19 +144,19 @@ async function google(): Promise<void> {
           <button type="button" class="press-scale min-h-11 whitespace-nowrap text-xs font-semibold text-primary" @click="emit('update:mode', 'forgot')">¿Olvidaste tu contraseña?</button>
         </div>
 
-        <PrimaryButton type="submit" :loading="submitting" class="py-4 text-base">
+        <PrimaryButton type="submit" :loading="submitting" class="py-3 text-base">
           {{ mode === 'sign-in' ? 'Iniciar sesión' : mode === 'sign-up' ? 'Crear cuenta' : 'Enviar enlace' }}
           <ArrowRight class="h-5 w-5" />
         </PrimaryButton>
       </form>
 
       <template v-if="mode !== 'forgot'">
-        <div class="my-5 flex items-center gap-4 text-sm font-medium text-text-muted">
+        <div class="my-2.5 flex items-center gap-4 text-sm font-medium text-text-muted">
           <span class="h-px flex-1 bg-border-strong" />o<span class="h-px flex-1 bg-border-strong" />
         </div>
         <button
           type="button"
-          class="press-scale flex min-h-14 w-full items-center justify-center gap-3 rounded-pill border border-text/40 bg-transparent px-5 text-base font-bold text-text transition-colors hover:bg-surface-2 disabled:opacity-50"
+          class="press-scale flex min-h-12 w-full items-center justify-center gap-3 rounded-pill border border-text/40 bg-transparent px-5 text-base font-bold text-text transition-colors hover:bg-surface-2 disabled:opacity-50"
           :disabled="signingGoogle"
           @click="google"
         >
@@ -171,17 +170,17 @@ async function google(): Promise<void> {
         </button>
       </template>
 
-      <p v-if="error" class="mt-4 rounded-xl bg-danger-100 p-3 text-sm font-medium text-danger" role="alert">{{ error }}</p>
-      <p v-if="notice" class="mt-4 rounded-xl bg-primary-100 p-3 text-sm font-medium text-primary" role="status">{{ notice }}</p>
+      <p v-if="error" class="mt-3 rounded-xl bg-danger-100 p-3 text-sm font-medium text-danger" role="alert">{{ error }}</p>
+      <p v-if="notice" class="mt-3 rounded-xl bg-primary-100 p-3 text-sm font-medium text-primary" role="status">{{ notice }}</p>
     </div>
 
-    <div class="flex items-center gap-3 rounded-3xl border border-secondary/20 bg-surface/90 p-3.5 backdrop-blur-sm">
-      <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary" aria-hidden="true">
-        <UserRoundPlus class="h-6 w-6" />
+    <div class="flex items-center gap-3 rounded-3xl border border-secondary/20 bg-surface/90 p-2.5 backdrop-blur-sm">
+      <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary" aria-hidden="true">
+        <UserRoundPlus class="h-5 w-5" />
       </span>
       <div class="min-w-0 flex-1">
-        <p class="whitespace-nowrap font-display text-[15px] font-bold text-text">{{ mode === 'sign-in' ? '¿No tienes cuenta?' : mode === 'sign-up' ? '¿Ya tienes cuenta?' : '¿Ya la recordaste?' }}</p>
-        <p class="text-[13px] leading-snug text-secondary">{{ mode === 'sign-in' ? 'Crea tu cuenta en segundos' : 'Inicia sesión para continuar' }}</p>
+        <p class="truncate font-display text-[15px] font-bold text-text">{{ mode === 'sign-in' ? '¿No tienes cuenta?' : mode === 'sign-up' ? '¿Ya tienes cuenta?' : '¿Ya la recordaste?' }}</p>
+        <p class="text-[13px] leading-snug text-secondary [@media(max-height:700px)]:hidden">{{ mode === 'sign-in' ? 'Crea tu cuenta en segundos' : 'Inicia sesión para continuar' }}</p>
       </div>
       <button
         type="button"

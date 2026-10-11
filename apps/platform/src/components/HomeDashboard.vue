@@ -72,10 +72,10 @@ const resultIcon = { pool: Trophy, competition: ListOrdered, team: UsersRound }
 </script>
 
 <template>
-  <section class="space-y-6 pb-4">
-    <header class="safe-top flex items-start justify-between gap-3 pt-4">
+  <section class="space-y-4 pb-2">
+    <header class="safe-top flex items-start justify-between gap-3 pt-2">
       <div class="min-w-0">
-        <h1 class="truncate font-display text-[26px] font-bold leading-tight text-text">Hola, {{ firstName || 'de nuevo' }} 👋</h1>
+        <h1 class="truncate font-display text-2xl font-bold leading-tight text-text">Hola, {{ firstName || 'de nuevo' }} 👋</h1>
         <p class="text-sm text-text-muted">El deporte nos une</p>
       </div>
       <div class="flex shrink-0 items-center gap-1.5">

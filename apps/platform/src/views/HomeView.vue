@@ -7,6 +7,7 @@ import coverLogo from '../assets/branding/logo_app_tablo.png'
 import AppShell from '../components/AppShell.vue'
 import HomeDashboard from '../components/HomeDashboard.vue'
 import AuthForm, { type AuthMode } from '../components/AuthForm.vue'
+import BottomSheet from '../components/BottomSheet.vue'
 import FormField from '../components/FormField.vue'
 import PrimaryButton from '../components/PrimaryButton.vue'
 import SportIcon from '../components/SportIcon.vue'
@@ -20,6 +21,7 @@ const auth = useAuth()
 const code = ref('')
 const codeError = ref('')
 const authPanel = ref(false)
+const joinOpen = ref(false)
 const authMode = ref<AuthMode>('sign-in')
 const coverSports: SportKey[] = ['football', 'volleyball', 'basketball', 'tennis']
 
@@ -38,12 +40,12 @@ function openAuth(mode: AuthMode): void {
 
 <template>
   <AppShell
-    :variant="auth.isAuthenticated.value ? 'app' : 'focus'"
+    :variant="auth.isAuthenticated.value ? 'app' : 'screen'"
     active="home"
     title="Inicio"
     :user-name="auth.state.profile?.display_name"
   >
-    <section v-if="!auth.isAuthenticated.value && !authPanel" class="relative -mx-5 flex min-h-[100dvh] w-[calc(100%+2.5rem)] flex-col overflow-hidden bg-canvas px-5 pb-7 pt-5 text-center">
+    <section v-if="!auth.isAuthenticated.value && !authPanel" class="relative -mx-5 flex w-[calc(100%+2.5rem)] flex-1 flex-col overflow-hidden bg-canvas px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-5 text-center">
       <img :src="coverBackground" alt="" class="pointer-events-none absolute inset-0 h-full w-full object-cover" />
       <div class="pointer-events-none absolute inset-0 bg-linear-to-b from-canvas/30 via-canvas/10 to-canvas/85" />
       <div class="relative flex flex-1 flex-col">
@@ -65,45 +67,46 @@ function openAuth(mode: AuthMode): void {
       </div>
     </section>
 
-    <section v-else-if="!auth.isAuthenticated.value" class="relative -mx-5 w-[calc(100%+2.5rem)] self-start overflow-hidden px-5 pb-8 pt-2">
-      <div class="pointer-events-none absolute inset-x-0 top-0 h-[32rem] bg-[url('/images/stadium-night-alex-simpson.jpg')] bg-cover bg-top" aria-hidden="true" />
-      <div class="pointer-events-none absolute inset-x-0 top-0 h-[32rem] bg-linear-to-b from-canvas/55 via-canvas/65 to-canvas" aria-hidden="true" />
-      <div class="relative space-y-5">
-        <button type="button" class="press-scale inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-text-muted hover:text-text" @click="authPanel = false"><ArrowLeft class="h-4 w-4" />Volver</button>
-        <div class="text-center">
-          <span class="mx-auto flex h-24 w-24 items-center justify-center rounded-[1.75rem] bg-linear-to-br from-primary to-primary-600 text-canvas shadow-glow-primary">
-            <Trophy class="h-12 w-12" aria-hidden="true" />
-          </span>
-          <h1 class="mt-5 font-display text-5xl font-extrabold leading-none tracking-tight text-text">Sport<span class="text-primary">Leagues</span></h1>
-          <p class="mt-3 text-base text-text-muted">Tu pasión, en cada partido.</p>
-          <ul class="mt-5 flex items-center justify-center divide-x divide-border-strong rounded-pill border border-secondary/15 bg-canvas/40 py-2 text-[11px] font-medium text-text backdrop-blur-sm" aria-label="Ventajas">
-            <li class="flex flex-1 items-center justify-center gap-1 px-1"><ShieldCheck class="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />100% Seguro</li>
-            <li class="flex flex-1 items-center justify-center gap-1 px-1"><Zap class="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />Rápido y fácil</li>
-            <li class="flex flex-1 items-center justify-center gap-1 px-1"><UsersRound class="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />Multideporte</li>
-          </ul>
+    <section v-else-if="!auth.isAuthenticated.value" class="relative -mx-5 flex w-[calc(100%+2.5rem)] flex-1 flex-col overflow-hidden px-5 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-1">
+      <div class="pointer-events-none absolute inset-x-0 top-0 h-[26rem] bg-[url('/images/stadium-night-alex-simpson.jpg')] bg-cover bg-top" aria-hidden="true" />
+      <div class="pointer-events-none absolute inset-x-0 top-0 h-[26rem] bg-linear-to-b from-canvas/55 via-canvas/65 to-canvas" aria-hidden="true" />
+      <div class="relative flex flex-1 flex-col justify-between gap-3">
+        <div class="relative space-y-3">
+          <button type="button" class="icon-button press-scale absolute left-0 top-0 z-10 text-text-muted" aria-label="Volver" @click="authPanel = false"><ArrowLeft class="h-5 w-5" /></button>
+          <div v-if="authMode === 'sign-in'" class="pt-2 text-center [@media(max-height:700px)]:hidden">
+            <span class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-linear-to-br from-primary to-primary-600 text-canvas shadow-glow-primary">
+              <Trophy class="h-8 w-8" aria-hidden="true" />
+            </span>
+            <h1 class="mt-3 font-display text-4xl font-extrabold leading-none tracking-tight text-text">Sport<span class="text-primary">Leagues</span></h1>
+            <p class="mt-2 text-sm text-text-muted">Tu pasión, en cada partido.</p>
+            <ul class="mt-3 flex items-center justify-center divide-x divide-border-strong rounded-pill border border-secondary/15 bg-canvas/40 py-1.5 text-[11px] font-medium text-text backdrop-blur-sm" aria-label="Ventajas">
+              <li class="flex flex-1 items-center justify-center gap-1 px-1"><ShieldCheck class="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />100% Seguro</li>
+              <li class="flex flex-1 items-center justify-center gap-1 px-1"><Zap class="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />Rápido y fácil</li>
+              <li class="flex flex-1 items-center justify-center gap-1 px-1"><UsersRound class="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />Multideporte</li>
+            </ul>
+          </div>
+          <div class="min-h-11 items-center justify-center gap-3" :class="authMode === 'sign-in' ? 'hidden [@media(max-height:700px)]:flex' : 'flex'">
+            <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-br from-primary to-primary-600 text-canvas shadow-glow-primary"><Trophy class="h-5 w-5" aria-hidden="true" /></span>
+            <h1 class="font-display text-3xl font-extrabold leading-none tracking-tight text-text">Sport<span class="text-primary">Leagues</span></h1>
+          </div>
         </div>
 
-        <AuthForm v-model:mode="authMode" />
-
-        <div class="space-y-3 app-surface p-5">
-          <h2 class="flex items-center gap-2 font-display text-base font-bold text-text"><KeyRound class="h-4 w-4 text-primary" />¿Tienes un código de invitación?</h2>
-          <form class="flex items-start gap-2" @submit.prevent="goToJoin">
-            <div class="flex-1">
-              <FormField
-                id="join-code"
-                v-model="code"
-                label="Código de unión"
-                placeholder="AB12CD"
-                :maxlength="6"
-                autocomplete="off"
-                input-class="text-center font-display tracking-[0.3em] uppercase"
-                :error="codeError"
-              />
-            </div>
-            <PrimaryButton type="submit" :full-width="false" class="mt-6">Unirme</PrimaryButton>
-          </form>
+        <div class="space-y-2">
+          <AuthForm v-model:mode="authMode" />
+          <button type="button" class="press-scale mx-auto flex min-h-11 items-center gap-2 text-sm font-semibold text-text-muted hover:text-text" @click="joinOpen = true">
+            <KeyRound class="h-4 w-4 text-primary" aria-hidden="true" />¿Tienes un código de invitación?
+          </button>
         </div>
       </div>
+
+      <BottomSheet v-model:open="joinOpen" title="Unirme con un código">
+        <form class="flex items-start gap-2" @submit.prevent="goToJoin">
+          <div class="flex-1">
+            <FormField id="join-code" v-model="code" label="Código de unión" placeholder="AB12CD" :maxlength="6" autocomplete="off" input-class="text-center font-display tracking-[0.3em] uppercase" :error="codeError" />
+          </div>
+          <PrimaryButton type="submit" :full-width="false" class="mt-6">Unirme</PrimaryButton>
+        </form>
+      </BottomSheet>
     </section>
 
     <HomeDashboard v-else />

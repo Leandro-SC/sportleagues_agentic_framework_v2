@@ -16,7 +16,7 @@ function goBack(): void {
 </script>
 
 <template>
-  <header class="safe-top flex items-center gap-3 pb-3 pt-4">
+  <header class="safe-top flex items-center gap-3 pb-2 pt-2">
     <button v-if="back" type="button" class="press-scale icon-button -ml-2.5" aria-label="Volver" @click="goBack">
       <ArrowLeft class="h-6 w-6" />
     </button>

@@ -44,17 +44,17 @@ async function createLeague(): Promise<void> {
 
 <template>
   <AppShell variant="app" active="leagues" :user-name="auth.state.profile?.display_name">
-    <section class="space-y-8 pb-4">
-      <div class="stadium-hero relative -mx-5 overflow-hidden px-6 pb-8 pt-14 text-center">
+    <section class="space-y-5 pb-2">
+      <div class="stadium-hero relative -mx-5 overflow-hidden px-6 pb-3 pt-4 text-center">
         <div class="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-linear-to-b from-transparent to-canvas" />
         <div class="relative">
-          <Trophy class="mx-auto h-20 w-20 text-primary drop-shadow-[0_0_18px_rgba(33,245,154,0.55)]" :stroke-width="1.5" aria-hidden="true" />
-          <h1 class="mx-auto mt-5 max-w-64 font-display text-[26px] font-bold leading-tight text-text">Crea tu propia liga o únete a una</h1>
-          <p class="mx-auto mt-3 max-w-72 text-sm leading-relaxed text-text-muted">Compite con tus amigos, arma tu liga y demuestra quién es el mejor.</p>
+          <Trophy class="mx-auto h-12 w-12 text-primary drop-shadow-[0_0_18px_rgba(33,245,154,0.55)]" :stroke-width="1.5" aria-hidden="true" />
+          <h1 class="mx-auto mt-3 max-w-72 font-display text-[22px] font-bold leading-tight text-text">Crea tu propia liga o únete a una</h1>
+          <p class="mx-auto mt-1.5 max-w-72 text-sm leading-snug text-text-muted">Compite con tus amigos, arma tu liga y demuestra quién es el mejor.</p>
         </div>
       </div>
 
-      <div class="space-y-3.5">
+      <div class="space-y-2.5">
         <PrimaryButton :loading="checkingAdmin" @click="createLeague">
           <CirclePlus v-if="!checkingAdmin" class="h-5 w-5" />Crear liga
         </PrimaryButton>
@@ -64,13 +64,13 @@ async function createLeague(): Promise<void> {
       </div>
 
       <section>
-        <h2 class="mb-3 font-display text-base font-bold text-text">Características</h2>
+        <h2 class="mb-2 font-display text-base font-bold text-text">Características</h2>
         <ul class="grid grid-cols-3 gap-3">
-          <li v-for="feature in features" :key="feature.label" class="flex flex-col items-center gap-2.5 text-center">
-            <span class="flex h-16 w-16 items-center justify-center rounded-2xl border border-primary/30 bg-linear-to-b from-surface-2 to-surface">
-              <component :is="feature.icon" class="h-7 w-7 text-primary" aria-hidden="true" />
+          <li v-for="feature in features" :key="feature.label" class="flex flex-col items-center gap-1.5 text-center">
+            <span class="flex h-12 w-12 items-center justify-center rounded-2xl border border-primary/30 bg-linear-to-b from-surface-2 to-surface">
+              <component :is="feature.icon" class="h-6 w-6 text-primary" aria-hidden="true" />
             </span>
-            <span class="text-xs leading-snug text-text-muted">{{ feature.label }}</span>
+            <span class="text-[11px] leading-snug text-text-muted">{{ feature.label }}</span>
           </li>
         </ul>
       </section>
