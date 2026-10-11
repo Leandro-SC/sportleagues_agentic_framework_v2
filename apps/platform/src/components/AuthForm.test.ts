@@ -77,6 +77,48 @@ describe('AuthForm — sign-in', () => {
   })
 })
 
+describe('AuthForm — reference layout and remember-me', () => {
+  it('shows the welcome heading, remember checkbox (on by default), recovery link, Google and the create-account card', () => {
+    localStorage.clear()
+    wrapper = mountForm('sign-in')
+    expect(wrapper.get('h2').text()).toBe('Bienvenido')
+    expect(wrapper.text()).toContain('Inicia sesión para continuar')
+    expect(wrapper.text()).toContain('Recordar mi cuenta')
+    expect((wrapper.get('input[type="checkbox"]').element as HTMLInputElement).checked).toBe(true)
+    expect(wrapper.text()).toContain('¿No tienes cuenta?')
+    expect(wrapper.text()).toContain('Crea tu cuenta en segundos')
+  })
+
+  it('toggles password visibility with an accessible button', async () => {
+    wrapper = mountForm('sign-in')
+    const toggle = () => wrapper.get('button[aria-label$="contraseña"]')
+    expect(wrapper.get('#password').attributes('type')).toBe('password')
+    expect(toggle().attributes('aria-label')).toBe('Mostrar contraseña')
+    await toggle().trigger('click')
+    expect(wrapper.get('#password').attributes('type')).toBe('text')
+    expect(toggle().attributes('aria-label')).toBe('Ocultar contraseña')
+  })
+
+  it('stores the session only for this tab when "Recordar mi cuenta" is unchecked', async () => {
+    localStorage.clear()
+    auth.signInWithPassword.mockResolvedValue(null)
+    wrapper = mountForm('sign-in')
+    await wrapper.get('input[type="checkbox"]').setValue(false)
+    await type('email', 'ada@example.com'); await type('password', 'Secreta123')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(localStorage.getItem('sportleagues.remember-session')).toBe('false')
+    localStorage.clear()
+  })
+
+  it('the create-account card switches to the sign-up form', async () => {
+    wrapper = mountForm('sign-in')
+    await wrapper.findAll('button').find((b) => b.text() === 'Crear cuenta')!.trigger('click')
+    expect(wrapper.get('h2').text()).toBe('Crea tu cuenta')
+    expect(wrapper.find('#full-name').exists()).toBe(true)
+  })
+})
+
 describe('AuthForm — sign-up', () => {
   const fill = async (overrides: Partial<Record<string, string>> = {}) => {
     const values = { 'full-name': 'Ada Lovelace', email: 'ada@example.com', password: 'Secreta123', 'confirm-password': 'Secreta123', ...overrides }

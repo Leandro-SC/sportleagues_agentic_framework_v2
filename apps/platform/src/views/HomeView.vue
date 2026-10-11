@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowLeft, ArrowRight, KeyRound, Sparkles, Trophy } from 'lucide-vue-next'
+import { ArrowLeft, ArrowRight, KeyRound, ShieldCheck, Trophy, UsersRound, Zap } from 'lucide-vue-next'
 import coverBackground from '../assets/backgrounds/fondo_app_tablo.png'
 import coverLogo from '../assets/branding/logo_app_tablo.png'
 import AppShell from '../components/AppShell.vue'
@@ -10,7 +10,6 @@ import AuthForm, { type AuthMode } from '../components/AuthForm.vue'
 import FormField from '../components/FormField.vue'
 import PrimaryButton from '../components/PrimaryButton.vue'
 import SportIcon from '../components/SportIcon.vue'
-import StatChip from '../components/StatChip.vue'
 import { useAuth } from '../composables/useAuth'
 import { normalizeJoinCode } from '../lib/join-intent'
 import type { SportKey } from '../lib/sports-catalog'
@@ -39,7 +38,7 @@ function openAuth(mode: AuthMode): void {
 
 <template>
   <AppShell
-    :variant="auth.isAuthenticated.value ? 'app' : authPanel ? 'guest' : 'focus'"
+    :variant="auth.isAuthenticated.value ? 'app' : 'focus'"
     active="home"
     title="Inicio"
     :user-name="auth.state.profile?.display_name"
@@ -66,40 +65,44 @@ function openAuth(mode: AuthMode): void {
       </div>
     </section>
 
-    <section v-else-if="!auth.isAuthenticated.value" class="space-y-5 pb-4 pt-2">
-      <button type="button" class="press-scale inline-flex items-center gap-2 text-sm font-semibold text-text-muted hover:text-text" @click="authPanel = false"><ArrowLeft class="h-4 w-4" />Volver</button>
-      <div class="stadium-hero relative -mx-5 overflow-hidden rounded-b-3xl border-b border-secondary/20 px-5 pb-9 pt-8 text-center shadow-md">
-        <span class="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-primary text-canvas shadow-glow-primary">
-          <Trophy class="h-10 w-10" />
-        </span>
-        <p class="section-kicker mt-6">Juega · Compite · Conecta</p>
-        <h1 class="mt-2 font-display text-4xl font-extrabold leading-none tracking-tight text-text">Sport<span class="text-primary">Leagues</span></h1>
-        <p class="mt-3 text-sm text-text-muted">Tu pasión, en cada partido.</p>
-        <div class="mt-4 flex flex-wrap items-center justify-center gap-2">
-          <StatChip label="Multi-tenant seguro" :icon="Trophy" tone="brand" />
-          <StatChip label="Elo + Poisson" :icon="Sparkles" tone="success" />
+    <section v-else-if="!auth.isAuthenticated.value" class="relative -mx-5 w-[calc(100%+2.5rem)] self-start overflow-hidden px-5 pb-8 pt-2">
+      <div class="pointer-events-none absolute inset-x-0 top-0 h-[32rem] bg-[url('/images/stadium-night-alex-simpson.jpg')] bg-cover bg-top" aria-hidden="true" />
+      <div class="pointer-events-none absolute inset-x-0 top-0 h-[32rem] bg-linear-to-b from-canvas/55 via-canvas/65 to-canvas" aria-hidden="true" />
+      <div class="relative space-y-5">
+        <button type="button" class="press-scale inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-text-muted hover:text-text" @click="authPanel = false"><ArrowLeft class="h-4 w-4" />Volver</button>
+        <div class="text-center">
+          <span class="mx-auto flex h-24 w-24 items-center justify-center rounded-[1.75rem] bg-linear-to-br from-primary to-primary-600 text-canvas shadow-glow-primary">
+            <Trophy class="h-12 w-12" aria-hidden="true" />
+          </span>
+          <h1 class="mt-5 font-display text-5xl font-extrabold leading-none tracking-tight text-text">Sport<span class="text-primary">Leagues</span></h1>
+          <p class="mt-3 text-base text-text-muted">Tu pasión, en cada partido.</p>
+          <ul class="mt-5 flex items-center justify-center divide-x divide-border-strong rounded-pill border border-secondary/15 bg-canvas/40 py-2 text-[11px] font-medium text-text backdrop-blur-sm" aria-label="Ventajas">
+            <li class="flex flex-1 items-center justify-center gap-1 px-1"><ShieldCheck class="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />100% Seguro</li>
+            <li class="flex flex-1 items-center justify-center gap-1 px-1"><Zap class="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />Rápido y fácil</li>
+            <li class="flex flex-1 items-center justify-center gap-1 px-1"><UsersRound class="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />Multideporte</li>
+          </ul>
         </div>
-      </div>
 
-      <AuthForm v-model:mode="authMode" />
+        <AuthForm v-model:mode="authMode" />
 
-      <div class="space-y-3 app-surface p-5">
-        <h2 class="flex items-center gap-2 font-display text-base font-bold text-text"><KeyRound class="h-4 w-4 text-primary" />¿Tienes un código de invitación?</h2>
-        <form class="flex items-start gap-2" @submit.prevent="goToJoin">
-          <div class="flex-1">
-            <FormField
-              id="join-code"
-              v-model="code"
-              label="Código de unión"
-              placeholder="AB12CD"
-              :maxlength="6"
-              autocomplete="off"
-              input-class="text-center font-display tracking-[0.3em] uppercase"
-              :error="codeError"
-            />
-          </div>
-          <PrimaryButton type="submit" :full-width="false" class="mt-6">Unirme</PrimaryButton>
-        </form>
+        <div class="space-y-3 app-surface p-5">
+          <h2 class="flex items-center gap-2 font-display text-base font-bold text-text"><KeyRound class="h-4 w-4 text-primary" />¿Tienes un código de invitación?</h2>
+          <form class="flex items-start gap-2" @submit.prevent="goToJoin">
+            <div class="flex-1">
+              <FormField
+                id="join-code"
+                v-model="code"
+                label="Código de unión"
+                placeholder="AB12CD"
+                :maxlength="6"
+                autocomplete="off"
+                input-class="text-center font-display tracking-[0.3em] uppercase"
+                :error="codeError"
+              />
+            </div>
+            <PrimaryButton type="submit" :full-width="false" class="mt-6">Unirme</PrimaryButton>
+          </form>
+        </div>
       </div>
     </section>
 
