@@ -282,3 +282,35 @@ generado en memoria; su valor no se registró. La inspección de `PROJECT_CONFIG
 origen HTTPS real del frontend QA: solo URL de Supabase y hosts locales. Por tanto,
 `CORS_ALLOWED_ORIGINS` permanece sin configurar y `branding-asset`/`branding-reconciler` no se
 desplegaron ni invocaron. Falta proporcionar el origen QA documentado y autorizado.
+
+## Cambio de autenticación (2026-10-10) — rama `feat/password-google-auth` (sin commit, sin merge)
+
+Por instrucción del operador se reemplazó Magic Link por **correo + contraseña** (registro con nombre
+completo, confirmación de correo, recuperación) y **Google OAuth** (ADR-013, Accepted). Sin
+migraciones ni cambios de RLS/RPC/Edge Functions; el perfil se crea en la primera sesión con el nombre
+de `user_metadata` (`ON CONFLICT DO NOTHING`). Cuentas antiguas de Magic Link: transición por
+"¿Olvidaste tu contraseña?". Detalle: `docs/agents/HANDOFF-AUTH-PASSWORD-GOOGLE-20261010.md`.
+
+Gates: `npm run typecheck`, `npm test` (33 archivos / 216 tests), `npm run build`, `verify:bundle` y
+`git diff --check`: PASS. QA volvió a estar accesible: 11/11 migraciones sincronizadas y las 5 suites
+SQL (`phase-03-rls`, `phase-05-admin-rpc`, `phase-05-branding-assets`, `…-security-regression`,
+`phase-05bis-platform-admin`) terminaron con exit 0 en transacciones con rollback.
+**BLOCKED_HUMAN / NO EJECUTADO:** happy paths HTTP (faltan `ADMIN2_JWT` y la credencial del
+reconciliador), registro/recuperación reales contra QA (envían correos), revisión de Redirect URLs,
+SMTP y plantillas en el Dashboard, y validación manual de `/admin` y `/superadmin`.
+Fase 05/05-bis siguen sin ACCEPTED; Fase 06 no inicia.
+
+### Iteración de verificación y correcciones de auth (2026-10-11)
+
+Correcciones: la recuperación de contraseña ya no se queda activa al cancelar ni tras otro login
+(`clearRecovery`, detección solo en `/auth/callback`); errores de callback con mensajes amigables;
+la invitación a una quiniela pasa a `localStorage` con caducidad de 24 h (+ ingreso manual en Ligas);
+creación de perfil con un solo intento automático y reintento desde `/onboarding` con nombre
+prellenado. Sin migraciones; `/admin` y `/superadmin` sin cambios de permisos (nuevos tests de router).
+PKCE: solo evaluado (`docs/security/PKCE-MIGRATION-ASSESSMENT.md`).
+
+QA (solo lectura): `scripts/qa/auth-config-probe.mjs` → 8 PASS, 0 FAIL, 1 BLOCKED (Redirect URLs, requiere
+Dashboard). Tenant B tiene plan `pro`. Pendiente humano: `docs/operations/AUTH-QA-CONFIGURATION.md`.
+Escenarios E1–E19 preparados en `docs/testing/AUTH-E2E-SCENARIOS.md`: **ninguno ejecutado en navegador**.
+Happy paths de Fase 05: BLOCKED (requieren credenciales del operador; ver `scripts/qa/login-admin2.sh`).
+Fase 05/05-bis siguen sin ACCEPTED; Fase 06 no inicia.

@@ -29,7 +29,7 @@ Se une mediante código/deep link, registra pronósticos, consulta ranking y com
 
 ### Participante
 
-- Google OAuth o magic link soportado por el proveedor de auth;
+- registro e inicio de sesión con correo y contraseña (nombre completo, confirmación de correo y recuperación de contraseña) o con Google OAuth; sin Magic Link (ADR-013);
 - unirse por código de 6 caracteres o deep link;
 - pronosticar marcadores con UX táctil;
 - ver estado abierto/bloqueado/en vivo/finalizado;

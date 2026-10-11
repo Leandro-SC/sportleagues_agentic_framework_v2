@@ -1,6 +1,6 @@
 # Requisitos — Auth y tenancy
 
-- Auth con Google y/o magic link según capacidades configuradas de Supabase.
+- Auth con correo y contraseña (registro con nombre completo, confirmación de correo, recuperación de contraseña) y Google OAuth, ambos vía Supabase Auth. Magic Link no se ofrece al usuario (ADR-013).
 - Un usuario puede pertenecer a varios tenants.
 - Roles mínimos: owner/admin/member; separar rol de tenant de estado de participante.
 - Join de torneo mediante código opaco de 6 caracteres o token de invitación.

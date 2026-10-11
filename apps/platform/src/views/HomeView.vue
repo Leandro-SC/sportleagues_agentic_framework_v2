@@ -6,9 +6,9 @@ import coverBackground from '../assets/backgrounds/fondo_app_tablo.png'
 import coverLogo from '../assets/branding/logo_app_tablo.png'
 import AppShell from '../components/AppShell.vue'
 import HomeDashboard from '../components/HomeDashboard.vue'
+import AuthForm, { type AuthMode } from '../components/AuthForm.vue'
 import FormField from '../components/FormField.vue'
 import PrimaryButton from '../components/PrimaryButton.vue'
-import SecondaryButton from '../components/SecondaryButton.vue'
 import SportIcon from '../components/SportIcon.vue'
 import StatChip from '../components/StatChip.vue'
 import { useAuth } from '../composables/useAuth'
@@ -20,13 +20,8 @@ const auth = useAuth()
 
 const code = ref('')
 const codeError = ref('')
-const email = ref('')
-const notice = ref('')
-const error = ref('')
-const sendingMagic = ref(false)
-const signingGoogle = ref(false)
 const authPanel = ref(false)
-const authMode = ref<'sign-in' | 'sign-up'>('sign-in')
+const authMode = ref<AuthMode>('sign-in')
 const coverSports: SportKey[] = ['football', 'volleyball', 'basketball', 'tennis']
 
 function goToJoin(): void {
@@ -36,25 +31,9 @@ function goToJoin(): void {
   void router.push({ name: 'join', params: { code: normalized } })
 }
 
-async function magicLink(): Promise<void> {
-  error.value = ''; notice.value = ''; sendingMagic.value = true
-  const result = await auth.sendMagicLink(email.value)
-  sendingMagic.value = false
-  if (result) error.value = result; else notice.value = 'Revisa tu correo para continuar.'
-}
-
-async function google(): Promise<void> {
-  error.value = ''; signingGoogle.value = true
-  const result = await auth.signInWithGoogle()
-  signingGoogle.value = false
-  if (result) error.value = result
-}
-
-function openAuth(mode: 'sign-in' | 'sign-up'): void {
+function openAuth(mode: AuthMode): void {
   authMode.value = mode
   authPanel.value = true
-  error.value = ''
-  notice.value = ''
 }
 </script>
 
@@ -102,21 +81,7 @@ function openAuth(mode: 'sign-in' | 'sign-up'): void {
         </div>
       </div>
 
-      <div class="space-y-3 app-surface-raised p-5">
-        <div>
-          <p class="section-kicker">{{ authMode === 'sign-in' ? 'Bienvenido' : 'Empieza a competir' }}</p>
-          <h2 class="mt-1 font-display text-xl font-bold text-text">{{ authMode === 'sign-in' ? 'Inicia sesión' : 'Crea tu cuenta' }}</h2>
-          <p class="mt-1 text-sm text-text-muted">{{ authMode === 'sign-in' ? 'Recibe un acceso seguro en tu correo.' : 'Usa tu correo o Google para crearla.' }}</p>
-        </div>
-        <form class="space-y-3" @submit.prevent="magicLink">
-          <FormField id="email" v-model="email" type="email" label="Correo electrónico" autocomplete="email" required placeholder="tú@correo.com" />
-          <PrimaryButton type="submit" :loading="sendingMagic">Enviar magic link <ArrowRight class="h-4 w-4" /></PrimaryButton>
-        </form>
-        <div class="flex items-center gap-3 text-xs font-medium uppercase tracking-wide text-text-faint">
-          <span class="h-px flex-1 bg-border" />o<span class="h-px flex-1 bg-border" />
-        </div>
-        <SecondaryButton :loading="signingGoogle" @click="google">Continuar con Google</SecondaryButton>
-      </div>
+      <AuthForm v-model:mode="authMode" />
 
       <div class="space-y-3 app-surface p-5">
         <h2 class="flex items-center gap-2 font-display text-base font-bold text-text"><KeyRound class="h-4 w-4 text-primary" />¿Tienes un código de invitación?</h2>
@@ -136,9 +101,6 @@ function openAuth(mode: 'sign-in' | 'sign-up'): void {
           <PrimaryButton type="submit" :full-width="false" class="mt-6">Unirme</PrimaryButton>
         </form>
       </div>
-
-      <p v-if="error" class="rounded-xl bg-danger-100 p-3 text-sm font-medium text-danger" role="alert">{{ error }}</p>
-      <p v-if="notice" class="rounded-xl bg-primary-100 p-3 text-sm font-medium text-primary">{{ notice }}</p>
     </section>
 
     <HomeDashboard v-else />

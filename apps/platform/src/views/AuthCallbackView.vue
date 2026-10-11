@@ -6,19 +6,17 @@ import AppShell from '../components/AppShell.vue'
 import ErrorState from '../components/ErrorState.vue'
 import SecondaryButton from '../components/SecondaryButton.vue'
 import { useAuth } from '../composables/useAuth'
-import { useJoinPool } from '../composables/useJoinPool'
+import { usePostSignInNavigation } from '../composables/usePostSignInNavigation'
 
 const router = useRouter()
 const auth = useAuth()
-const joiner = useJoinPool()
+const { continueAfterSignIn } = usePostSignInNavigation()
 const error = ref('')
 
 onMounted(async () => {
   const result = await auth.completeCallback()
   if (result) { error.value = result; return }
-  if (!auth.state.profile) { await router.replace({ name: 'onboarding' }); return }
-  const participant = await joiner.resumeIntent()
-  await router.replace(participant ? { name: 'pool', params: { poolId: participant.pool_id } } : { name: 'home' })
+  await continueAfterSignIn()
 })
 </script>
 

@@ -115,8 +115,8 @@ para fondos de badges/alertas, y el color base para texto/iconos/bordes.
 `HomeView.vue` muestra una portada sin chrome para visitantes. Usa los assets internos
 `src/assets/backgrounds/fondo_app_tablo.png` y `src/assets/branding/logo_app_tablo.png`, con la
 misma estructura de la referencia: marca, tagline, iconos deportivos, CTA primario, CTA outline y
-pie de marca. Los CTAs no autentican por sí mismos: abren el formulario existente de Magic Link y
-Google OAuth para preservar el contrato de Auth.
+pie de marca. Los CTAs no autentican por sí mismos: abren el formulario de autenticación (`AuthForm.vue`: correo y contraseña, registro, recuperación y
+Google OAuth) para preservar el contrato de Auth.
 
 ## Patrones móvil (verificados a 320, 390 y 430 px)
 

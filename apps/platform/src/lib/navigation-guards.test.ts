@@ -23,6 +23,13 @@ describe('protected route guard', () => {
   })
 })
 
+describe('password reset route guard', () => {
+  it('requires a session (the recovery link creates one) but not a profile', () => {
+    expect(protectedRouteRedirect('reset-password', false, false)).toBe('home')
+    expect(protectedRouteRedirect('reset-password', true, false)).toBeNull()
+  })
+})
+
 describe('platform admin route guard', () => {
   it('rejects an unauthenticated visitor', () => {
     expect(platformAdminRedirect(false, false)).toBe('home')

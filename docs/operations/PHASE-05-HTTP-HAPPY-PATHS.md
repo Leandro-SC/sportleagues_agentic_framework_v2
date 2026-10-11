@@ -46,7 +46,7 @@ mano desde `/admin`.
 | --- | --- |
 | `SUPABASE_URL` | `https://juoftaofzepxbrrxbkhx.supabase.co` (QA). |
 | `SUPABASE_ANON_KEY` | Dashboard → Project Settings → API → anon public key. |
-| `ADMIN2_JWT` | Iniciar sesión como Admin 2 en `https://sportleagues-qa.vercel.app` y, en la consola de DevTools: `JSON.parse(localStorage.getItem('sb-juoftaofzepxbrrxbkhx-auth-token')).access_token`. Dura ~1 hora. |
+| `ADMIN2_JWT` | `source scripts/qa/login-admin2.sh`: pide el correo y la contraseña de Admin 2 (sin mostrarlos), usa el login oficial de Auth y deja el token en tu shell sin imprimirlo. Dura ~1 hora. Con el login por contraseña (ADR-013), Admin 2 necesita contraseña: si venía de Magic Link, la crea con «¿Olvidaste tu contraseña?». Alternativa: DevTools → `JSON.parse(localStorage.getItem('sb-juoftaofzepxbrrxbkhx-auth-token')).access_token`. |
 | `TENANT_B_ID` | UUID del tenant que administra Admin 2 (Dashboard → Table editor → `tenants`). Debe tener `plan_code = 'pro'` en `tenant_entitlements`. |
 | `TENANT_A_ID` | Opcional: UUID de Tenant A, para el negativo cross-tenant. |
 | `BRANDING_RECONCILER_SECRET` | Valor configurado en QA. Ver "Si no se conoce la credencial interna". |
