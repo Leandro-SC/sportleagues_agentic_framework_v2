@@ -195,6 +195,85 @@ test` (10 archivos / 49 tests) y `npm run build`: PASS; revisión visual local d
 pública y `git diff --check`: PASS. Esta mejora no modifica el bloqueo de cierre de Fase 05/05-bis
 ni inicia Fase 06.
 
+## Preparación del cierre formal de Fase 05/05-bis (2026-10-05)
+
+Se prepararon los happy paths HTTP pendientes como scripts que ejecuta el operador, sin exponer
+secretos: `scripts/qa/branding-asset-happy-path.sh` (11 pasos con JWT real de Admin 2: CORS,
+401/403/404/415/409 y carga, activación y verificación WebP) y
+`scripts/qa/branding-reconciler-happy-path.sh` (5 pasos: 405/401 y dos corridas autorizadas).
+Runbook y resultados esperados: `docs/operations/PHASE-05-HTTP-HAPPY-PATHS.md`. Fixture:
+`supabase/tests/fixtures/branding/qa-logo-512.png`. Se añadió `.gitattributes` para fijar los `.sh`
+en LF.
+
+`branding-asset-happy-path.sh` respalda y verifica el logo activo antes de cualquier cambio y lo
+restaura al terminar, también ante errores intermedios o interrupción. Como el lifecycle no permite
+reactivar un asset reemplazado, el original se vuelve a cargar como asset nuevo con la misma imagen,
+o se retira el logo de prueba si no había logo previo.
+
+Ambos scripts se validaron contra un servidor local simulado con estado que replica el lifecycle
+(happy paths PASS; también PASS los casos de JWT expirado/mal formado, plan no PRO, tenant sin logo,
+respaldo corrupto, corte de red tras A9 y fallo de restauración con respaldo conservado).
+**Todavía no se ejecutaron contra QA:** el operador los ejecutará y devolverá solo códigos y
+resultados. `supabase db query --linked` agotó el tiempo de conexión desde este entorno, así que no se pudo confirmar desde aquí que Tenant B tenga plan `pro`;
+el paso A7 lo detecta. Fase 05/05-bis no está ACCEPTED hasta recibir esa evidencia y la validación
+manual de `/admin` y `/superadmin`. Fase 06 no inicia.
+
+## Rediseño UI pre-acceptance (2026-10-05) — rama `prep/ui-redesign-pre-acceptance`
+
+QA de Supabase no está disponible (pausado o sin DNS), así que los happy paths HTTP siguen sin
+ejecutarse. **Fase 05/05-bis siguen sin ACCEPTED y Fase 06 no se inicia formalmente.**
+
+Mientras tanto se implementaron, como trabajo de preparación en la rama
+`prep/ui-redesign-pre-acceptance` (sin merge a `main` ni push), las 8 pantallas de la referencia:
+
+- portada;
+- Inicio;
+- Partidos;
+- detalle de liga;
+- ficha de equipo;
+- Ligas;
+- Unirme a una liga;
+- Perfil.
+
+**Datos reales:**
+
+- perfil;
+- "Mis ligas" (`participants` + `pools` bajo RLS);
+- unión por código (`join_pool`);
+- acceso admin solo para owner/admin.
+
+**Datos de ejemplo:** partidos, tablas y actividad. Son **preparación técnica / draft de Fase 06**:
+solo se muestran con `VITE_PREVIEW_DATA` o en `npm run dev`, siempre marcados como "Vista previa",
+y quedan desactivados en cualquier build.
+
+No se tocaron migraciones, RLS, RPC, Edge Functions ni Auth.
+
+Gates:
+
+- `npm run typecheck`: PASS.
+- `npm test` (20 archivos / 98 tests): PASS.
+- `npm run build`: PASS.
+- `git diff --check`: PASS.
+- Revisión visual a 390 px: PASS.
+- **NO EJECUTADO:** validación contra QA real.
+
+Detalle: `docs/agents/HANDOFF-UI-REDESIGN-PRE-ACCEPTANCE-20261005.md`.
+
+### Iteración 2 (2026-10-06) — pre-acceptance / draft técnico
+
+Tres commits adicionales en la misma rama (sin push ni merge a `main`):
+
+- los datos de ejemplo se cargan de forma diferida y ya no viajan en el bundle de QA/producción;
+  `npm run verify:bundle` lo comprueba;
+- refinamiento mobile-first verificado a 320/390/430 px (objetivos táctiles de 44 px, estados de
+  carga y error, pestañas y tarjetas que caben en pantallas estrechas);
+- **borrador técnico** del contrato de datos del frontend para Fase 06 (adaptador, fuente Supabase
+  no conectada y ayudas de lock/marcador), con sus brechas documentadas en
+  `docs/design/PHASE-06-FRONTEND-DATA-CONTRACT-DRAFT.md`. **No es el inicio formal de Fase 06**:
+  no hay migraciones, RLS, RPC ni Edge Functions nuevas y no se conectó a la app.
+
+Fase 05/05-bis siguen sin ACCEPTED. Nada se ejecutó contra Supabase QA.
+
 ## Bloqueo operativo de Edge Functions (2026-09-17)
 
 `BRANDING_RECONCILER_SECRET` está configurado en QA con un valor criptográficamente seguro
@@ -203,3 +282,35 @@ generado en memoria; su valor no se registró. La inspección de `PROJECT_CONFIG
 origen HTTPS real del frontend QA: solo URL de Supabase y hosts locales. Por tanto,
 `CORS_ALLOWED_ORIGINS` permanece sin configurar y `branding-asset`/`branding-reconciler` no se
 desplegaron ni invocaron. Falta proporcionar el origen QA documentado y autorizado.
+
+## Cambio de autenticación (2026-10-10) — rama `feat/password-google-auth` (sin commit, sin merge)
+
+Por instrucción del operador se reemplazó Magic Link por **correo + contraseña** (registro con nombre
+completo, confirmación de correo, recuperación) y **Google OAuth** (ADR-013, Accepted). Sin
+migraciones ni cambios de RLS/RPC/Edge Functions; el perfil se crea en la primera sesión con el nombre
+de `user_metadata` (`ON CONFLICT DO NOTHING`). Cuentas antiguas de Magic Link: transición por
+"¿Olvidaste tu contraseña?". Detalle: `docs/agents/HANDOFF-AUTH-PASSWORD-GOOGLE-20261010.md`.
+
+Gates: `npm run typecheck`, `npm test` (33 archivos / 216 tests), `npm run build`, `verify:bundle` y
+`git diff --check`: PASS. QA volvió a estar accesible: 11/11 migraciones sincronizadas y las 5 suites
+SQL (`phase-03-rls`, `phase-05-admin-rpc`, `phase-05-branding-assets`, `…-security-regression`,
+`phase-05bis-platform-admin`) terminaron con exit 0 en transacciones con rollback.
+**BLOCKED_HUMAN / NO EJECUTADO:** happy paths HTTP (faltan `ADMIN2_JWT` y la credencial del
+reconciliador), registro/recuperación reales contra QA (envían correos), revisión de Redirect URLs,
+SMTP y plantillas en el Dashboard, y validación manual de `/admin` y `/superadmin`.
+Fase 05/05-bis siguen sin ACCEPTED; Fase 06 no inicia.
+
+### Iteración de verificación y correcciones de auth (2026-10-11)
+
+Correcciones: la recuperación de contraseña ya no se queda activa al cancelar ni tras otro login
+(`clearRecovery`, detección solo en `/auth/callback`); errores de callback con mensajes amigables;
+la invitación a una quiniela pasa a `localStorage` con caducidad de 24 h (+ ingreso manual en Ligas);
+creación de perfil con un solo intento automático y reintento desde `/onboarding` con nombre
+prellenado. Sin migraciones; `/admin` y `/superadmin` sin cambios de permisos (nuevos tests de router).
+PKCE: solo evaluado (`docs/security/PKCE-MIGRATION-ASSESSMENT.md`).
+
+QA (solo lectura): `scripts/qa/auth-config-probe.mjs` → 8 PASS, 0 FAIL, 1 BLOCKED (Redirect URLs, requiere
+Dashboard). Tenant B tiene plan `pro`. Pendiente humano: `docs/operations/AUTH-QA-CONFIGURATION.md`.
+Escenarios E1–E19 preparados en `docs/testing/AUTH-E2E-SCENARIOS.md`: **ninguno ejecutado en navegador**.
+Happy paths de Fase 05: BLOCKED (requieren credenciales del operador; ver `scripts/qa/login-admin2.sh`).
+Fase 05/05-bis siguen sin ACCEPTED; Fase 06 no inicia.

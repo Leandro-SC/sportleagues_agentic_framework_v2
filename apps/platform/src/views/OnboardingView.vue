@@ -6,11 +6,13 @@ import FormField from '../components/FormField.vue'
 import PrimaryButton from '../components/PrimaryButton.vue'
 import { useAuth } from '../composables/useAuth'
 import { useJoinPool } from '../composables/useJoinPool'
+import { sanitizeFullName } from '../lib/auth-validation'
 
 const router = useRouter()
 const auth = useAuth()
 const joiner = useJoinPool()
-const displayName = ref('')
+// Prellenado con el nombre del registro/Google cuando existe, para que reintentar sea un solo toque.
+const displayName = ref(sanitizeFullName(auth.state.user?.user_metadata?.full_name) ?? sanitizeFullName(auth.state.user?.user_metadata?.name) ?? '')
 const error = ref('')
 const saving = ref(false)
 

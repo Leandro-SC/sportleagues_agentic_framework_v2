@@ -10,6 +10,24 @@ describe('protected route guard', () => {
   it('does not treat tenant or role client state as authorization', () => {
     expect(protectedRouteRedirect('pool', true, true)).toBeNull()
   })
+
+  it.each(['matches', 'leagues', 'league-join', 'league', 'team'])('protects the redesigned %s route like the other app routes', (route) => {
+    expect(protectedRouteRedirect(route, false, false)).toBe('home')
+    expect(protectedRouteRedirect(route, true, false)).toBe('onboarding')
+    expect(protectedRouteRedirect(route, true, true)).toBeNull()
+  })
+
+  it('keeps public routes public', () => {
+    expect(protectedRouteRedirect('home', false, false)).toBeNull()
+    expect(protectedRouteRedirect('join', false, false)).toBeNull()
+  })
+})
+
+describe('password reset route guard', () => {
+  it('requires a session (the recovery link creates one) but not a profile', () => {
+    expect(protectedRouteRedirect('reset-password', false, false)).toBe('home')
+    expect(protectedRouteRedirect('reset-password', true, false)).toBeNull()
+  })
 })
 
 describe('platform admin route guard', () => {

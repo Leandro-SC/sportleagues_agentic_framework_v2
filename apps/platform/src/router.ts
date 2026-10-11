@@ -4,6 +4,7 @@ import AuthCallbackView from './views/AuthCallbackView.vue'
 import HomeView from './views/HomeView.vue'
 import JoinView from './views/JoinView.vue'
 import OnboardingView from './views/OnboardingView.vue'
+import ResetPasswordView from './views/ResetPasswordView.vue'
 import PoolView from './views/PoolView.vue'
 import ProfileView from './views/ProfileView.vue'
 import AdminView from './views/AdminView.vue'
@@ -13,7 +14,7 @@ import { useSuperadmin } from './composables/useSuperadmin'
 import { useTenantAdminAccess } from './composables/useTenantAdminAccess'
 import { platformAdminRedirect, protectedRouteRedirect, tenantAdminRedirect } from './lib/navigation-guards'
 
-const GUARDED_ROUTES = ['onboarding', 'pool', 'profile']
+const GUARDED_ROUTES = ['onboarding', 'reset-password', 'pool', 'profile', 'matches', 'leagues', 'league-join', 'league', 'team']
 
 // Set while `/admin` or `/superadmin` are resolving their role check, so App.vue can show a
 // sober loading state instead of the previous route's content (or nothing) during that gap —
@@ -25,10 +26,18 @@ export const router = createRouter({
   routes: [
     { path: '/', name: 'home', component: HomeView },
     { path: '/auth/callback', name: 'auth-callback', component: AuthCallbackView },
+    { path: '/auth/reset', name: 'reset-password', component: ResetPasswordView },
     { path: '/onboarding', name: 'onboarding', component: OnboardingView },
     { path: '/j/:code', name: 'join', component: JoinView, props: true },
     { path: '/p/:poolId', name: 'pool', component: PoolView, props: true },
     { path: '/perfil', name: 'profile', component: ProfileView },
+    // Pantallas del rediseño (pre-acceptance). Las que dependen de partidos usan datos de vista
+    // previa solo cuando isPreviewDataEnabled() lo permite; ver lib/preview-mode.ts.
+    { path: '/partidos', name: 'matches', component: () => import('./views/MatchesView.vue') },
+    { path: '/ligas', name: 'leagues', component: () => import('./views/LeaguesView.vue') },
+    { path: '/ligas/unirme', name: 'league-join', component: () => import('./views/JoinLeagueView.vue') },
+    { path: '/ligas/:leagueId', name: 'league', component: () => import('./views/LeagueView.vue') },
+    { path: '/equipos/:teamId', name: 'team', component: () => import('./views/TeamView.vue') },
     { path: '/admin', name: 'admin', component: AdminView },
     { path: '/superadmin', name: 'superadmin', component: SuperadminView },
   ],
