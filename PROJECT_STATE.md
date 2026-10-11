@@ -314,3 +314,18 @@ Dashboard). Tenant B tiene plan `pro`. Pendiente humano: `docs/operations/AUTH-Q
 Escenarios E1–E19 preparados en `docs/testing/AUTH-E2E-SCENARIOS.md`: **ninguno ejecutado en navegador**.
 Happy paths de Fase 05: BLOCKED (requieren credenciales del operador; ver `scripts/qa/login-admin2.sh`).
 Fase 05/05-bis siguen sin ACCEPTED; Fase 06 no inicia.
+
+## Despliegue QA del nuevo sistema de auth y rediseño (2026-10-11)
+
+`feat/password-google-auth` se fusionó en `main` (merge `b4be40f`, sin force-push) y Vercel
+(`theonix/sportleagues-qa`, integración Git, rama de producción `main`) publicó en
+`https://sportleagues-qa.vercel.app`. Incluye auth con correo/contraseña + Google (ADR-013, sin Magic
+Link), el rediseño pre-acceptance y la conservación de la invitación ante fallos de red. Sin
+migraciones ni cambios de RLS/privilegios. Gates sobre `main`: typecheck, `npm test` (35 archivos /
+235 tests), build, `verify:bundle` y `git diff --check`: PASS. Comprobaciones automáticas del sitio en
+vivo: el bundle no contiene Magic Link ni el dataset de vista previa, solo referencia al Supabase QA y
+las rutas SPA responden 200. **NO EJECUTADO:** escenarios E1–E19 (`docs/testing/AUTH-E2E-SCENARIOS.md`),
+revisión visual en navegador, happy paths de Fase 05 y la configuración de Dashboard pendiente
+(`docs/operations/AUTH-QA-CONFIGURATION.md`). Rollback: revertir el merge (`git revert -m 1 b4be40f`)
+o promover de nuevo el despliegue anterior (`ef2daf9`) desde Vercel. Fase 05/05-bis siguen sin
+ACCEPTED; Fase 06 no inicia.
