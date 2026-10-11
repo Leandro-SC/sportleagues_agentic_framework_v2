@@ -71,6 +71,7 @@ select 'P14 sin PUBLIC/anon/authenticated en privilegios por defecto de funcione
        exists (select 1 from pg_default_acl d where d.defaclobjtype = 'f' and pg_get_userbyid(d.defaclrole) = 'postgres' and d.defaclnamespace = 0)
        and not exists (select 1 from pg_default_acl d, aclexplode(d.defaclacl) a
                         where d.defaclobjtype = 'f' and pg_get_userbyid(d.defaclrole) = 'postgres'
+                          and (d.defaclnamespace = 0 or d.defaclnamespace = 'public'::regnamespace)   -- esquemas gestionados por la plataforma (storage, graphql…) quedan fuera
                           and (a.grantee = 0 or a.grantee in (select oid from pg_roles where rolname in ('anon', 'authenticated')))),
        'default ACL de funciones (global y por esquema)'
 order by 1;

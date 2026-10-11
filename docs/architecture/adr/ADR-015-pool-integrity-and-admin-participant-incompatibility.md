@@ -264,7 +264,7 @@ Implementación **preparada, no aplicada**: `supabase/proposed/20261012000{100,2
   (`publish_official_result`, Fase 06); `official_results` no se borra, se revisa.
 - Un sincronizador de servidor (`service_role`, Edge Function) usa `apply_fixture_update`: cambios de horario/estado con las mismas validaciones y, si un partido
   se adelanta, **bloquea ahora** (nunca revela antes). Un cliente autenticado no puede invocarla ni activar las banderas `sl.*`.
-- Decisión de producto abierta **D21**: aplazamiento tras el lock — por defecto los pronósticos siguen bloqueados; alternativa: anular el partido en la quiniela.
+- **D21 (aprobada):** un aplazamiento posterior al lock mantiene los pronósticos bloqueados. La anulación, si procede, se rige por las reglas ya auditadas; no reabre ni borra pronósticos.
 - Decisión abierta **D22** (baja de tenants y supresión de PII): con `audit_log` inmutable y FK en cascada heredadas, un tenant con historial no puede eliminarse y las cuentas con colaboraciones tampoco. Se propone: baja lógica + exportación + procedimiento de purga controlado por ADR propio; `audit_log.actor_id` deja de ser FK (el uuid se conserva) para no bloquear la supresión de cuentas. Retención legal = D13.
 
 ## 18. Plan de aplicación a QA y reversión (todo condicionado a autorización)
@@ -278,7 +278,7 @@ Implementación **preparada, no aplicada**: `supabase/proposed/20261012000{100,2
    `db push --linked --dry-run` primero.
 3. **Verificación posterior en QA (clase A + humo manual):** baseline 14/14; `verify_audit_protection()` (como service_role); flujo manual con cuentas de prueba: unirse por código,
    guardar pronóstico, panel de organizador, `manage_pool` válido y rechazado. Las suites C **no** se ejecutan en QA.
-4. **Reversión:** primero corrección hacia adelante; si no es viable, `down/` en orden 3→2→1 con `sl.allow_destructive_rollback=on` (guarda explícita). Efectos: se pierde historial
+4. **Reversión:** primero corrección hacia adelante; si no es viable, `down/` en orden 3→2→1 ejecutado solo por el operador de migraciones autorizado. Efectos: se pierde historial
    de gobernanza (exportarlo antes), se retira la protección de audit_log y **no** se restauran los privilegios inseguros (requiere aprobación de Security). Disparadores: baseline en
    fallo, error persistente en `join_pool`/`save_prediction`/`manage_pool`, deadlocks sostenidos, o conflicto de datos no previsto.
 5. **Validación de reversión:** `run-suite.mjs rollback-cycle` en el descartable antes de QA (down → estado previo comprobado → re-aplicar → baseline 14/14).
@@ -287,7 +287,7 @@ Implementación **preparada, no aplicada**: `supabase/proposed/20261012000{100,2
 
 - **Propietario/superusuario de la base** puede deshabilitar triggers (`ALTER TABLE … DISABLE TRIGGER`) o usar `supabase_admin`; mitigación parcial: `verify_audit_protection()`,
   exportación externa periódica de `audit_log`, revisión de DDL. No se puede crear un trigger de eventos porque `postgres` no es superusuario en Supabase.
-- **Banderas `sl.*`** (`set_config`) solo las activan funciones propias; quien tenga SQL directo (rol de base) podría fijarlas: fuera de la API pública, mismo modelo de amenaza que el anterior.
+- No existen banderas `sl.*` de ejecución que autoricen mantenimiento de locks, sincronización o retirada. El feed exige `service_role` y los clientes no tienen DML de calendario/locks.
 - **Dos cuentas de la misma persona** no son detectables.
 - **Historial de administradores previo a la migración** desconocido; solo se detectan los vigentes.
 - **Triggers de eventos no disponibles** y `verify_audit_protection()` comprueba trigger habilitado, tipo, cuerpo y privilegios, pero un propietario con `session_replication_role = replica` o `CREATE OR REPLACE` coordinado con exportación externa ausente podría eludirlo.

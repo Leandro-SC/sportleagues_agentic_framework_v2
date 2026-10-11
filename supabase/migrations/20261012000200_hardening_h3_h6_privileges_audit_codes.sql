@@ -1,4 +1,4 @@
--- PROPUESTA — NO APLICADA. Ver ADR-015 y docs/operations/CLOUD-ONLY-TESTING-POLICY.md.
+-- Remediación H1–H6 / ADR-015. Aplicada a Supabase QA (juoftaofzepxbrrxbkhx) con autorización del propietario (2026-10-11).
 -- Orden: 2/3 (H3, H4, H5, H6, H7/R5, H9). Forward-only. Solo para un proyecto Supabase Cloud DESCARTABLE hasta ser validada.
 --
 -- R2  Privilegios mínimos: sin TRUNCATE/REFERENCES/TRIGGER para anon/authenticated; sin I/U/D para anon; sin EXECUTE
@@ -18,6 +18,11 @@ set local statement_timeout = '120s';
 -- ---------------------------------------------------------------------------------------------------------------
 revoke truncate, references, trigger on all tables in schema public from anon, authenticated;
 revoke insert, update, delete on all tables in schema public from anon;
+-- H1: los clientes no actualizan directamente el calendario ni los locks. pools ya
+-- se escribe mediante manage_pool; el feed deportivo entra por apply_fixture_update
+-- (service_role). Cualquier futura operaciÃ³n administrativa debe ser una RPC
+-- SECURITY DEFINER con autorizaciÃ³n por capacidad y auditorÃ­a.
+revoke insert, update, delete on public.matches, public.pool_matches from authenticated;
 revoke execute on all functions in schema public from public, anon;
 
 alter default privileges for role postgres in schema public revoke truncate, references, trigger on tables from anon, authenticated;
@@ -35,6 +40,8 @@ begin
     execute 'alter default privileges for role supabase_admin in schema public revoke truncate, references, trigger on tables from anon, authenticated';
     execute 'alter default privileges for role supabase_admin in schema public revoke insert, update, delete on tables from anon';
     execute 'alter default privileges for role supabase_admin in schema public revoke execute on functions from public, anon';
+    execute 'alter default privileges for role supabase_admin in schema public revoke execute on functions from authenticated';
+    execute 'alter default privileges for role supabase_admin revoke execute on functions from authenticated';
   exception when insufficient_privilege then
     raise warning 'default privileges of supabase_admin not changed (insufficient privilege); verify with the effective-privileges baseline test';
   end;
@@ -81,7 +88,7 @@ as $$
   union all
   select 'pool_admin_exclusions protected (if installed)',
          case when to_regclass('public.pool_admin_exclusions') is null then true
-              else exists (select 1 from pg_trigger t where t.tgrelid = 'public.pool_admin_exclusions'::regclass
+              else exists (select 1 from pg_trigger t where t.tgrelid = to_regclass('public.pool_admin_exclusions')
                             and t.tgname = 'pool_admin_exclusions_append_only' and t.tgenabled = 'O' and t.tgtype = 27) end
 $$;
 revoke all on function public.verify_audit_protection() from public, anon, authenticated;

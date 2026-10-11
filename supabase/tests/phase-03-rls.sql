@@ -1,10 +1,25 @@
 -- Run after the Phase 03 migration and development seed using a privileged local test role.
 begin;
--- The development seed's timestamp ages in a long-lived QA project. Keep the
--- pre-lock visibility assertion deterministic without persisting any change.
-update public.matches set starts_at = now() + interval '1 day'
-where id = 'aaaaaaaa-0000-0000-0000-000000000030'
-  and tenant_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+-- The development seed's match ages in a long-lived QA project and, since H1 (migration 20261012000100), a reached lock is
+-- irreversible: the seed match can no longer be moved back into the future. The pre-lock visibility assertion therefore uses
+-- its own future match and predictions, created inside this rolled-back transaction (nothing persists).
+insert into public.matches(id,tenant_id,tournament_id,round_id,home_team_id,away_team_id,starts_at)
+  select 'aaaaaaaa-0000-0000-0000-0000000000f0', tenant_id, tournament_id, round_id, home_team_id, away_team_id, now() + interval '1 day'
+    from public.matches where id = 'aaaaaaaa-0000-0000-0000-000000000030' and tenant_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+insert into public.pool_matches(id,tenant_id,pool_id,match_id)
+  values ('aaaaaaaa-0000-0000-0000-0000000000f1','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','aaaaaaaa-0000-0000-0000-000000000001','aaaaaaaa-0000-0000-0000-0000000000f0');
+-- The "other player" must be a plain participant: since ADR-015 the preserved legacy admin-participant (owner A) cannot predict.
+insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+  values ('00000000-0000-0000-0000-000000000000','aaaaaaaa-0000-0000-0000-0000000000e1','authenticated','authenticated','p03-other@example.test','not-used',now(),'{}','{}',now(),now());
+insert into public.profiles(id, display_name) values ('aaaaaaaa-0000-0000-0000-0000000000e1','P03 other player');
+insert into public.tenant_memberships(tenant_id,profile_id,role) values ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','aaaaaaaa-0000-0000-0000-0000000000e1','member');
+insert into public.participants(id,tenant_id,pool_id,profile_id,approval_status,payment_status)
+  values ('aaaaaaaa-0000-0000-0000-0000000000e2','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','aaaaaaaa-0000-0000-0000-000000000001','aaaaaaaa-0000-0000-0000-0000000000e1','approved','paid');
+insert into public.predictions(id,tenant_id,pool_id,pool_match_id,participant_id,home_score,away_score) values
+  ('aaaaaaaa-0000-0000-0000-0000000000f2','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','aaaaaaaa-0000-0000-0000-000000000001','aaaaaaaa-0000-0000-0000-0000000000f1','aaaaaaaa-0000-0000-0000-0000000000e2',1,0);
+insert into public.predictions(id,tenant_id,pool_id,pool_match_id,participant_id,home_score,away_score)
+  select 'aaaaaaaa-0000-0000-0000-0000000000f3', p.tenant_id, p.pool_id, 'aaaaaaaa-0000-0000-0000-0000000000f1', p.participant_id, 1, 0
+    from public.predictions p where p.id = 'aaaaaaaa-0000-0000-0000-000000000062';
 set local role authenticated;
 
 -- 1. Member A can read Tenant A.
@@ -36,7 +51,7 @@ do $$ begin if exists (select 1 from public.pools) then raise exception 'anonymo
 set local role authenticated;
 -- 7. Before lock, Member A can read own prediction but not Owner A prediction.
 select set_config('request.jwt.claim.sub','33333333-3333-3333-3333-333333333333',true);
-do $$ begin if not exists (select 1 from public.predictions where id = 'aaaaaaaa-0000-0000-0000-000000000062') then raise exception 'own prediction hidden'; end if; if exists (select 1 from public.predictions where id = 'aaaaaaaa-0000-0000-0000-000000000061') then raise exception 'other prediction leaked before lock'; end if; end $$;
+do $$ begin if not exists (select 1 from public.predictions where id = 'aaaaaaaa-0000-0000-0000-0000000000f3') then raise exception 'own prediction hidden'; end if; if exists (select 1 from public.predictions where id = 'aaaaaaaa-0000-0000-0000-0000000000f2') then raise exception 'other prediction leaked before lock'; end if; end $$;
 rollback;
 
 -- 6. Constraint test runs as migration owner, outside the RLS transaction.

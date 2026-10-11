@@ -128,9 +128,7 @@ begin
   perform pg_temp.rec('INC-09 retirada tras el primer lock → FIRST_LOCK_PASSED', pg_temp.is_err(r, '42501', 'FIRST_LOCK_PASSED'), r);
   r := pg_temp.as_user(pg_temp.f('o'), format($q$select public.assign_pool_staff(%L, %L, 'pool_manager')$q$, pg_temp.f('p3'), pg_temp.f('m3')));
   perform pg_temp.rec('INC-06 participante activo tras el primer lock no recibe rol', pg_temp.is_err(r, '42501'), r);
-  perform pg_temp.as_role('postgres', 'select set_config(''sl.withdrawal'', ''on'', false)');
   update public.participants set withdrawn_at = clock_timestamp() where id = pg_temp.f('part_m1_p3');
-  perform set_config('sl.withdrawal', 'off', false);
   r := pg_temp.as_user(pg_temp.f('o'), format($q$select public.assign_pool_staff(%L, %L, 'pool_manager')$q$, pg_temp.f('p3'), pg_temp.f('m1')));
   perform pg_temp.rec('INC-06b ni siquiera un retirado tras el primer lock → FIRST_LOCK_PASSED', pg_temp.is_err(r, '42501', 'FIRST_LOCK_PASSED'), r);
 
@@ -250,13 +248,13 @@ begin
   perform pg_temp.rec('PROBE2 la capacidad de otros perfiles no es consultable (función interna)', pg_temp.is_err(r, '42501'), r);
   r := pg_temp.as_role('postgres', format($q$delete from public.participants where id = %L$q$, pg_temp.f('part_m1_p1')));
   perform pg_temp.rec('DEL1 un participante de una quiniela abierta no se borra', pg_temp.is_err(r, '42501'), r);
-  r := pg_temp.as_role('postgres', format($q$delete from public.legacy_admin_conflicts where id = %L$q$, pg_temp.f('conf')));
-  perform pg_temp.rec('DEL2 un conflicto heredado no se borra', pg_temp.is_err(r, '42501', null), r);
 
   -- LEG: regularización de conflicto heredado (a = admin del tenant, participante heredado de P2)
   insert into public.legacy_admin_conflicts(tenant_id, pool_id, profile_id, participant_id)
     values (pg_temp.f('t'), pg_temp.f('p2'), pg_temp.f('a'), pg_temp.f('part_a_p2')) returning id into v_conf;
   insert into fx(k, v) values ('conf', v_conf);
+  r := pg_temp.as_role('postgres', format($q$delete from public.legacy_admin_conflicts where id = %L$q$, pg_temp.f('conf')));
+  perform pg_temp.rec('DEL2 un conflicto heredado no se borra', pg_temp.is_err(r, '42501', null), r);
   select count(*) into v_pred_before from public.predictions where pool_id = pg_temp.f('p2');
   r := pg_temp.as_user(pg_temp.f('a'), format($q$select public.regularize_legacy_conflict(%L, 'self regularization attempt')$q$, v_conf));
   perform pg_temp.rec('LEG1 el conflictuado no regulariza su propio conflicto', pg_temp.is_err(r, '42501'), r);

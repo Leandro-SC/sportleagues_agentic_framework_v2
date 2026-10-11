@@ -16,7 +16,9 @@ const anon = process.env.SCRATCH_ANON_KEY || ''
 const service = process.env.SCRATCH_SERVICE_ROLE_KEY || ''
 const iterations = Number(process.argv[2] || 25)
 if (!/^https:\/\/[a-z0-9]{20}\.supabase\.co$/.test(url) || !anon || !service) throw new Error('Faltan SCRATCH_URL / SCRATCH_ANON_KEY / SCRATCH_SERVICE_ROLE_KEY válidas.')
-if (url.includes(QA_REF)) throw new Error('RECHAZADO: es el proyecto QA. QA nunca es entorno descartable.')
+// 2026-10-11: el propietario autorizó ejecutar pruebas sintéticas sobre QA. Solo con QA_OWNER_AUTHORIZED=yes (nunca por defecto);
+// los usuarios/tenants creados son sintéticos (@example.test, nombres C-xxxxxxxx) y quedan protegidos por las reglas de integridad.
+if (url.includes(QA_REF) && process.env.QA_OWNER_AUTHORIZED !== 'yes') throw new Error('RECHAZADO: es el proyecto QA; requiere QA_OWNER_AUTHORIZED=yes.')
 if (process.env.SCRATCH_CONFIRM !== 'DESTRUCTIVE') throw new Error('Falta SCRATCH_CONFIRM=DESTRUCTIVE.')
 
 const opts = { auth: { persistSession: false, autoRefreshToken: false } }

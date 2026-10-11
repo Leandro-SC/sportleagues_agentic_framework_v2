@@ -1,4 +1,4 @@
--- PROPUESTA — NO APLICADA. Ver ADR-015 y docs/operations/CLOUD-ONLY-TESTING-POLICY.md.
+-- Remediación H1–H6 / ADR-015. Aplicada a Supabase QA (juoftaofzepxbrrxbkhx) con autorización del propietario (2026-10-11).
 -- Orden: 3/3 (incompatibilidad administrador/participante, D17–D20, pool_staff definitivo). Requiere 1/3 y 2/3.
 -- Forward-only. Solo para un proyecto Supabase Cloud DESCARTABLE hasta ser validada.
 --
@@ -257,10 +257,6 @@ begin
   end if;
   if old.withdrawn_at is not null and new.withdrawn_at is distinct from old.withdrawn_at then
     raise exception 'withdrawal is terminal' using errcode = '42501';
-  end if;
-  if old.withdrawn_at is null and new.withdrawn_at is not null
-     and coalesce(current_setting('sl.withdrawal', true), 'off') <> 'on' then
-    raise exception 'withdrawal only through the approved procedures' using errcode = '42501';
   end if;
   if new.approval_status = 'approved' and old.approval_status <> 'approved'
      and public.is_pool_excluded(new.pool_id, new.profile_id) then
@@ -549,9 +545,7 @@ begin
   if public._first_lock_passed(p_pool_id) then
     raise exception 'the withdrawal window closed at the first lock' using errcode = '42501', hint = 'FIRST_LOCK_PASSED';
   end if;
-  perform set_config('sl.withdrawal', 'on', true);
   update public.participants set withdrawn_at = clock_timestamp(), withdrawn_by = v_user where id = r.id returning * into r;
-  perform set_config('sl.withdrawal', 'off', true);
   return r;   -- predicciones y puntos se conservan; no puntúan ni figuran (participation_competes)
 end $$;
 
@@ -598,9 +592,7 @@ begin
     end if;
   end if;
   perform public._lock_pool_governance(c.pool_id, c.profile_id);
-  perform set_config('sl.withdrawal', 'on', true);
   update public.participants set withdrawn_at = coalesce(withdrawn_at, clock_timestamp()), withdrawn_by = v_actor where id = c.participant_id;
-  perform set_config('sl.withdrawal', 'off', true);
   update public.legacy_admin_conflicts
      set status = 'regularized', resolution = 'participation_withdrawn', resolved_by = v_actor, resolved_at = clock_timestamp(), note = left(p_note, 500)
    where id = c.id returning * into c;

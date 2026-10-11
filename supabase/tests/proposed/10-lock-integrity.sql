@@ -36,6 +36,7 @@ begin
   insert into public.predictions(tenant_id, pool_id, pool_match_id, participant_id, home_score, away_score) values
     (v_tenant, v_pool, v_pms, v_p1, 2, 1), (v_tenant, v_pool, v_pml, v_p1, 0, 0);
   -- el sincronizador legítimo adelanta M_locked: queda bloqueado AHORA (con su pronóstico ya registrado antes del lock)
+  perform set_config('request.jwt.claims', json_build_object('role', 'service_role')::text, true);
   perform public.apply_fixture_update(v_ml, now() + interval '5 minutes', null);
   insert into fx(k, v) values ('tenant', v_tenant), ('owner', v_owner), ('admin', v_admin), ('m1', v_m1), ('m2', v_m2),
     ('pool', v_pool), ('ms', v_ms), ('mo', v_mo), ('ml', v_ml), ('pms', v_pms), ('pmo', v_pmo), ('pml', v_pml), ('p1', v_p1), ('p2', v_p2),
@@ -77,18 +78,22 @@ begin
   r := pg_temp.as_user(pg_temp.f('admin'), format($q$select public.manage_pool('update', %L, null, 'L10 pool', 60, false)$q$, pg_temp.f('pool')));
   perform pg_temp.rec('L03 re-subir offset rechazado (sin revelación forzada)', pg_temp.is_err(r, '42501'), r);
 
-  -- L05 partido con lock alcanzado: mover starts_at al futuro NO lo reabre
+  -- L05 el cliente no puede reprogramar; el feed service_role sí y NO reabre el lock.
   r := pg_temp.as_user(pg_temp.f('admin'), format($q$update public.matches set starts_at = now() + interval '1 day' where id = %L$q$, pg_temp.f('ml')));
-  perform pg_temp.rec('L05 posponer partido bloqueado permitido (cambio legítimo)', pg_temp.is_ok(r), r);
+  perform pg_temp.rec('L05 cliente no reprograma partido bloqueado', pg_temp.is_err(r, '42501'), r);
+  r := pg_temp.as_role('service_role', format($q$select public.apply_fixture_update(%L, now() + interval '1 day', null)$q$, pg_temp.f('ml')));
+  perform pg_temp.rec('L05a feed aplaza partido bloqueado', pg_temp.is_ok(r), r);
   perform pg_temp.rec('L05b su lock_at no cambió', (select lock_at = v_locked_before from public.pool_matches where id = pg_temp.f('pml')), '');
   r := pg_temp.as_user(pg_temp.f('m2'), format($q$select public.save_prediction(%L, %L, 9, 9)$q$, pg_temp.f('pool'), pg_temp.f('ml')));
   perform pg_temp.rec('L05c save_prediction sigue rechazado tras posponer', pg_temp.is_err(r, '42501'), r);
 
-  -- L06 el estado solo avanza
+  -- L06 el cliente no cambia estado; el feed conserva la transición monótona.
   r := pg_temp.as_user(pg_temp.f('admin'), format($q$update public.matches set status = 'live' where id = %L$q$, pg_temp.f('ml')));
-  perform pg_temp.rec('L06 scheduled→live permitido', pg_temp.is_ok(r), r);
-  r := pg_temp.as_user(pg_temp.f('admin'), format($q$update public.matches set status = 'scheduled' where id = %L$q$, pg_temp.f('ml')));
-  perform pg_temp.rec('L06b live→scheduled rechazado', pg_temp.is_err(r, '42501'), r);
+  perform pg_temp.rec('L06 cliente no cambia estado', pg_temp.is_err(r, '42501'), r);
+  r := pg_temp.as_role('service_role', format($q$select public.apply_fixture_update(%L, null, 'live')$q$, pg_temp.f('ml')));
+  perform pg_temp.rec('L06a feed scheduled→live permitido', pg_temp.is_ok(r), r);
+  r := pg_temp.as_role('service_role', format($q$select public.apply_fixture_update(%L, null, 'scheduled')$q$, pg_temp.f('ml')));
+  perform pg_temp.rec('L06b feed live→scheduled rechazado', pg_temp.is_err(r, '42501'), r);
 
   -- L07 adelantar un partido abierto de modo que el lock quede en el pasado: rechazo para el admin
   r := pg_temp.as_user(pg_temp.f('admin'), format($q$update public.matches set starts_at = now() + interval '3 minutes' where id = %L$q$, pg_temp.f('mo')));
@@ -139,6 +144,8 @@ begin
   -- L12 lock_at no es editable por clientes
   r := pg_temp.as_user(pg_temp.f('admin'), format($q$update public.pool_matches set lock_at = now() + interval '10 days' where id = %L$q$, pg_temp.f('pml')));
   perform pg_temp.rec('L12 UPDATE directo de lock_at → 42501', pg_temp.is_err(r, '42501'), r);
+  r := pg_temp.as_user(pg_temp.f('admin'), format($q$select set_config('sl.fixture_sync', 'on', true); update public.matches set starts_at = now() + interval '10 days' where id = %L$q$, pg_temp.f('ml')));
+  perform pg_temp.rec('L12a GUC sl.* no habilita DML de calendario', pg_temp.is_err(r, '42501'), r);
 
   -- L13 identidad inmutable
   r := pg_temp.as_role('postgres', format($q$update public.pools set tenant_id = %L where id = %L$q$, gen_random_uuid(), pg_temp.f('pool')));
@@ -184,7 +191,9 @@ begin
   r := pg_temp.as_user(pg_temp.f('m2'), format($q$select public.save_prediction(%L, %L, 3, 2)$q$, v_pool, v_mnew));
   perform pg_temp.rec('L16b edición antes del lock permitida (upsert)', pg_temp.is_ok(r), r);
   r := pg_temp.as_user(pg_temp.f('admin'), format($q$update public.matches set starts_at = now() + interval '4 hours' where id = %L$q$, v_mnew));
-  perform pg_temp.rec('L16c el organizador puede reprogramar un partido abierto', pg_temp.is_ok(r), r);
+  perform pg_temp.rec('L16c el organizador no reprograma por DML directo', pg_temp.is_err(r, '42501'), r);
+  r := pg_temp.as_role('service_role', format($q$select public.apply_fixture_update(%L, now() + interval '4 hours', null)$q$, v_mnew));
+  perform pg_temp.rec('L16c2 feed reprograma partido abierto', pg_temp.is_ok(r), r);
   perform pg_temp.rec('L16d el lock siguió al horario', (select pm.lock_at = m.starts_at - (select lock_offset from public.pools where id = v_pool)
      from public.pool_matches pm join public.matches m on m.id = pm.match_id where pm.id = v_pmnew), '');
   -- finalización legítima: live → final, y revisión del resultado

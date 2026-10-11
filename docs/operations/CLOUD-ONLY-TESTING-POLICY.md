@@ -66,3 +66,7 @@ sintaxis) se instalan fuera del repositorio y se desechan.
 - Hardening H1–H6 (ADR-015): criterio de aceptación = suites clase C **ejecutadas en el proyecto descartable**; sin entorno,
   el estado es **BLOCKED**, no PASS. La migración no se aplica a QA antes de esa validación.
 - Fase 06 no inicia hasta cerrar las condiciones de seguridad (ADR-015 §12).
+
+## 7. Excepción del propietario (2026-10-11)
+
+El propietario autorizó aplicar migraciones y ejecutar suites clase B/C sobre QA (`juoftaofzepxbrrxbkhx`) con datos sintéticos, sin proyecto descartable adicional, sin Docker y sin borrar Auth/Storage/secretos ni datos de naturaleza no comprobada. Las pruebas que crean datos protegidos (H2/append-only) dejan residuo sintético irreversible; documentar el residuo en cada handoff.

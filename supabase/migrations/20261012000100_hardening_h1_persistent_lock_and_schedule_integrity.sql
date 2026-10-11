@@ -1,4 +1,4 @@
--- PROPUESTA — NO APLICADA. Ver ADR-015 y docs/operations/CLOUD-ONLY-TESTING-POLICY.md.
+-- Remediación H1–H6 / ADR-015. Aplicada a Supabase QA (juoftaofzepxbrrxbkhx) con autorización del propietario (2026-10-11).
 -- Orden: 1/3 (H1, H2, H8). Forward-only. Solo para un proyecto Supabase Cloud DESCARTABLE hasta ser validada (clase C);
 -- mover a supabase/migrations/ únicamente tras aprobación explícita. No usa datos ni secretos.
 --
@@ -9,9 +9,15 @@
 --   H8  Identidad inmutable (tenant/pool/match/participante) y coherencia de relaciones.
 --   Compat. con sincronización deportiva legítima: matches.status solo avanza (scheduled→live→final); un partido que pasa a
 --   live/final bloquea sus pools; un cambio de horario sobre un lock ya alcanzado no lo reabre; el sincronizador
---   (service_role) puede adelantar un lock mediante la bandera de transacción sl.fixture_sync.
+--   (service_role) puede adelantar un lock mediante apply_fixture_update; los clientes no tienen DML sobre el calendario.
 set local lock_timeout = '5s';
 set local statement_timeout = '120s';
+
+-- Cierra la ventana entre 1/3 y 2/3: un cliente no puede fabricar un
+-- trigger que origine DML anidado y simule el mantenimiento interno del lock.
+-- 2/3 extiende el mínimo privilegio al resto de las tablas y a los defaults.
+revoke truncate, references, trigger on public.matches, public.pool_matches from anon, authenticated;
+revoke insert, update, delete on public.matches, public.pool_matches from authenticated;
 
 -- ---------------------------------------------------------------------------------------------------------------
 -- 1. Columnas aditivas y relleno
@@ -36,19 +42,11 @@ alter table public.participants add column withdrawn_by uuid;
 -- ---------------------------------------------------------------------------------------------------------------
 -- 2. Ayudas internas (sin EXECUTE para clientes; las usan triggers SECURITY DEFINER del propietario)
 -- ---------------------------------------------------------------------------------------------------------------
-create function public._lock_maint_on() returns boolean
-language sql stable set search_path = ''
-as $$ select coalesce(current_setting('sl.lock_maint', true), 'off') = 'on' $$;
-
-create function public._fixture_sync_on() returns boolean
-language sql stable set search_path = ''
-as $$ select coalesce(current_setting('sl.fixture_sync', true), 'off') = 'on' $$;
-
 create function public._first_lock_passed(p_pool_id uuid) returns boolean
 language sql security definer set search_path = ''   -- VOLATILE a propósito: usa clock_timestamp()
 as $$ select exists (select 1 from public.pool_matches pm where pm.pool_id = p_pool_id and pm.lock_at <= clock_timestamp()) $$;
 
-revoke all on function public._lock_maint_on(), public._fixture_sync_on(), public._first_lock_passed(uuid) from public, anon, authenticated;
+revoke all on function public._first_lock_passed(uuid) from public, anon, authenticated;
 
 -- ---------------------------------------------------------------------------------------------------------------
 -- 3. pools: opened_at inmutable y no falsificable; el offset ya no puede mover un lock alcanzado
@@ -82,7 +80,6 @@ as $$
 declare r record; v_new timestamptz;
 begin
   if new.lock_offset is not distinct from old.lock_offset then return null; end if;
-  perform set_config('sl.lock_maint', 'on', true);
   for r in
     select pm.id, m.starts_at
       from public.pool_matches pm
@@ -97,7 +94,6 @@ begin
     end if;
     update public.pool_matches set lock_at = v_new where id = r.id and lock_at is distinct from v_new;
   end loop;
-  perform set_config('sl.lock_maint', 'off', true);
   return null;
 end $$;
 create trigger pools_after_offset after update of lock_offset on public.pools
@@ -143,7 +139,7 @@ begin
     raise exception 'pool_match identity is immutable' using errcode = '42501';
   end if;
   if new.lock_at is distinct from old.lock_at then
-    if not public._lock_maint_on() then
+    if pg_trigger_depth() < 2 then
       raise exception 'lock_at is maintained by the system' using errcode = '42501';
     end if;
     if new.lock_at > old.lock_at and old.lock_at <= clock_timestamp() then
@@ -209,7 +205,6 @@ language plpgsql security definer set search_path = ''
 as $$
 declare r record; v_new timestamptz;
 begin
-  perform set_config('sl.lock_maint', 'on', true);
   if new.status <> 'scheduled' and old.status = 'scheduled' then
     update public.pool_matches pm
        set lock_at = clock_timestamp()
@@ -226,7 +221,7 @@ begin
     loop
       v_new := new.starts_at - r.lock_offset;
       if v_new <= clock_timestamp() then
-        if public._fixture_sync_on() then
+        if auth.role() = 'service_role' then
           v_new := clock_timestamp();   -- el partido se adelantó: se bloquea ahora, sin revelar nada antes
         else
           raise exception 'schedule change would lock or reveal the match immediately' using errcode = '42501';
@@ -235,7 +230,6 @@ begin
       update public.pool_matches set lock_at = v_new where id = r.id and lock_at is distinct from v_new;
     end loop;
   end if;
-  perform set_config('sl.lock_maint', 'off', true);
   return null;
 end $$;
 create trigger matches_after_update after update of starts_at, status on public.matches
@@ -403,12 +397,13 @@ returns public.matches language plpgsql security definer set search_path = ''
 as $$
 declare v_match public.matches;
 begin
-  perform set_config('sl.fixture_sync', 'on', true);
+  if auth.role() <> 'service_role' then
+    raise exception 'fixture synchronization requires service_role' using errcode = '42501';
+  end if;
   update public.matches
      set starts_at = coalesce(p_starts_at, starts_at), status = coalesce(p_status, status)
    where id = p_match_id
    returning * into v_match;
-  perform set_config('sl.fixture_sync', 'off', true);
   if v_match.id is null then raise exception 'match not found' using errcode = '22023'; end if;
   return v_match;
 end $$;

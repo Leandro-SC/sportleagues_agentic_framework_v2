@@ -386,8 +386,14 @@ Sin migraciones, RLS, permisos ni despliegues. Fases sin cambio de estado.
 ## Política sin Docker y remediación H1–H6 preparada (2026-10-11) — nada aplicado
 
 **Política aprobada:** sin Docker ni servicios locales; todo en la nube (`docs/operations/CLOUD-ONLY-TESTING-POLICY.md`; pruebas SQL clases A/B/C).
-**Remediación H1–H6 + incompatibilidad administrador/participante** (D17–D20 cerradas; D21 aplazamiento y D22 baja de tenants/PII abiertas):
+**Remediación H1–H6 + incompatibilidad administrador/participante** (D17–D21 cerradas; D22 baja de tenants/PII pendiente de ADR/legal):
 migraciones en `supabase/proposed/` (+ `down/`), pruebas en `supabase/tests/proposed/`, ejecutores `scripts/qa/remediation/`, diseño en ADR-015 §13–§20 e
 informe `reports/security/remediation-h1-h6-review-20261011.md`. Dictámenes independientes de Security y Data (estáticos): aprobar con cambios → corregidos en diseño;
-falta segunda revisión. **Verificado:** sintaxis (parser local sin BD) y línea base clase A en QA (3 PASS / 11 FAIL = remediación no aplicada). **BLOCKED:** suites C, concurrencia,
+falta segunda revisión con evidencia Cloud. Se retiraron los bypasses runtime `sl.lock_maint`, `sl.fixture_sync` y `sl.withdrawal`;
+el calendario/locks no admiten DML de `authenticated` y el feed usa `apply_fixture_update` de `service_role`. **Verificado:** sintaxis local del runner y línea base clase A en QA (3 PASS / 11 FAIL = remediación no aplicada). **BLOCKED:** suites C, concurrencia,
 reproducción y rollback hasta autorizar un proyecto Supabase descartable. Sin migraciones aplicadas, RLS/permisos modificados ni despliegues; ADR-014/015 siguen Proposed; Fase 06 no inicia.
+
+
+## Remediación H1–H6 APLICADA a QA (2026-10-11)
+
+El propietario autorizó reconstruir QA; el inventario (5 cuentas Gmail reales, 1 platform_admin real) mostró que bastaba una **migración incremental sin borrar nada**. Aplicadas `20261012000100/200/300` (historial 14/14 sincronizado). Línea base 14/14; suites lock 51/51, privilegios/auditoría 23/23, admin-participante 87/87, concurrencia 10/10, 6 suites históricas OK tras adaptar fixtures; typecheck, 247 tests y verify:bundle OK. Residuo sintético no borrable por diseño documentado. ADR-014/015 siguen Proposed; Fase 06 puede planificarse. Detalle: `docs/agents/HANDOFF-QA-HARDENING-APPLIED-20261011.md`.

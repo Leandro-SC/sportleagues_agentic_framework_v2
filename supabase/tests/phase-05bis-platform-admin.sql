@@ -69,13 +69,16 @@ do $$ begin
   end;
 end $$;
 
--- 7. anon has no platform-admin identity. The Cloud default function ACL may
--- grant EXECUTE directly to anon, so the secure expectation is false rather
--- than a privilege error.
+-- 7. anon has no platform-admin identity. Since the H3/H6 hardening (migration 20261012000200) anon has no EXECUTE on
+-- public functions, so the contract is a privilege error; a boolean answer would be a regression.
 reset role;
 set local role anon;
 do $$ begin
-  if public.is_platform_admin() then raise exception 'anon was treated as a platform admin'; end if;
+  begin
+    perform public.is_platform_admin();
+    raise exception 'anon could execute is_platform_admin';
+  exception when insufficient_privilege then null;
+  end;
 end $$;
 
 rollback;

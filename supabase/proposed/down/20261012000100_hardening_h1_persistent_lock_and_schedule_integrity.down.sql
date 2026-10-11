@@ -52,8 +52,6 @@ drop function if exists public.tg_pools_guard_delete();
 drop function if exists public.tg_pools_after_offset();
 drop function if exists public.tg_pools_guard();
 drop function if exists public._first_lock_passed(uuid);
-drop function if exists public._fixture_sync_on();
-drop function if exists public._lock_maint_on();
 
 drop index if exists public.pool_matches_pool_lock_idx;
 drop index if exists public.pool_matches_match_id_idx;

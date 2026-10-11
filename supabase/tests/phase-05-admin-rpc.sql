@@ -21,9 +21,16 @@ on conflict (id) do update set name = excluded.name, timezone = excluded.timezon
 insert into public.tenant_entitlements(tenant_id,plan_code) values
 ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','free'),('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','pro')
 on conflict (tenant_id) do update set plan_code = excluded.plan_code;
-insert into public.tenant_memberships(tenant_id,profile_id,role) values
-('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','11111111-1111-1111-1111-111111111111','owner'),('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','22222222-2222-2222-2222-222222222222','admin'),('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','33333333-3333-3333-3333-333333333333','member'),('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','77777777-7777-7777-7777-777777777777','member'),('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','55555555-5555-5555-5555-555555555555','member')
-on conflict (tenant_id,profile_id) do update set role = excluded.role, is_active = true;
+-- ADR-015: an INSERT ... ON CONFLICT upsert still fires BEFORE INSERT with admin-grant semantics, which would trip over a
+-- preserved legacy conflict already present in QA. Insert only the missing rows; align existing rows with a plain UPDATE.
+create temp table _fx_members(tenant_id uuid, profile_id uuid, role public.tenant_role) on commit drop;
+insert into _fx_members(tenant_id,profile_id,role) values
+('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','11111111-1111-1111-1111-111111111111','owner'),('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','22222222-2222-2222-2222-222222222222','admin'),('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','33333333-3333-3333-3333-333333333333','member'),('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','77777777-7777-7777-7777-777777777777','member'),('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','55555555-5555-5555-5555-555555555555','member');
+insert into public.tenant_memberships(tenant_id,profile_id,role)
+  select f.tenant_id, f.profile_id, f.role from _fx_members f
+   where not exists (select 1 from public.tenant_memberships x where x.tenant_id = f.tenant_id and x.profile_id = f.profile_id);
+update public.tenant_memberships x set role = f.role, is_active = true
+  from _fx_members f where x.tenant_id = f.tenant_id and x.profile_id = f.profile_id and (x.role is distinct from f.role or not x.is_active);
 insert into public.pools(id,tenant_id,name,status,lock_offset) values
 ('aaaaaaaa-0000-0000-0000-000000000001','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','Phase 05 Admin Pool A','open',interval '15 minutes'),('bbbbbbbb-0000-0000-0000-000000000001','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','Phase 05 Admin Pool B','open',interval '15 minutes')
 on conflict (id) do update set tenant_id = excluded.tenant_id, name = excluded.name, status = excluded.status, lock_offset = excluded.lock_offset;
