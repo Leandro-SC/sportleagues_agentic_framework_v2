@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { lockAt, lockLabel, lockState, parseIntervalMinutes, parseScoreInput } from './prediction-ux'
+import { humanizePredictionError, lockAt, lockLabel, lockState, lockStateFromServer, parseIntervalMinutes, parseScoreInput } from './prediction-ux'
 
 const startsAt = '2026-10-05T20:00:00.000Z'
 const at = (isoTime: string) => new Date(`2026-10-05T${isoTime}.000Z`)
@@ -72,5 +72,23 @@ describe('parseScoreInput', () => {
   it('caps at 99 as a UX guard and says so', () => {
     expect(parseScoreInput('99')).toEqual({ ok: true, value: 99 })
     expect(parseScoreInput('100')).toEqual({ ok: false, message: 'El marcador máximo es 99.' })
+  })
+})
+
+describe('lockStateFromServer', () => {
+  const now = new Date('2026-10-12T12:00:00Z')
+  it('usa el lock persistido por el servidor, no un cálculo local', () => {
+    expect(lockStateFromServer('scheduled', '2026-10-12T12:30:00Z', now)).toBe('open')
+    expect(lockStateFromServer('scheduled', '2026-10-12T11:59:59Z', now)).toBe('locked')
+    expect(lockStateFromServer('live', '2026-10-12T13:00:00Z', now)).toBe('live')
+    expect(lockStateFromServer('final', '2026-10-12T13:00:00Z', now)).toBe('final')
+  })
+})
+
+describe('humanizePredictionError', () => {
+  it('traduce los rechazos del servidor sin filtrar mensajes internos', () => {
+    expect(humanizePredictionError('42501', 'prediction is unavailable, unauthorized, or locked')).toMatch(/cerrado/)
+    expect(humanizePredictionError('42501', 'administrators of a pool cannot participate in it')).toMatch(/administra/)
+    expect(humanizePredictionError(null, 'relation x')).toBe('No pudimos guardar tu pronóstico. Inténtalo de nuevo.')
   })
 })

@@ -8,6 +8,7 @@ withDefaults(
     name?: string
     points?: number
     isCurrentUser?: boolean
+    detail?: string
   }>(),
   { skeleton: false, isCurrentUser: false },
 )
@@ -28,7 +29,7 @@ withDefaults(
         class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold"
         :class="isCurrentUser ? 'bg-primary text-canvas' : 'bg-surface-2 text-text-muted'"
       >{{ position }}</span>
-      <p class="flex-1 truncate text-sm font-medium text-text">{{ name }}</p>
+      <div class="min-w-0 flex-1"><p class="truncate text-sm font-medium text-text">{{ name }}</p><p v-if="detail" class="truncate text-xs text-text-muted">{{ detail }}</p></div>
       <p class="font-display text-sm font-bold text-text">{{ points }} pts</p>
     </template>
   </div>

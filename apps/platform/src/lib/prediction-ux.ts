@@ -66,3 +66,20 @@ export function parseScoreInput(raw: string): ScoreInput {
   if (value > 99) return { ok: false, message: 'El marcador máximo es 99.' }
   return { ok: true, value }
 }
+
+// Estado visual a partir del `lock_at` que el SERVIDOR persiste en `pool_matches` (ADR-011/015). Es una ayuda de presentación: el
+// reloj del dispositivo solo decide si se muestra el formulario; `save_prediction` siempre rechaza si el servidor ya cerró.
+export function lockStateFromServer(status: MatchStatus, serverLockAt: string, now: Date): PredictionLockState {
+  if (status === 'final') return 'final'
+  if (status === 'live') return 'live'
+  return now.getTime() < new Date(serverLockAt).getTime() ? 'open' : 'locked'
+}
+
+export function humanizePredictionError(code: string | null | undefined, message: string | null | undefined): string {
+  const text = message ?? ''
+  if (/ADMIN_PARTICIPANT_INCOMPATIBLE|administrators of a pool/.test(text)) return 'Quien administra una quiniela no participa en ella.'
+  if (code === '42501' || /locked|unavailable|unauthorized/.test(text)) return 'El pronóstico ya está cerrado o no estás habilitado en esta quiniela.'
+  if (code === '22023') return 'Revisa el marcador: debe ser un número entero, igual o mayor que cero.'
+  if (code === '28000') return 'Inicia sesión para guardar tu pronóstico.'
+  return 'No pudimos guardar tu pronóstico. Inténtalo de nuevo.'
+}

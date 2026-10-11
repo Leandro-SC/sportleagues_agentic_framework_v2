@@ -1,27 +1,65 @@
 <script setup lang="ts">
-import { watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { LoaderCircle } from 'lucide-vue-next'
 import AppShell from '../components/AppShell.vue'
+import EmptyState from '../components/EmptyState.vue'
 import ErrorState from '../components/ErrorState.vue'
-import MatchCard from '../components/MatchCard.vue'
 import PoolCard from '../components/PoolCard.vue'
+import PredictionMatchCard from '../components/PredictionMatchCard.vue'
 import RankingRow from '../components/RankingRow.vue'
 import ScreenHeader from '../components/ScreenHeader.vue'
 import SecondaryButton from '../components/SecondaryButton.vue'
+import SegmentedTabs from '../components/SegmentedTabs.vue'
 import { usePoolAccess } from '../composables/usePoolAccess'
+import { usePoolPlay } from '../composables/usePoolPlay'
 import { useAuth } from '../composables/useAuth'
 
+type Tab = 'summary' | 'matches' | 'table'
 const router = useRouter()
 const route = useRoute()
 const auth = useAuth()
 const access = usePoolAccess()
+const play = usePoolPlay()
+
+const tab = ref<Tab>('summary')
+const tabs: { value: Tab; label: string }[] = [{ value: 'summary', label: 'Resumen' }, { value: 'matches', label: 'Partidos' }, { value: 'table', label: 'Tabla' }]
+const now = ref(new Date())
+const roundFilter = ref('')
+const messages = ref<Record<string, string>>({})
+let timer: ReturnType<typeof setInterval> | undefined
+
+const nextMatches = computed(() => play.fixture.value.filter((item) => item.status === 'scheduled' && new Date(item.lockAt).getTime() > now.value.getTime()).slice(0, 3))
+const grouped = computed(() => {
+  const groups = new Map<string, { name: string; items: typeof play.fixture.value }>()
+  for (const item of play.fixture.value) {
+    if (!groups.has(item.roundId)) groups.set(item.roundId, { name: item.roundName, items: [] })
+    groups.get(item.roundId)!.items.push(item)
+  }
+  return [...groups.values()]
+})
+const rosterNotice = computed(() => {
+  if (play.participation.value === 'pending') return 'Tu inscripción está pendiente de aprobación del organizador.'
+  if (play.participation.value === 'none') return 'Administras esta quiniela o aún no te has inscrito: puedes ver la parrilla, pero no pronosticar.'
+  return ''
+})
+
+async function save(matchId: string, home: number, away: number): Promise<void> {
+  const message = await play.savePrediction(matchId, home, away)
+  messages.value = { ...messages.value, [matchId]: message ?? '' }
+}
 
 watch(
   () => route.params.poolId,
-  (poolId) => { void access.load(typeof poolId === 'string' ? poolId : '') },
+  (poolId) => {
+    const id = typeof poolId === 'string' ? poolId : ''
+    void access.load(id).then(() => { if (access.pool.value && auth.state.user) void play.load(id, auth.state.user.id) })
+  },
   { immediate: true },
 )
+watch(roundFilter, (id) => { void play.loadLeaderboard(id || null) })
+onMounted(() => { timer = setInterval(() => { now.value = new Date() }, 15_000) })
+onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 </script>
 
 <template>
@@ -37,30 +75,54 @@ watch(
           <PoolCard :name="access.pool.value.name" variant="hero" status="active" />
         </div>
 
-        <div class="flex items-center gap-5 overflow-x-auto border-b border-border px-1 text-sm font-semibold" aria-label="Secciones de la quiniela">
-          <span class="border-b-2 border-primary pb-3 text-primary">Resumen</span>
-          <span class="pb-3 text-text-faint">Partidos · Fase 06</span>
-          <span class="pb-3 text-text-faint">Tabla · Fase 08</span>
-        </div>
+        <SegmentedTabs v-model="tab" :options="tabs" label="Secciones de la quiniela" variant="underline" />
 
-        <div>
-          <h2 class="mb-3 font-display text-base font-bold text-text">Próximos partidos</h2>
-          <div class="space-y-3">
-            <MatchCard skeleton />
-            <MatchCard skeleton />
-          </div>
-          <p class="mt-2 text-center text-xs text-text-faint">Los partidos y jornadas se habilitan en la Fase 06.</p>
-        </div>
+        <div v-if="play.loading.value" class="flex items-center justify-center gap-2 py-10 text-sm text-text-muted"><LoaderCircle class="h-4 w-4 animate-spin" />Cargando…</div>
+        <ErrorState v-else-if="play.error.value" :description="play.error.value" />
 
-        <div>
-          <h2 class="mb-3 font-display text-base font-bold text-text">Ranking</h2>
-          <div class="space-y-1.5 app-surface p-3">
-            <RankingRow skeleton />
-            <RankingRow skeleton />
-            <RankingRow skeleton />
-          </div>
-          <p class="mt-2 text-center text-xs text-text-faint">El leaderboard se habilita en la Fase 08.</p>
-        </div>
+        <template v-else>
+          <p v-if="rosterNotice" class="rounded-xl bg-surface-2 p-3 text-sm text-text-muted" role="status">{{ rosterNotice }}</p>
+
+          <section v-if="tab === 'summary'" class="space-y-6">
+            <div v-if="play.myRow.value" class="app-surface flex items-center justify-between p-4">
+              <div><p class="text-xs text-text-muted">Tu posición</p><p class="font-display text-2xl font-bold text-text">#{{ play.myRow.value.rank }}</p></div>
+              <div class="text-right"><p class="text-xs text-text-muted">Puntos</p><p class="font-display text-2xl font-bold text-primary">{{ play.myRow.value.points }}</p></div>
+            </div>
+            <div>
+              <h2 class="mb-3 font-display text-base font-bold text-text">Próximos partidos</h2>
+              <EmptyState v-if="!nextMatches.length" title="Sin partidos abiertos" description="Cuando el organizador programe partidos aparecerán aquí." />
+              <div v-else class="space-y-3">
+                <PredictionMatchCard v-for="item in nextMatches" :key="item.matchId" :item="item" :now="now" :timezone="play.tenantTimezone.value" :can-predict="play.canPredict.value"
+                  :saving="play.savingMatchId.value === item.matchId" :message="messages[item.matchId]" @save="(h, a) => save(item.matchId, h, a)" />
+              </div>
+            </div>
+          </section>
+
+          <section v-else-if="tab === 'matches'" class="space-y-6">
+            <EmptyState v-if="!grouped.length" title="Aún no hay partidos" description="El organizador todavía no cargó la parrilla de esta quiniela." />
+            <div v-for="group in grouped" :key="group.name">
+              <h2 class="mb-3 font-display text-base font-bold text-text">{{ group.name }}</h2>
+              <div class="space-y-3">
+                <PredictionMatchCard v-for="item in group.items" :key="item.matchId" :item="item" :now="now" :timezone="play.tenantTimezone.value" :can-predict="play.canPredict.value"
+                  :saving="play.savingMatchId.value === item.matchId" :message="messages[item.matchId]" @save="(h, a) => save(item.matchId, h, a)" />
+              </div>
+            </div>
+          </section>
+
+          <section v-else class="space-y-3">
+            <label v-if="play.rounds.value.length" class="block text-sm font-medium text-text-muted">Ver
+              <select v-model="roundFilter" class="field-surface mt-1.5 w-full px-3 py-3 text-sm">
+                <option value="">Tabla general</option>
+                <option v-for="round in play.rounds.value" :key="round.id" :value="round.id">{{ round.name }}</option>
+              </select>
+            </label>
+            <EmptyState v-if="!play.leaderboard.value.length" title="La tabla aparecerá con los primeros resultados" description="Se actualiza cuando el organizador publica resultados oficiales." />
+            <div v-else class="space-y-1.5 app-surface p-3">
+              <RankingRow v-for="row in play.leaderboard.value" :key="row.participant_id" :position="row.rank" :name="row.display_name" :points="row.points" :is-current-user="row.is_me"
+                :detail="`${row.exact_hits} exactos · racha ${row.current_streak}`" />
+            </div>
+          </section>
+        </template>
       </template>
 
       <ErrorState v-else-if="access.denied.value" tone="denied" description="No tienes acceso a esta quiniela.">

@@ -27,3 +27,5 @@ D22 (baja/offboarding de tenants y supresión de PII) sigue **pendiente** como r
 ## Ejecuciones registradas de E2E real (`scripts/qa/e2e/mvp-flow.mjs`)
 
 2026-10-11: 3 ejecuciones (tenants `E2E-xxxxxxxx` y `E2E-xxxxxxxx-B`, 5 usuarios `e2e-*@example.test` cada una). Totales de arriba no actualizados: sumar ≈ 6 tenants y 15 usuarios.
+
+2026-10-11 (bloque Fase 07/08): +2 ejecuciones de `mvp-flow.mjs` (total 5): ≈ 10 tenants `E2E-*` y 25 usuarios `e2e-*@example.test` en conjunto.
