@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { takeJoinIntent } from '../lib/join-intent'
+import { clearJoinIntent, peekJoinIntent } from '../lib/join-intent'
 import { requestJoinPool, type JoinResult } from '../lib/join-rpc'
 import { getSupabaseClient } from '../lib/supabase'
 
@@ -14,19 +14,26 @@ function messageFor(error: string): string {
 export function useJoinPool() {
   const loading = ref(false)
   const error = ref('')
+  const transientFailure = ref(false)
 
   async function join(code: string): Promise<JoinResult | null> {
-    loading.value = true; error.value = ''
-    const { data, error: rpcError } = await requestJoinPool(getSupabaseClient(), code)
+    loading.value = true; error.value = ''; transientFailure.value = false
+    const { data, error: rpcError, transient } = await requestJoinPool(getSupabaseClient(), code)
     loading.value = false
+    transientFailure.value = Boolean(transient)
     if (rpcError || !data) { error.value = messageFor(rpcError ?? 'No fue posible unirse a la quiniela.'); return null }
     return data
   }
 
+  // La invitación se borra al unirse con éxito o cuando el servidor la rechaza (para no reintentar un
+  // código inválido en bucle). Ante un fallo transitorio de red se conserva para reintentarla.
   async function resumeIntent(): Promise<JoinResult | null> {
-    const code = takeJoinIntent()
-    return code ? join(code) : null
+    const code = peekJoinIntent()
+    if (!code) return null
+    const result = await join(code)
+    if (result || !transientFailure.value) clearJoinIntent()
+    return result
   }
 
-  return { loading, error, join, resumeIntent }
+  return { loading, error, transientFailure, join, resumeIntent }
 }

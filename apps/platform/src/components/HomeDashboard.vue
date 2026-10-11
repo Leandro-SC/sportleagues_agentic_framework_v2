@@ -6,6 +6,7 @@ import { useAuth } from '../composables/useAuth'
 import { useFollowedTeams } from '../composables/useFollowedTeams'
 import { useMyPools } from '../composables/useMyPools'
 import { useSportsCatalog } from '../composables/useSportsCatalog'
+import { peekJoinIntent } from '../lib/join-intent'
 import { firstNameOf, initialsOf, searchCatalog, upcomingMatches, type CatalogSearchResult } from '../lib/sports-catalog'
 import EmptyState from './EmptyState.vue'
 import ErrorState from './ErrorState.vue'
@@ -27,6 +28,8 @@ const sports = useSportsCatalog()
 const myPools = useMyPools()
 const followed = useFollowedTeams(() => sports.catalog.value.followedTeamIds)
 
+// Invitación guardada que no pudo completarse (p. ej. fallo de red tras confirmar el correo).
+const pendingInvite = ref(peekJoinIntent())
 const query = ref('')
 const searchOpen = ref(false)
 const searchRoot = ref<HTMLElement | null>(null)
@@ -153,6 +156,12 @@ const resultIcon = { pool: Trophy, competition: ListOrdered, team: UsersRound }
           :now="sports.now.value"
         />
       </div>
+    </section>
+
+    <section v-if="pendingInvite" class="app-surface-raised flex items-center gap-3 p-4" role="status">
+      <KeyRound class="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+      <p class="flex-1 text-sm text-text">Tienes una invitación pendiente (<span class="font-display font-bold tracking-widest">{{ pendingInvite }}</span>).</p>
+      <PrimaryButton :full-width="false" @click="router.push({ name: 'join', params: { code: pendingInvite } })">Unirme</PrimaryButton>
     </section>
 
     <section>

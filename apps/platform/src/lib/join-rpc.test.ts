@@ -10,6 +10,17 @@ describe('join_pool client boundary', () => {
     expect(rpc).not.toHaveBeenCalled()
   })
 
+  it('flags a network failure as transient but not a server rejection', async () => {
+    const offline = vi.fn().mockResolvedValue({ data: null, error: { message: 'TypeError: Failed to fetch' } })
+    await expect(requestJoinPool({ rpc: offline }, 'ALPHA1')).resolves.toMatchObject({ data: null, transient: true })
+    const thrown = vi.fn().mockRejectedValue(new Error('boom'))
+    await expect(requestJoinPool({ rpc: thrown }, 'ALPHA1')).resolves.toMatchObject({ transient: true })
+    const rejected = vi.fn().mockResolvedValue({ data: null, error: { message: 'invalid code', code: 'P0001' } })
+    const result = await requestJoinPool({ rpc: rejected }, 'ALPHA1')
+    expect(result.transient).toBeUndefined()
+    expect(result.error).toBe('invalid code')
+  })
+
   it('uses only join_pool and preserves a repeated server result', async () => {
     const rpc = vi.fn().mockResolvedValue({ data: existingParticipant, error: null })
     await expect(requestJoinPool({ rpc }, 'alpha1')).resolves.toEqual({ data: existingParticipant, error: null })
