@@ -4,7 +4,7 @@ import { router } from './router'
 
 // Rutas públicas o con guard propio (asíncrono) en router.ts; todo lo demás es una pantalla de la
 // app que exige sesión + perfil. Si alguien añade una ruta nueva y olvida protegerla, este test falla.
-const PUBLIC_OR_SELF_GUARDED = new Set(['home', 'auth-callback', 'join', 'onboarding', 'reset-password', 'admin', 'admin-income', 'organizer-dashboard', 'superadmin'])
+const PUBLIC_OR_SELF_GUARDED = new Set(['home', 'auth-callback', 'join', 'onboarding', 'reset-password', 'admin', 'admin-income', 'admin-fixture', 'organizer-dashboard', 'superadmin'])
 
 describe('route table', () => {
   const names = router.getRoutes().map((route) => String(route.name))
@@ -32,6 +32,7 @@ describe('route table', () => {
     expect(router.resolve('/j/AB12CD').name).toBe('join')
     expect(router.resolve('/mis-puntos').name).toBe('points')
     expect(router.resolve('/admin/ingresos').name).toBe('admin-income')
+    expect(router.resolve('/admin/parrilla').name).toBe('admin-fixture')
     expect(router.resolve('/organizador').name).toBe('organizer-dashboard')
   })
 })

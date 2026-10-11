@@ -18,6 +18,7 @@ begin
   insert into public.teams(tenant_id, name) values (v_tenant, 'Home') returning id into v_home;
   insert into public.teams(tenant_id, name) values (v_tenant, 'Away') returning id into v_away;
   insert into public.rounds(tenant_id, tournament_id, name, sort_order) values (v_tenant, v_tour, 'R1', 1) returning id into v_round;
+  insert into public.tournament_teams(tenant_id, tournament_id, team_id) values (v_tenant, v_tour, v_home), (v_tenant, v_tour, v_away);   -- ADR-009: equipos inscritos
   insert into public.pools(tenant_id, name, status, lock_offset) values (v_tenant, 'L10 pool', 'open', interval '15 minutes') returning id into v_pool;
   -- M_soon: arranca en 30 min (lock en +15); M_open: en 2 h; M_locked: parte a +30 min y se adelanta por sync (lock = ahora)
   insert into public.matches(tenant_id, tournament_id, round_id, home_team_id, away_team_id, starts_at)
@@ -150,7 +151,10 @@ begin
   -- L13 identidad inmutable
   r := pg_temp.as_role('postgres', format($q$update public.pools set tenant_id = %L where id = %L$q$, gen_random_uuid(), pg_temp.f('pool')));
   perform pg_temp.rec('L13 tenant de una quiniela inmutable', pg_temp.is_err(r, '42501'), r);
-  r := pg_temp.as_role('postgres', format($q$update public.matches set round_id = %L where id = %L$q$, gen_random_uuid(), pg_temp.f('ml')));
+  -- jornada real del mismo torneo: así la prueba alcanza la guarda de inmutabilidad (y no la de coherencia ronda/torneo, ADR-009)
+  insert into public.rounds(tenant_id, tournament_id, name, sort_order)
+    select m.tenant_id, m.tournament_id, 'R-otra', 99 from public.matches m where m.id = pg_temp.f('ml');
+  r := pg_temp.as_role('postgres', format($q$update public.matches set round_id = (select r2.id from public.rounds r2 where r2.name = 'R-otra' and r2.sort_order = 99 order by r2.created_at desc limit 1) where id = %L$q$, pg_temp.f('ml')));
   perform pg_temp.rec('L13b round de un partido usado inmutable', pg_temp.is_err(r, '42501'), r);
   r := pg_temp.as_role('postgres', format($q$update public.predictions set home_score = 7 where participant_id = %L and pool_match_id = %L$q$, pg_temp.f('p1'), pg_temp.f('pml')));
   perform pg_temp.rec('L13c predicción bloqueada inmutable incluso para postgres', pg_temp.is_err(r, '42501'), r);

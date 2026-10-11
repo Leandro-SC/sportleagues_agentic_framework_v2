@@ -146,6 +146,7 @@ async function c5() {
   const th = must(await admin.from('teams').insert({ tenant_id: tenant, name: 'H' }).select('id').single(), 'team h')
   const ta = must(await admin.from('teams').insert({ tenant_id: tenant, name: 'A' }).select('id').single(), 'team a')
   const rd = must(await admin.from('rounds').insert({ tenant_id: tenant, tournament_id: tour.id, name: 'R', sort_order: 1 }).select('id').single(), 'round')
+  must(await admin.from('tournament_teams').insert([{ tenant_id: tenant, tournament_id: tour.id, team_id: th.id }, { tenant_id: tenant, tournament_id: tour.id, team_id: ta.id }]), 'enrolment')   // ADR-009
   const m = must(await admin.from('matches').insert({ tenant_id: tenant, tournament_id: tour.id, round_id: rd.id, home_team_id: th.id, away_team_id: ta.id, starts_at: new Date(Date.now() + 3600_000).toISOString() }).select('id').single(), 'match')
   const pm = must(await admin.from('pool_matches').insert({ tenant_id: tenant, pool_id: pool, match_id: m.id }).select('id,lock_at').single(), 'pool_match')
   must(await p.client.rpc('join_pool', { p_code: c }), 'join')
@@ -157,7 +158,7 @@ async function c5() {
   const late = preds.filter((x) => new Date(x.updated_at).getTime() > new Date(lock).getTime()).length
   // LIMITACIÓN: updated_at = now() (inicio de la transacción), no el instante de escritura; esta comprobación solo detecta casos gruesos.
   // La carrera exacta (FOR SHARE) se verifica con la prueba manual de dos sesiones del informe de remediación.
-  rec('LOCK ningún pronóstico se guarda después del lock tras un cambio a live (comprobación gruesa)', late === 0, `tardíos=${late}, lock_at=${lock}`)
+  rec('LOCK ningún pronóstico se guarda después del lock tras un cambio a live (comprobación gruesa)', late === 0, `tardíos=${late}, lock_at=${lock}` + (late ? ` updated_at=${preds.map((x) => x.updated_at).join('|')}` : ''))
   const after = await p.client.rpc('save_prediction', { p_pool_id: pool, p_match_id: m.id, p_home_score: 9, p_away_score: 9 })
   rec('LOCK tras live el guardado se rechaza', Boolean(after.error), after.error?.code ?? 'sin error')
 }

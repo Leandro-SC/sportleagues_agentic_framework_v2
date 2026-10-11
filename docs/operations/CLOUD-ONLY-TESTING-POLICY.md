@@ -70,3 +70,5 @@ sintaxis) se instalan fuera del repositorio y se desechan.
 ## 7. Excepción del propietario (2026-10-11)
 
 El propietario autorizó aplicar migraciones y ejecutar suites clase B/C sobre QA (`juoftaofzepxbrrxbkhx`) con datos sintéticos, sin proyecto descartable adicional, sin Docker y sin borrar Auth/Storage/secretos ni datos de naturaleza no comprobada. Las pruebas que crean datos protegidos (H2/append-only) dejan residuo sintético irreversible; documentar el residuo en cada handoff.
+
+Desde 2026-10-11 las suites SQL nuevas se ejecutan con `scripts/qa/run-sql-suite.mjs` (transacción con rollback, sin residuo); ver `docs/operations/QA-SYNTHETIC-RESIDUE.md`.

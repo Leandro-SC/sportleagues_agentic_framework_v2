@@ -1,6 +1,6 @@
 # ADR-010 — Fixture acotado al pool y contexto activo explícito
 
-- Estado: Proposed
+- Estado: Accepted (2026-10-11)
 - Fecha: 2026-10-06
 - Decisores: Architecture (preparación de Fase 06)
 
@@ -46,3 +46,7 @@ resolver permisos.
 
 No se requiere migración para adoptar la decisión de UI/consulta; las futuras RPC/RLS se diseñarán
 en fase autorizada. Revertir UX a un selector sin contexto no autoriza un feed global.
+
+## Aceptación (2026-10-11)
+
+Aceptado. Fase 06 entrega solo el lado de datos y administración (`pool_matches` como frontera, RLS por tenant, `set_pool_match`). El `ActiveContext` de `/partidos` y su selector corresponden al flujo de jugador (Fase 07); hasta entonces el catálogo de vista previa no se sustituye.

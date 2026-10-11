@@ -1,6 +1,6 @@
 # ADR-009 — Catálogo de torneos/equipos y política de escudos
 
-- Estado: Proposed
+- Estado: Accepted (2026-10-11, para Fase 06; escudos propios diferidos)
 - Fecha: 2026-10-06
 - Decisores: Architecture (preparación de Fase 06)
 
@@ -57,3 +57,7 @@ antes de activarlo.
 No se crea migración con este ADR. La implementación debe conservar los datos actuales y hacer
 backfill explícito o dejar los campos opcionales. Un rollback funcional deshabilita cargas y vuelve a
 escudo generado; no borra assets sin pasar por lifecycle de limpieza.
+
+## Aceptación e implementación (2026-10-11)
+
+Aceptados los puntos 1–3 y 5; implementados en `20261013000100_phase_06_sports_foundation.sql`: tabla controlada `sports`, metadatos de torneo/equipo con validación, `tournament_teams` (inscripción obligatoria para los dos equipos de un partido, trigger `matches_enrolment_guard`) y `crest_asset_path` marcado DEPRECATED. **Diferido (no autorizado aún):** el punto 4 (bucket privado `team-assets` y lifecycle); el escudo sigue generándose por iniciales y colores propios. Sin logos oficiales.

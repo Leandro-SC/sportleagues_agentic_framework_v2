@@ -1,6 +1,6 @@
 # ADR-012 — Resultados oficiales revisables y recálculo idempotente
 
-- Estado: Proposed
+- Estado: Accepted (2026-10-11)
 - Fecha: 2026-10-06
 - Decisores: Architecture (preparación de Fase 06)
 
@@ -53,3 +53,7 @@ la frontera de lectura; los grants directos de escritura a resultado/scoring per
 No se modifica ninguna tabla, grant, RLS ni RPC con este ADR. La implementación futura deberá ser
 forward-only y conservar la fila de resultado vigente; ante rollback funcional se deshabilita la
 UI/RPC pública sin borrar resultados ni eventos existentes.
+
+## Aceptación e implementación (2026-10-11)
+
+Aceptado e implementado como `publish_official_result(match_id, home, away, expected_revision)` (primer resultado = revisión esperada 0; corrección exige la vigente; mismo marcador = idempotente) con `_recalculate_match_scoring` interno. **Precisión de diseño:** el historial de `scoring_events` se conserva (clave única por predicción/revisión/versión de regla) y la lectura (Fase 08) debe tomar la revisión/versión más reciente por predicción, en vez de reemplazar filas. Solo se publica con el partido iniciado. Los estados cancelado/pospuesto no existen en el contrato (`match_status` = scheduled/live/final): gap documentado, no inventado.

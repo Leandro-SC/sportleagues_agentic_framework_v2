@@ -1,6 +1,6 @@
 # ADR-015 — Integridad de la quiniela: lock inmutable, privilegios mínimos e incompatibilidad administrador/participante
 
-- Estado: Proposed
+- Estado: Accepted (2026-10-11, decisión del propietario; evidencia y limitaciones abajo)
 - Fecha: 2026-10-11
 - Decisores: Architecture, con Security, Data, Backend y Product. La regla de producto de la sección 2 está **aprobada**; el diseño sigue `Proposed`.
 - Evidencia: [`reports/security/qa-readonly-audit-20261011.md`](../../../reports/security/qa-readonly-audit-20261011.md) (H1–H10).
@@ -305,3 +305,10 @@ Implementación **preparada, no aplicada**: `supabase/proposed/20261012000{100,2
 4. Suites `phase-03…05` existentes en PASS sin debilitarlas (la semilla con el owner participante se carga **antes** de aplicar 3/3).
 5. `rollback-cycle` en PASS. `acl-snapshot` sin pérdida de EXECUTE legítimo para `authenticated`/`service_role`.
 6. Dictámenes de Security y Data sin hallazgos críticos/altos abiertos; D21 cerrada; ADR-015 aprobado explícitamente por el usuario.
+
+## Aceptación (2026-10-11)
+
+Aceptado por el propietario. Implementado y verificado en Supabase QA con las migraciones `20261012000100/200/300` (+ corrección `20261013000200`).
+**Evidencia:** línea base 14/14; suites lock 51/51, privilegios/auditoría 23/23, admin-participante 87/87; concurrencia (inscripción vs rol, límite Free, lock tras live) sin violaciones; 6 suites históricas OK. Detalle: `docs/agents/HANDOFF-QA-HARDENING-APPLIED-20261011.md`.
+**Hallazgo posterior corregido:** el instante de `lock_at` en la transición a `live` se calculaba antes de esperar a guardados en vuelo (ventana de decenas de ms); `20261013000200` toma `FOR UPDATE` antes de leer el reloj (4/6 ejecuciones fallaban antes; 8/8 pasan después).
+**Limitaciones conocidas:** no existe ciclo de rollback `down/` validado (forward-only en QA); sin entorno descartable la instalación limpia desde cero no está probada; ACL por defecto de `supabase_admin` y esquema `storage` son de la plataforma; permisos por quiniela granulares (`pool_staff`/`pool_admin_model = 'pool'`) existen pero la autorización vigente sigue siendo por tenant (D17); D22 (baja de tenants/PII) pendiente para producción comercial; ADR-014 sigue Proposed.

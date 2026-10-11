@@ -34,6 +34,7 @@ export const router = createRouter({
     { path: '/mis-puntos', name: 'points', component: () => import('./views/PointsView.vue') },
     { path: '/organizador', name: 'organizer-dashboard', component: () => import('./views/OrganizerDashboardView.vue') },
     { path: '/admin/ingresos', name: 'admin-income', component: () => import('./views/AdminIncomeView.vue') },
+    { path: '/admin/parrilla', name: 'admin-fixture', component: () => import('./views/AdminFixtureView.vue') },
     // Pantallas del rediseño (pre-acceptance). Las que dependen de partidos usan datos de vista
     // previa solo cuando isPreviewDataEnabled() lo permite; ver lib/preview-mode.ts.
     { path: '/partidos', name: 'matches', component: () => import('./views/MatchesView.vue') },
@@ -70,7 +71,7 @@ router.beforeEach(async (to) => {
   // fall through to `/superadmin`), but the check itself — useTenantAdminAccess — is entirely
   // independent of is_platform_admin(): a platform admin with no tenant membership does not get
   // in here, and this branch has no way to even ask about that flag (ADR-008 section 9).
-  if (String(to.name) === 'admin' || String(to.name) === 'admin-income' || String(to.name) === 'organizer-dashboard') {
+  if (String(to.name) === 'admin' || String(to.name) === 'admin-income' || String(to.name) === 'admin-fixture' || String(to.name) === 'organizer-dashboard') {
     routeAuthCheck.value = 'admin'
     try {
       const auth = useAuth()

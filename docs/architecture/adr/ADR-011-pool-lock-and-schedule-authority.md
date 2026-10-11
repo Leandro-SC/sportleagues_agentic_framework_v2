@@ -1,6 +1,6 @@
 # ADR-011 — Lock por pool y autoridad de gestión de calendario
 
-- Estado: Proposed
+- Estado: Accepted (2026-10-11)
 - Fecha: 2026-10-06
 - Decisores: Architecture (preparación de Fase 06)
 
@@ -46,3 +46,7 @@ incluye actor, entidad, valores anterior/nuevo permitidos, operación y reloj DB
 
 No hay migración/RPC en este ADR. Si la propuesta se implementa, será forward-only y se podrá
 deshabilitar la UI de edición sin borrar fixture ni pronósticos.
+
+## Aceptación e implementación (2026-10-11)
+
+Aceptado y reconciliado con ADR-015: el lock se **persiste** (`pool_matches.lock_at`, inmutable una vez alcanzado) en lugar de recalcularse, y `manage_schedule` se materializa como RPC explícitas (`upsert_tournament`, `upsert_team`, `set_tournament_team`, `upsert_round`, `reorder_rounds`, `upsert_match`, `delete_match`, `set_pool_match`), sin DML directo de clientes. `upsert_match` rechaza cambiar el horario cuando algún lock ya venció («schedule is frozen»). Solo owner/admin del tenant; superadmin no hereda permisos.

@@ -397,3 +397,8 @@ reproducción y rollback hasta autorizar un proyecto Supabase descartable. Sin m
 ## Remediación H1–H6 APLICADA a QA (2026-10-11)
 
 El propietario autorizó reconstruir QA; el inventario (5 cuentas Gmail reales, 1 platform_admin real) mostró que bastaba una **migración incremental sin borrar nada**. Aplicadas `20261012000100/200/300` (historial 14/14 sincronizado). Línea base 14/14; suites lock 51/51, privilegios/auditoría 23/23, admin-participante 87/87, concurrencia 10/10, 6 suites históricas OK tras adaptar fixtures; typecheck, 247 tests y verify:bundle OK. Residuo sintético no borrable por diseño documentado. ADR-014/015 siguen Proposed; Fase 06 puede planificarse. Detalle: `docs/agents/HANDOFF-QA-HARDENING-APPLIED-20261011.md`.
+
+
+## Fase 06 — base deportiva (2026-10-11) — PARTIAL
+
+ADR-015 aceptado (con evidencia y limitaciones); ADR-009–012 aceptados con ajustes; **ADR-014 sigue Proposed**; **D22 pendiente** para producción comercial. Aplicadas a QA `20261013000100` (catálogo deportivo, inscripción equipo-torneo, `external_refs`, RPC de calendario y `publish_official_result` con recálculo idempotente) y `20261013000200` (corrección real de la carrera del lock al pasar a live). 16/16 migraciones sincronizadas. Pruebas reales: Fase 06 95/95, lock 51/51, privilegios 23/23, admin-participante 87/87, línea base 14/14, históricas 6/6, typecheck, 274 tests, verify:bundle. Nuevas suites SQL corren en modo rollback (`scripts/qa/run-sql-suite.mjs`) sin dejar datos; residuo registrado en `docs/operations/QA-SYNTHETIC-RESIDUE.md`. UI `/admin/parrilla` implementada y probada con Vitest; **falta UAT manual**. Fase 07 no inicia. Detalle: `reports/admin/phase-06-tournaments-matches.md`.

@@ -25,6 +25,7 @@ begin
   insert into public.teams(tenant_id, name) values (v_t, 'H') returning id into v_home;
   insert into public.teams(tenant_id, name) values (v_t, 'A') returning id into v_away;
   insert into public.rounds(tenant_id, tournament_id, name, sort_order) values (v_t, v_tour, 'R', 1) returning id into v_round;
+  insert into public.tournament_teams(tenant_id, tournament_id, team_id) values (v_t, v_tour, v_home), (v_t, v_tour, v_away);   -- ADR-009: equipos inscritos
   insert into public.matches(tenant_id, tournament_id, round_id, home_team_id, away_team_id, starts_at) values (v_t, v_tour, v_round, v_home, v_away, now() + interval '2 hours') returning id into v_mt1;
   insert into public.matches(tenant_id, tournament_id, round_id, home_team_id, away_team_id, starts_at) values (v_t, v_tour, v_round, v_home, v_away, now() + interval '2 hours') returning id into v_mt2;
   insert into public.matches(tenant_id, tournament_id, round_id, home_team_id, away_team_id, starts_at) values (v_t, v_tour, v_round, v_home, v_away, now() + interval '5 minutes') returning id into v_mt3;
