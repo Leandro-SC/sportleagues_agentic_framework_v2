@@ -1,6 +1,8 @@
 # ADR-014 — Anexo técnico: tickets, pagos manuales y ledger
 
 Estado: **Proposed** (acompaña a [ADR-014](adr/ADR-014-multi-tenant-tickets-payments-and-ledger.md)).
+
+> **Revisión 2 (2026-10-11):** este anexo es la versión 1. Donde difiera de ADR-014 o de [`ADR-014-REVIEW-20261011.md`](ADR-014-REVIEW-20261011.md) **prevalecen estos últimos**. Cambios que lo afectan: `pool_staff` reemplaza a `is_tenant_admin` en §4/§6; `tickets.eligibility` + sello sustituyen la elegibilidad por pago en vivo (§2, §7, D6); numeración gap-tolerant (§1, §9); `pools.currency`; UNIQUE y FK de reemplazo (P4/P5); congelación de `pool_rounds`; el plan de §10 lo reemplaza revisión §6; benchmarks en revisión §7; las decisiones de §12 las reemplaza ADR-014 «Decisiones de producto».
 DDL conceptual: ilustra restricciones e invariantes; no es una migración ni se ejecuta. Convenciones de
 Fase 03: FK compuestas `(id, tenant_id…)`, RPC `SECURITY DEFINER`, `search_path = public, auth`, importes
 en unidades mínimas (`bigint`), tiempo con la hora de PostgreSQL.

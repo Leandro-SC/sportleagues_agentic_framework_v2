@@ -4,6 +4,7 @@
 - Fecha: 2026-10-11
 - Decisores: Architecture (preparación de tickets). Requiere aprobación del Product Owner (sección «Decisiones pendientes»).
 - Detalle técnico (DDL conceptual, RPC, RLS, pruebas): [`ADR-014-ANNEX-tickets-technical-design.md`](../ADR-014-ANNEX-tickets-technical-design.md)
+- Revisión 2 (Security, Data, Backend, Product): [`ADR-014-REVIEW-20261011.md`](../ADR-014-REVIEW-20261011.md) — **este texto la incorpora; prevalece sobre el anexo donde difieran**.
 - Relacionados: ADR-002, ADR-003, ADR-005, ADR-008, ADR-010, ADR-011, ADR-012; `docs/product/ROADMAP-MOVIL-TICKETS-PRONOSTICOS-APIS.md`.
 
 > Solo diseño. No autoriza migraciones, cambios de RLS/grants, pagos reales ni el inicio de la Fase 06.
@@ -55,29 +56,57 @@ apuestas. Este ADR **registra** pagos hechos fuera de la plataforma; no procesa 
 7. **Ledger append-only**: el ingreso se calcula exclusivamente con `SUM(ledger_entries.amount_minor)`
    dentro de RPC de reporte; nunca desde `payments.amount_minor`, valores del cliente ni contadores de UI.
    Las correcciones son asientos de reverso/ajuste; no hay UPDATE/DELETE (trigger + revocación).
-8. **Autorización**: lectura propia para el participante; para el organizador mediante una única función
-   `can_manage_pool_finance(tenant_id, pool_id)` (MVP: `owner`/`admin` activos del tenant; punto único
-   para introducir administradores por quiniela sin reescribir políticas). Reembolsos, reversos y
-   ajustes solo `owner`. Superadmin no hereda acceso (ADR-008 §9). El organizador no ve selecciones de un
-   ticket antes de su lock (ADR-005): los listados administrativos excluyen selecciones hasta entonces.
+8. **Autorización por quiniela (D7, aprobada)**: nueva tabla `pool_staff(tenant_id, pool_id, profile_id, role,
+   is_active)` con FK compuestas a `pools` y `tenant_memberships`; roles propuestos `pool_owner`, `pool_manager`,
+   `pool_finance` (D16). Toda lectura/escritura de tickets, pagos e ingresos pasa por
+   `can_manage_pool_finance(tenant_id, pool_id, capability)`, que exige fila activa en `pool_staff`; **ser admin
+   del tenant no basta**. Solo el `owner` del tenant asigna personal, con auditoría; el creador de la quiniela queda
+   asignado. Reembolsos, reversos y ajustes: capacidad separada. Superadmin no hereda acceso (ADR-008 §9). El
+   organizador no ve selecciones de un ticket antes de su lock (ADR-005). Las funciones de Fase 05 basadas en
+   `is_tenant_admin` no cambian aquí; migrar toda la administración a alcance por quiniela requiere un ADR aparte.
 9. **Pasarela futura**: `payments.provider`/`provider_ref` y un conjunto de estados ya compatibles; una
    pasarela solo podrá confirmar mediante un webhook verificado (Edge Function con firma) que invoque la
    misma RPC interna de confirmación. Requiere ADR propio (proveedor, SDK, dinero real; AGENTS §12).
-10. **Fase y secuencia**: `pool_rounds` en Fase 06; tickets y selecciones en Fase 07; elegibilidad en
-    ranking en Fase 08; payments/ledger/ingresos en una **fase comercial** posterior (no MVP actual).
+10. **Elegibilidad congelada (D6 rediseñada)**: la elegibilidad de un ticket para ranking **no se lee del pago
+    en vivo**; es el campo `tickets.eligibility` (`pending` → `eligible` | `ineligible`), escrito solo por RPC. Al
+    cierre efectivo (primer lock de la jornada, D5) una operación idempotente `seal_round_sales` lo fija: `eligible`
+    si el pago estaba `confirmed` con `confirmed_at` (reloj del servidor, nunca parámetro) ≤ cierre; `ineligible` en
+    otro caso. Tras el sello, cancelar, rechazar, reversar o confirmar **no altera la elegibilidad**. Gracia
+    opcional por jornada (D6-b), solo `owner`, con segunda aprobación visible a participantes, y **nunca después del
+    primer `official_result` de la jornada** (comprobado por la base de datos). Antes del sello, un único organizador
+    puede confirmar: aún no existe información sobre resultados que explotar. Un reembolso posterior es un asiento
+    financiero; el ticket conserva su elegibilidad.
+11. **Precondiciones de endurecimiento (defectos existentes de Fase 03; bloquean M2)**:
+    P1 el admin hoy puede cambiar `lock_offset`, `starts_at` y `pool_matches` por DML directo (F03:124,130-131,137) y
+    así reabrir locks o leer pronósticos ajenos antes de tiempo → revocar DML directo, escribir solo por RPC
+    (`manage_schedule`, ADR-011) y triggers que impidan adelantar `lock_at`, mover partidos o cambiar `pool_matches`
+    con predicciones/tickets, también al owner de tabla; P3 `audit_log` y `ledger_entries` realmente inmutables
+    (trigger por fila y por sentencia incl. `TRUNCATE`, `REVOKE ALL`, `FORCE RLS`; verificar privilegios efectivos);
+    P4 migración **atómica** de la unicidad de `predictions` junto con `CREATE OR REPLACE save_prediction`
+    (`ON CONFLICT … WHERE ticket_id IS NULL`, guarda por `ticketing_mode`), porque el `ON CONFLICT` actual
+    (F03:108) falla con `42P10` si solo se cambia el índice; P5 **reemplazar** (no añadir) las FK en cascada de
+    `predictions`, `pool_matches`, `participants` y `scoring_events` por `RESTRICT`; `ticketing_mode` solo
+    `none→tickets` y solo si el pool no tiene predicciones.
+12. **Numeración gap-tolerant**: `ticket_no` por secuencia, sin contador por pool-jornada; la numeración visible
+    se deriva. Un correlativo estricto solo se adopta si producto lo exige y tras benchmark.
+13. **Fase y secuencia (D1, aprobada)**: `pool_rounds` y P1/P5 en Fase 06; `pool_staff`, tickets (solo precio 0),
+    selecciones y P4 en Fase 07; elegibilidad y ranking en Fase 08; payments, ledger, sello e ingresos en una
+    **fase comercial posterior a la 07**, inicialmente con pagos manuales y sin procesamiento de dinero.
 
 ## Contradicciones detectadas y resolución propuesta
 
 | # | Contradicción | Resolución |
 | --- | --- | --- |
 | C1 | `predictions` único por `(participant_id, pool_match_id)` impide varios tickets por jornada. | Índices únicos parciales + `ticket_id` nullable (decisión 3). Aditivo, sin reescribir datos. |
-| C2 | `save_prediction(pool, match, scores)` (Fase 03) opera sin ticket. | Se mantiene para `ticketing_mode='none'`; en `'tickets'` rechaza (`42501`). Una sola vía por pool. |
+| C2 | `save_prediction` (Fase 03) opera sin ticket y su `ON CONFLICT` depende de la unicidad actual. | Se mantiene para `ticketing_mode='none'` y rechaza en `'tickets'` (`42501`); su `ON CONFLICT` se reescribe en la misma migración que cambia la unicidad (P4). |
 | C3 | `participants.payment_status` (`paid/pending/invited`) vs. pagos por ticket. | Sigue siendo estado informativo de membresía (Fase 05). En pools con tickets **no es fuente de ingresos** (ya advertido en `AMPLIACION-QUINIELAS-ROLES-INGRESOS.md`). No se elimina; se documenta su semántica. |
 | C4 | AGENTS §3 limita el MVP a «estado manual de pago»; un ledger con importes excede ese alcance y AGENTS §12 exige ADR para dinero real. | El ledger registra pagos manuales; no procesa dinero. Se propone aprobarlo como **fase comercial** explícita (decisión D1). Hasta entonces solo se implementa Fase 06–07 sin payments/ledger. |
 | C5 | ADR-005 oculta pronósticos ajenos hasta el lock, pero el organizador necesita ver tickets. | El organizador ve ticket/pago/estado; las selecciones solo desde `lock_at` por partido (misma regla que cualquier participante autorizado). |
 | C6 | Legacy usa pronóstico 1X2 (`L/E/V`); `pool_rules` actual puntúa marcador exacto y resultado. | Se conserva marcador exacto (1X2 se deriva). Cambiarlo es decisión D2 y alteraría ADR-003/Fase 08. |
 | C7 | ADR-011 y `save_prediction` comparan con `now()` (inicio de transacción); una transacción que espera un bloqueo podría validar con hora vieja. | Extensión, no ruptura: en RPC de tickets se usa `clock_timestamp()` tras bloquear. Se propone aplicar lo mismo a `save_prediction` en Fase 07. |
-| C8 | Roles actuales solo `owner/admin/member`; el requisito 3 pide administrar «solo las quinielas autorizadas». | El MVP autoriza por tenant. Un tenant con dos admins comparte ingresos entre ambos (decisión D7); `can_manage_pool_finance` deja el punto de extensión. |
+| C8 | Roles actuales solo `owner/admin/member`; D7 exige autorización por quiniela. | `pool_staff` + `can_manage_pool_finance` por capacidad (decisión 8). |
+| C9 | ADR-005/011 afirman que el lock no puede reabrirse, pero el admin tiene DML directo sobre `pools`, `matches` y `pool_matches`. | Precondición P1 (decisión 11). Defecto existente, anterior a este ADR. |
+| C10 | Las FK de Fase 03 son `ON DELETE CASCADE`; los registros financieros exigen `RESTRICT`. | Reemplazar las FK (P5); archivar en lugar de borrar. |
 
 ## Alternativas consideradas
 
@@ -106,18 +135,20 @@ secuenciales); límites por actor contra abuso.
 
 ## Migración / rollback
 
-Plan por etapas, forward-only (anexo §10): M1 `pool_rounds` (Fase 06), M2 tickets + selecciones + RPC
-(Fase 07), M3 elegibilidad en ranking (Fase 08), M4–M5 payments/ledger/reportes (fase comercial). Rollback
+Plan por etapas, forward-only (revisión §6; sustituye al anexo §10): Fase 06 = P1/P5 + `pool_rounds`; Fase 07 = `pool_staff`,
+tickets, P4; Fase 08 = elegibilidad y ranking; fase comercial = P3, payments, ledger, sello, ingresos. Rollback
 funcional: revocar `EXECUTE` de las RPC y volver `ticketing_mode` a `none`; **nunca** borrar ledger.
 `DROP` solo es admisible antes del primer dato financiero real, con aprobación explícita.
 
-## Decisiones pendientes de aprobación
+## Decisiones de producto
 
-D1 fase comercial y alcance de dinero registrado · D2 formato de pronóstico (marcador exacto vs 1X2) ·
-D3 máximo de tickets por participante/jornada · D4 moneda y precio por jornada (precio 0 permitido) ·
-D5 cierre de ventas = primer lock de la jornada · D6 tickets sin pago al cierre y confirmación tardía ·
-D7 alcance financiero por quiniela y roles para reembolso/ajuste, bloqueo de autoconfirmación ·
-D8 unidad del ranking (por ticket / mejor ticket / suma) · D9 definición de ingresos
-(bruto/devoluciones/neto cobrado; sin «utilidad») · D10 reembolso como registro, no como movimiento de dinero ·
-D11 límites del plan Free sobre tickets · D12 inmutabilidad de `audit_log` · D13 retención/offboarding.
-Detalle y recomendación de cada una en el anexo §12.
+Aprobadas por el usuario: **D1** fase comercial posterior a la 07 con pagos manuales · **D2** marcador exacto,
+conservando extensibilidad (el tipo de pronóstico no se codifica en el esquema de tickets) · **D3** máximo por
+quiniela, 1 por defecto · **D4** moneda por quiniela (`pools.currency`, inmutable tras el primer ticket), precio
+por jornada, gratis admitido · **D5** cierre antes del primer bloqueo · **D7** autorización por quiniela ·
+**D9** cobrado bruto / devoluciones / cobrado neto, sin «utilidad» · **D10** reembolso externo solo registrado y
+auditado · **D12** auditoría inmutable (ver P3).
+Aprobadas con diseño propuesto y detalle abierto: **D6-b** gracia de confirmación tardía · **D8** regla de «mejor
+ticket válido» · **D11** límites Free por capacidad/coste/modelo (sin números; procedimiento en la revisión) ·
+**D13** retención y baja. Nuevas: **D14** autoconfirmación (bloquear vs. marcar y publicar) · **D15** cadena de hash
+del ledger · **D16** roles de `pool_staff`. Criterios para aceptar el ADR: revisión §7 (A1–A9).

@@ -354,3 +354,12 @@ Redactado `ADR-014` (estado **Proposed**) y su anexo técnico: modelo `pool_roun
 estados separados, RPC idempotentes, RLS, ingresos solo desde ledger, amenazas, migraciones M1–M5, pruebas y
 decisiones D1–D13 pendientes de aprobación. Sin migraciones, RLS, pagos ni inicio de Fase 06. Handoff:
 `docs/agents/HANDOFF-ADR-014-TICKETS-20261011.md`. Tests: no aplican (documentación).
+
+## ADR-014 revisión 2 (2026-10-11) — sigue Proposed
+
+Dictámenes independientes de Security (rechazar → aprobar con cambios) y Data (aprobar con cambios) sobre el DDL real,
+más Backend y Product. D1–D5, D7, D9, D10, D12 aprobadas; D6 rediseñada (elegibilidad congelada al sello); D7 por
+quiniela con `pool_staff`. Hallazgos existentes de Fase 03 que bloquean tickets: el admin puede editar `lock_offset`/
+`starts_at`/`pool_matches` por DML directo; `audit_log` sin inmutabilidad ni revoke de `TRUNCATE` (inferido, sin comprobar);
+`ON CONFLICT` de `save_prediction` y FK en cascada. Detalle: `docs/architecture/ADR-014-REVIEW-20261011.md`.
+Sin migraciones, RLS, código ni pruebas. Fases sin cambio de estado.
