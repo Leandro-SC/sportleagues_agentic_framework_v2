@@ -363,3 +363,13 @@ quiniela con `pool_staff`. Hallazgos existentes de Fase 03 que bloquean tickets:
 `starts_at`/`pool_matches` por DML directo; `audit_log` sin inmutabilidad ni revoke de `TRUNCATE` (inferido, sin comprobar);
 `ON CONFLICT` de `save_prediction` y FK en cascada. Detalle: `docs/architecture/ADR-014-REVIEW-20261011.md`.
 Sin migraciones, RLS, código ni pruebas. Fases sin cambio de estado.
+
+## Auditoría de seguridad de solo lectura sobre QA (2026-10-11)
+
+Auditoría de catálogos de Supabase QA (sin leer datos ni escribir): `reports/security/qa-readonly-audit-20261011.md`.
+**H1 CONFIRMED (crítico, bloqueante de la apertura pública):** un organizador-participante puede subir/bajar `lock_offset`
+(`manage_pool`) o mutar `matches.starts_at/status` para leer pronósticos ajenos antes del lock y reabrir la edición;
+H2 (borrado en cascada de predicciones) y H3 (acciones administrativas sin auditoría) también confirmadas. `TRUNCATE/
+REFERENCES/TRIGGER` están concedidos a `anon`/`authenticated`, pero no explotables por la API pública. Remediación R1–R6
+**propuesta, no aplicada**; explotación no ejecutada (requiere autorización). Sin migraciones, RLS ni código cambiados.
+Se suspende el avance de tickets/pronósticos/Fase 06 hasta aprobar R1. ADR-014 sigue Proposed.
