@@ -18,6 +18,7 @@ async function mountView(path = '/ligas/unirme') {
       { path: '/j/:code', name: 'join', component: Blank },
       { path: '/', name: 'home', component: Blank },
       { path: '/partidos', name: 'matches', component: Blank },
+      { path: '/mis-puntos', name: 'points', component: Blank },
       { path: '/perfil', name: 'profile', component: Blank },
     ],
   })

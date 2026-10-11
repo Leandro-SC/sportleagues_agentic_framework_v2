@@ -329,3 +329,21 @@ revisión visual en navegador, happy paths de Fase 05 y la configuración de Das
 (`docs/operations/AUTH-QA-CONFIGURATION.md`). Rollback: revertir el merge (`git revert -m 1 b4be40f`)
 o promover de nuevo el despliegue anterior (`ef2daf9`) desde Vercel. Fase 05/05-bis siguen sin
 ACCEPTED; Fase 06 no inicia.
+
+## Integración del paquete v2 (roles, puntos, ingresos) — rama `integration/v2-roles-tickets-income` (2026-10-11)
+
+El ZIP `SportLeagues_movil_roles_arquitectura_quinielas_v2` ya estaba aplicado en el árbol de trabajo
+(comparación byte a byte, ignorando fin de línea: 342 archivos idénticos, 0 nuevos, 0 distintos). Se
+integró sobre `main` (`8f6bbcd`): rutas `/mis-puntos`, `/organizador`, `/admin/ingresos`; pestaña
+«Puntos» en la navegación inferior; acceso «Modo organizador» en Inicio solo con membresía
+administrativa activa; guard de `/organizador` y `/admin/ingresos` con `useTenantAdminAccess`
+(la elección de experiencia no concede permisos; RLS sigue siendo la autoridad); siete referencias PHP
+como texto no ejecutable en `references/legacy-quiniela/`. Corrección de la integración: los routers de
+prueba de `catalog-states`/`JoinLeagueView` no registraban `points` (15 fallos); se añadieron pruebas de
+regresión (guard `points`, `tenantAdminRedirect`, entrada organizador en Inicio). Sin migraciones, RLS,
+tablas financieras ni secretos. **Pendiente (propuesto, sin implementar):** tickets/pagos/ingresos,
+pronósticos, scoring/rankings, equipos dinámicos y APIs deportivas (ver
+`docs/product/ROADMAP-MOVIL-TICKETS-PRONOSTICOS-APIS.md`); requieren ADR antes de tocar esquema/RLS.
+Gates: typecheck, `npm test` (37 archivos / 247 tests), build, `verify:bundle` y `git diff --check`:
+PASS. **NO EJECUTADO:** revisión visual en navegador/dispositivo y E2E contra Supabase. Fases 05/05-bis
+siguen sin ACCEPTED; Fase 06 no inicia.

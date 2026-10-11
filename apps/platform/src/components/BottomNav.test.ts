@@ -6,17 +6,17 @@ import BottomNav from './BottomNav.vue'
 const Blank = { template: '<div />' }
 const router = createRouter({
   history: createMemoryHistory(),
-  routes: ['home', 'matches', 'leagues', 'profile'].map((name) => ({ path: name === 'home' ? '/' : `/${name}`, name, component: Blank })),
+  routes: ['home', 'matches', 'leagues', 'points', 'profile'].map((name) => ({ path: name === 'home' ? '/' : `/${name}`, name, component: Blank })),
 })
 
 describe('BottomNav', () => {
-  it('links all four sections and marks the active one for assistive tech', async () => {
+  it('links all five sections and marks the active one for assistive tech', async () => {
     const wrapper = mount(BottomNav, { props: { active: 'leagues' }, global: { plugins: [router] } })
     await router.isReady()
 
     const links = wrapper.findAll('a')
-    expect(links.map((link) => link.text())).toEqual(['Inicio', 'Partidos', 'Ligas', 'Perfil'])
-    expect(links.map((link) => link.attributes('href'))).toEqual(['/', '/matches', '/leagues', '/profile'])
+    expect(links.map((link) => link.text())).toEqual(['Inicio', 'Partidos', 'Ligas', 'Puntos', 'Perfil'])
+    expect(links.map((link) => link.attributes('href'))).toEqual(['/', '/matches', '/leagues', '/points', '/profile'])
     expect(wrapper.findAll('[aria-current="page"]').map((link) => link.text())).toEqual(['Ligas'])
     expect(wrapper.find('button[disabled]').exists()).toBe(false)
   })

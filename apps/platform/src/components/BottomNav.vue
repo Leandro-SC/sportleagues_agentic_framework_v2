@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { type Component } from 'vue'
-import { House, SquareActivity, Trophy, UserRound } from 'lucide-vue-next'
+import { House, SquareActivity, Trophy, UserRound, ChartNoAxesColumnIncreasing } from 'lucide-vue-next'
 import { RouterLink, type RouteLocationRaw } from 'vue-router'
 
-export type NavKey = 'home' | 'matches' | 'leagues' | 'profile'
+export type NavKey = 'home' | 'matches' | 'leagues' | 'points' | 'profile'
 
 defineProps<{ active: NavKey }>()
 
@@ -11,6 +11,7 @@ const items: Array<{ key: NavKey; label: string; icon: Component; to: RouteLocat
   { key: 'home', label: 'Inicio', icon: House, to: { name: 'home' } },
   { key: 'matches', label: 'Partidos', icon: SquareActivity, to: { name: 'matches' } },
   { key: 'leagues', label: 'Ligas', icon: Trophy, to: { name: 'leagues' } },
+  { key: 'points', label: 'Puntos', icon: ChartNoAxesColumnIncreasing, to: { name: 'points' } },
   { key: 'profile', label: 'Perfil', icon: UserRound, to: { name: 'profile' } },
 ]
 </script>

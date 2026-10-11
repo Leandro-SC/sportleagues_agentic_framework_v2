@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Check, CircleAlert, Copy, KeyRound, LoaderCircle, Palette, Settings2, UsersRound } from 'lucide-vue-next'
+import { Check, CircleAlert, Copy, KeyRound, LoaderCircle, Palette, Settings2, UsersRound, Wallet } from 'lucide-vue-next'
 import AppShell from '../components/AppShell.vue'
 import BrandingAssetSlot from '../components/BrandingAssetSlot.vue'
 import EmptyState from '../components/EmptyState.vue'
@@ -147,6 +147,11 @@ onBeforeUnmount(admin.dispose)
             <option v-for="tenant in admin.tenants.value" :key="tenant.tenant_id" :value="tenant.tenant_id">Tenant {{ tenant.tenant_id.slice(0, 8) }} · {{ tenant.role }}</option>
           </select>
         </label>
+
+        <button type="button" class="app-surface flex w-full items-center justify-between gap-3 p-4 text-left" @click="router.push({ name: 'admin-income' })">
+          <span class="flex items-center gap-2 font-display font-bold text-text"><Wallet class="h-5 w-5 text-primary" />Ingresos y tickets</span>
+          <span class="text-xs text-text-muted">Próximamente →</span>
+        </button>
 
         <section class="app-surface p-4">
           <div class="mb-4 flex items-center justify-between"><h2 class="font-display font-bold text-text">Quinielas</h2><StatChip :label="`${admin.activePools.value} activas`" /></div>

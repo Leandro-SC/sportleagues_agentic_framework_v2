@@ -1,0 +1,475 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Controllers\Admin;
+
+use App\Controllers\Admin\BaseAdminController;
+use App\Core\Database;
+use App\Core\Request;
+use App\Core\Response;
+use PDO;
+use RuntimeException;
+use Throwable;
+
+class ClubAdminController extends BaseAdminController
+{
+    private PDO $pdo;
+
+    private function boot(): void
+    {
+        if (!isset($this->pdo)) {
+            $this->pdo = Database::getConnection();
+        }
+    }
+
+    public function index(Request $request, Response $response): void
+    {
+        $this->requireAdmin();
+        $this->boot();
+
+        $leagueId = (int)($_GET['league_id'] ?? 0);
+        $countryId = (int)($_GET['country_id'] ?? 0);
+        $q = trim((string)($_GET['q'] ?? ''));
+
+        $where = [];
+        $params = [];
+
+        if ($leagueId > 0) {
+            $where[] = 't.league_id = :league_id';
+            $params[':league_id'] = $leagueId;
+        }
+
+        if ($countryId > 0) {
+            $where[] = 't.country_id = :country_id';
+            $params[':country_id'] = $countryId;
+        }
+
+        if ($q !== '') {
+            $searchTerm = '%' . $q . '%';
+
+            $where[] = '(
+        t.name LIKE :q_name
+        OR t.short_name LIKE :q_short_name
+    )';
+
+            $params[':q_name'] = $searchTerm;
+            $params[':q_short_name'] = $searchTerm;
+        }
+        $sql = '
+            SELECT
+                t.id,
+                t.country_id,
+                t.league_id,
+                t.name,
+                t.short_name,
+                t.slug,
+                t.logo_path,
+                t.logo_path AS badge_path,
+                t.is_active,
+                t.created_at,
+                t.updated_at,
+                c.name AS country_name,
+                l.name AS league_name
+            FROM teams t
+            LEFT JOIN countries c ON c.id = t.country_id
+            LEFT JOIN leagues l ON l.id = t.league_id
+        ';
+
+        if ($where !== []) {
+            $sql .= ' WHERE ' . implode(' AND ', $where);
+        }
+
+        $sql .= ' ORDER BY t.name ASC';
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+
+        $clubs = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+        $this->render('admin/clubs/index', [
+            'pageTitle' => 'Admin · Clubes',
+            'clubs' => $clubs,
+            'teams' => $clubs,
+            'leagues' => $this->getLeagues(),
+            'countries' => $this->getCountries(),
+            'filters' => [
+                'league_id' => $leagueId,
+                'country_id' => $countryId,
+                'q' => $q,
+            ],
+        ]);
+    }
+
+    public function create(Request $request, Response $response): void
+    {
+        $this->requireAdmin();
+        $this->boot();
+
+        $this->render('admin/clubs/form', [
+            'pageTitle' => 'Crear club',
+            'club' => null,
+            'team' => null,
+            'leagues' => $this->getLeagues(),
+            'countries' => $this->getCountries(),
+        ]);
+    }
+
+    public function store(Request $request, Response $response): void
+    {
+        $this->requireAdmin();
+        $this->requireValidCsrf();
+        $this->boot();
+
+        try {
+            $data = $this->sanitizeTeamData($_POST);
+
+            $logoPath = $this->uploadLogo('badge_file')
+                ?: $this->uploadLogo('logo_file')
+                ?: trim((string)($_POST['badge_path'] ?? $_POST['logo_path'] ?? ''));
+
+            $stmt = $this->pdo->prepare('
+                INSERT INTO teams (
+                    country_id,
+                    league_id,
+                    name,
+                    short_name,
+                    slug,
+                    logo_path,
+                    is_active,
+                    created_at,
+                    updated_at
+                )
+                VALUES (
+                    :country_id,
+                    :league_id,
+                    :name,
+                    :short_name,
+                    :slug,
+                    :logo_path,
+                    :is_active,
+                    NOW(),
+                    NOW()
+                )
+            ');
+
+            $stmt->execute([
+                ':country_id' => $data['country_id'],
+                ':league_id' => $data['league_id'],
+                ':name' => $data['name'],
+                ':short_name' => $data['short_name'],
+                ':slug' => $data['slug'],
+                ':logo_path' => $logoPath !== '' ? $logoPath : null,
+                ':is_active' => $data['is_active'],
+            ]);
+
+            header('Location: /admin/clubs');
+            exit;
+        } catch (Throwable $e) {
+            error_log('Error creando club/equipo: ' . $e->getMessage());
+
+            $this->render('admin/clubs/form', [
+                'pageTitle' => 'Crear club',
+                'club' => $_POST,
+                'team' => $_POST,
+                'leagues' => $this->getLeagues(),
+                'countries' => $this->getCountries(),
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public function edit(Request $request, Response $response): void
+    {
+        $this->requireAdmin();
+        $this->boot();
+
+        $id = (int)($_GET['id'] ?? 0);
+
+        if ($id <= 0) {
+            header('Location: /admin/clubs');
+            exit;
+        }
+
+        $club = $this->findTeamById($id);
+
+        if (!$club) {
+            header('Location: /admin/clubs');
+            exit;
+        }
+
+        $this->render('admin/clubs/form', [
+            'pageTitle' => 'Editar club',
+            'club' => $club,
+            'team' => $club,
+            'leagues' => $this->getLeagues(),
+            'countries' => $this->getCountries(),
+        ]);
+    }
+
+    public function update(Request $request, Response $response): void
+    {
+        $this->requireAdmin();
+        $this->requireValidCsrf();
+        $this->boot();
+
+        $id = (int)($_POST['id'] ?? 0);
+
+        if ($id <= 0) {
+            header('Location: /admin/clubs');
+            exit;
+        }
+
+        try {
+            $data = $this->sanitizeTeamData($_POST);
+
+            $existing = $this->findTeamById($id);
+
+            if (!$existing) {
+                throw new RuntimeException('El club/equipo no existe.');
+            }
+
+            $logoPath = $this->uploadLogo('badge_file')
+                ?: $this->uploadLogo('logo_file')
+                ?: trim((string)($_POST['badge_path'] ?? $_POST['logo_path'] ?? ''));
+
+            if ($logoPath === '') {
+                $logoPath = (string)($existing['logo_path'] ?? '');
+            }
+
+            $stmt = $this->pdo->prepare('
+                UPDATE teams
+                SET
+                    country_id = :country_id,
+                    league_id = :league_id,
+                    name = :name,
+                    short_name = :short_name,
+                    slug = :slug,
+                    logo_path = :logo_path,
+                    is_active = :is_active,
+                    updated_at = NOW()
+                WHERE id = :id
+            ');
+
+            $stmt->execute([
+                ':id' => $id,
+                ':country_id' => $data['country_id'],
+                ':league_id' => $data['league_id'],
+                ':name' => $data['name'],
+                ':short_name' => $data['short_name'],
+                ':slug' => $data['slug'],
+                ':logo_path' => $logoPath !== '' ? $logoPath : null,
+                ':is_active' => $data['is_active'],
+            ]);
+
+            header('Location: /admin/clubs');
+            exit;
+        } catch (Throwable $e) {
+            error_log('Error actualizando club/equipo: ' . $e->getMessage());
+
+            $club = $_POST;
+            $club['id'] = $id;
+
+            $this->render('admin/clubs/form', [
+                'pageTitle' => 'Editar club',
+                'club' => $club,
+                'team' => $club,
+                'leagues' => $this->getLeagues(),
+                'countries' => $this->getCountries(),
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public function delete(Request $request, Response $response): void
+    {
+        $this->requireAdmin();
+        $this->requireValidCsrf();
+        $this->boot();
+
+        $id = (int)($_POST['id'] ?? 0);
+
+        if ($id <= 0) {
+            header('Location: /admin/clubs');
+            exit;
+        }
+
+        try {
+            $usedStmt = $this->pdo->prepare('
+                SELECT COUNT(*)
+                FROM matches
+                WHERE home_team_id = :id
+                   OR away_team_id = :id
+            ');
+
+            $usedStmt->execute([
+                ':id' => $id,
+            ]);
+
+            $isUsed = (int)$usedStmt->fetchColumn() > 0;
+
+            if ($isUsed) {
+                $stmt = $this->pdo->prepare('
+                    UPDATE teams
+                    SET is_active = 0,
+                        updated_at = NOW()
+                    WHERE id = :id
+                ');
+
+                $stmt->execute([
+                    ':id' => $id,
+                ]);
+            } else {
+                $stmt = $this->pdo->prepare('
+                    DELETE FROM teams
+                    WHERE id = :id
+                ');
+
+                $stmt->execute([
+                    ':id' => $id,
+                ]);
+            }
+        } catch (Throwable $e) {
+            error_log('Error eliminando club/equipo: ' . $e->getMessage());
+        }
+
+        header('Location: /admin/clubs');
+        exit;
+    }
+
+    private function findTeamById(int $id): ?array
+    {
+        $stmt = $this->pdo->prepare('
+            SELECT
+                t.*,
+                t.logo_path AS badge_path,
+                c.name AS country_name,
+                l.name AS league_name
+            FROM teams t
+            LEFT JOIN countries c ON c.id = t.country_id
+            LEFT JOIN leagues l ON l.id = t.league_id
+            WHERE t.id = :id
+            LIMIT 1
+        ');
+
+        $stmt->execute([
+            ':id' => $id,
+        ]);
+
+        $team = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return $team ?: null;
+    }
+
+    private function sanitizeTeamData(array $input): array
+    {
+        $countryId = (int)($input['country_id'] ?? 0);
+        $leagueId = (int)($input['league_id'] ?? 0);
+        $name = trim((string)($input['name'] ?? ''));
+        $shortName = trim((string)($input['short_name'] ?? ''));
+        $slug = trim((string)($input['slug'] ?? ''));
+        $isActive = isset($input['is_active']) ? (int)$input['is_active'] : 1;
+
+        if ($name === '') {
+            throw new RuntimeException('El nombre del club/equipo es obligatorio.');
+        }
+
+        if ($shortName === '') {
+            $shortName = $name;
+        }
+
+        if ($slug === '') {
+            $slug = $this->slugify($name);
+        } else {
+            $slug = $this->slugify($slug);
+        }
+
+        return [
+            'country_id' => $countryId > 0 ? $countryId : null,
+            'league_id' => $leagueId > 0 ? $leagueId : null,
+            'name' => $name,
+            'short_name' => $shortName,
+            'slug' => $slug,
+            'is_active' => $isActive === 1 ? 1 : 0,
+        ];
+    }
+
+    private function getLeagues(): array
+    {
+        $stmt = $this->pdo->query('
+            SELECT id, name, slug
+            FROM leagues
+            ORDER BY name ASC
+        ');
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    private function getCountries(): array
+    {
+        $stmt = $this->pdo->query('
+            SELECT id, name, iso_code
+            FROM countries
+            ORDER BY name ASC
+        ');
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    private function uploadLogo(string $inputName): ?string
+    {
+        if (
+            !isset($_FILES[$inputName]) ||
+            !isset($_FILES[$inputName]['error']) ||
+            $_FILES[$inputName]['error'] !== UPLOAD_ERR_OK
+        ) {
+            return null;
+        }
+
+        $uploadDir = dirname(__DIR__, 3) . '/assets/uploads/clubs/';
+
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0777, true);
+        }
+
+        $originalName = basename((string)$_FILES[$inputName]['name']);
+        $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+
+        if (!in_array($extension, ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'], true)) {
+            throw new RuntimeException('Formato de imagen no permitido.');
+        }
+
+        $cleanName = preg_replace('/[^a-zA-Z0-9._-]/', '', $originalName) ?: 'logo.' . $extension;
+        $fileName = 'club_' . time() . '_' . bin2hex(random_bytes(4)) . '_' . $cleanName;
+
+        $targetPath = $uploadDir . $fileName;
+
+        if (!move_uploaded_file((string)$_FILES[$inputName]['tmp_name'], $targetPath)) {
+            throw new RuntimeException('No se pudo subir el logo.');
+        }
+
+        return '/assets/uploads/clubs/' . $fileName;
+    }
+
+    private function slugify(string $text): string
+    {
+        $text = trim($text);
+        $text = strtolower($text);
+
+        $replacements = [
+            'á' => 'a',
+            'é' => 'e',
+            'í' => 'i',
+            'ó' => 'o',
+            'ú' => 'u',
+            'ñ' => 'n',
+            'ü' => 'u',
+        ];
+
+        $text = strtr($text, $replacements);
+        $text = preg_replace('/[^a-z0-9]+/', '-', $text) ?? '';
+        $text = trim($text, '-');
+
+        return $text !== '' ? $text : 'equipo-' . time();
+    }
+}

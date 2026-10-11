@@ -4,13 +4,13 @@ import { router } from './router'
 
 // Rutas públicas o con guard propio (asíncrono) en router.ts; todo lo demás es una pantalla de la
 // app que exige sesión + perfil. Si alguien añade una ruta nueva y olvida protegerla, este test falla.
-const PUBLIC_OR_SELF_GUARDED = new Set(['home', 'auth-callback', 'join', 'onboarding', 'reset-password', 'admin', 'superadmin'])
+const PUBLIC_OR_SELF_GUARDED = new Set(['home', 'auth-callback', 'join', 'onboarding', 'reset-password', 'admin', 'admin-income', 'organizer-dashboard', 'superadmin'])
 
 describe('route table', () => {
   const names = router.getRoutes().map((route) => String(route.name))
 
   it('registers the four bottom-navigation sections and the redesign detail screens', () => {
-    for (const name of ['home', 'matches', 'leagues', 'profile', 'league-join', 'league', 'team', 'pool']) {
+    for (const name of ['home', 'matches', 'leagues', 'points', 'profile', 'league-join', 'league', 'team', 'pool']) {
       expect(names, name).toContain(name)
     }
   })
@@ -30,5 +30,8 @@ describe('route table', () => {
     expect(router.resolve('/equipos/america').params.teamId).toBe('america')
     expect(router.resolve('/ligas/unirme').name).toBe('league-join')
     expect(router.resolve('/j/AB12CD').name).toBe('join')
+    expect(router.resolve('/mis-puntos').name).toBe('points')
+    expect(router.resolve('/admin/ingresos').name).toBe('admin-income')
+    expect(router.resolve('/organizador').name).toBe('organizer-dashboard')
   })
 })

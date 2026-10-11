@@ -11,7 +11,7 @@ describe('protected route guard', () => {
     expect(protectedRouteRedirect('pool', true, true)).toBeNull()
   })
 
-  it.each(['matches', 'leagues', 'league-join', 'league', 'team'])('protects the redesigned %s route like the other app routes', (route) => {
+  it.each(['matches', 'leagues', 'points', 'league-join', 'league', 'team'])('protects the redesigned %s route like the other app routes', (route) => {
     expect(protectedRouteRedirect(route, false, false)).toBe('home')
     expect(protectedRouteRedirect(route, true, false)).toBe('onboarding')
     expect(protectedRouteRedirect(route, true, true)).toBeNull()
@@ -54,6 +54,14 @@ describe('tenant admin route guard', () => {
   })
 
   it('allows an owner or admin of at least one active tenant', () => {
+    expect(tenantAdminRedirect(true, true)).toBeNull()
+  })
+})
+
+describe('tenant admin route guard (organizer experience)', () => {
+  it('never grants access from the chosen experience: it needs a session and an active admin membership', () => {
+    expect(tenantAdminRedirect(false, true)).toBe('home')
+    expect(tenantAdminRedirect(true, false)).toBe('home')
     expect(tenantAdminRedirect(true, true)).toBeNull()
   })
 })

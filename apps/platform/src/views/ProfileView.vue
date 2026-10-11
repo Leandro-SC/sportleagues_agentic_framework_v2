@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Award, BadgeCheck, ChevronLeft, History, LayoutDashboard, LogOut, Settings, Star, UsersRound } from 'lucide-vue-next'
+import { Award, BadgeCheck, ChevronLeft, History, LayoutDashboard, ChartNoAxesColumnIncreasing, LogOut, Settings, Star, UsersRound } from 'lucide-vue-next'
 import ActivityRow from '../components/ActivityRow.vue'
 import AppShell from '../components/AppShell.vue'
 import CatalogBoundary from '../components/CatalogBoundary.vue'
@@ -130,6 +130,9 @@ async function logout(): Promise<void> {
 
     <BottomSheet v-model:open="settingsOpen" title="Ajustes">
       <div class="space-y-2">
+        <button type="button" class="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-text hover:bg-surface-2" @click="settingsOpen = false; router.push({ name: 'points' })">
+          <ChartNoAxesColumnIncreasing class="h-5 w-5 text-primary" aria-hidden="true" />Mis puntos por quiniela
+        </button>
         <button
           v-if="adminAccess.hasTenantAdminAccess.value"
           type="button"

@@ -14,7 +14,7 @@ import { useSuperadmin } from './composables/useSuperadmin'
 import { useTenantAdminAccess } from './composables/useTenantAdminAccess'
 import { platformAdminRedirect, protectedRouteRedirect, tenantAdminRedirect } from './lib/navigation-guards'
 
-const GUARDED_ROUTES = ['onboarding', 'reset-password', 'pool', 'profile', 'matches', 'leagues', 'league-join', 'league', 'team']
+const GUARDED_ROUTES = ['points', 'onboarding', 'reset-password', 'pool', 'profile', 'matches', 'leagues', 'league-join', 'league', 'team']
 
 // Set while `/admin` or `/superadmin` are resolving their role check, so App.vue can show a
 // sober loading state instead of the previous route's content (or nothing) during that gap —
@@ -31,6 +31,9 @@ export const router = createRouter({
     { path: '/j/:code', name: 'join', component: JoinView, props: true },
     { path: '/p/:poolId', name: 'pool', component: PoolView, props: true },
     { path: '/perfil', name: 'profile', component: ProfileView },
+    { path: '/mis-puntos', name: 'points', component: () => import('./views/PointsView.vue') },
+    { path: '/organizador', name: 'organizer-dashboard', component: () => import('./views/OrganizerDashboardView.vue') },
+    { path: '/admin/ingresos', name: 'admin-income', component: () => import('./views/AdminIncomeView.vue') },
     // Pantallas del rediseño (pre-acceptance). Las que dependen de partidos usan datos de vista
     // previa solo cuando isPreviewDataEnabled() lo permite; ver lib/preview-mode.ts.
     { path: '/partidos', name: 'matches', component: () => import('./views/MatchesView.vue') },
@@ -67,7 +70,7 @@ router.beforeEach(async (to) => {
   // fall through to `/superadmin`), but the check itself — useTenantAdminAccess — is entirely
   // independent of is_platform_admin(): a platform admin with no tenant membership does not get
   // in here, and this branch has no way to even ask about that flag (ADR-008 section 9).
-  if (String(to.name) === 'admin') {
+  if (String(to.name) === 'admin' || String(to.name) === 'admin-income' || String(to.name) === 'organizer-dashboard') {
     routeAuthCheck.value = 'admin'
     try {
       const auth = useAuth()

@@ -5,6 +5,7 @@ import { CalendarDays, ChartColumn, ChevronRight, KeyRound, ListOrdered, Trophy,
 import { useAuth } from '../composables/useAuth'
 import { useFollowedTeams } from '../composables/useFollowedTeams'
 import { useMyPools } from '../composables/useMyPools'
+import { useTenantAdminAccess } from '../composables/useTenantAdminAccess'
 import { useSportsCatalog } from '../composables/useSportsCatalog'
 import { peekJoinIntent } from '../lib/join-intent'
 import { firstNameOf, initialsOf, searchCatalog, upcomingMatches, type CatalogSearchResult } from '../lib/sports-catalog'
@@ -26,6 +27,7 @@ const router = useRouter()
 const auth = useAuth()
 const sports = useSportsCatalog()
 const myPools = useMyPools()
+const organizerAccess = useTenantAdminAccess()
 const followed = useFollowedTeams(() => sports.catalog.value.followedTeamIds)
 
 // Invitación guardada que no pudo completarse (p. ej. fallo de red tras confirmar el correo).
@@ -42,7 +44,11 @@ const followedTeams = computed(() => followed.ids.value.map((id) => sports.team(
 const featuredCompetition = computed(() => sports.catalog.value.competitions[0])
 const results = computed(() => searchCatalog(query.value, sports.catalog.value, myPools.pools.value))
 
-watch(() => auth.state.user?.id, (profileId) => { void myPools.load(profileId) })
+watch(() => auth.state.user?.id, (profileId) => {
+  void myPools.load(profileId)
+  if (profileId) void organizerAccess.checkAccess(profileId)
+  else organizerAccess.hasTenantAdminAccess.value = false
+})
 // Cierra los resultados al tocar fuera. Se usa pointerdown en el documento (no focusout) porque en
 // Safari iOS los botones no reciben foco al tocarlos y el clic se perdería.
 function closeOnOutsidePointer(event: PointerEvent): void {
@@ -51,6 +57,7 @@ function closeOnOutsidePointer(event: PointerEvent): void {
 
 onMounted(() => {
   void myPools.load(auth.state.user?.id)
+  if (auth.state.user?.id) void organizerAccess.checkAccess(auth.state.user.id)
   document.addEventListener('pointerdown', closeOnOutsidePointer)
 })
 onBeforeUnmount(() => document.removeEventListener('pointerdown', closeOnOutsidePointer))
@@ -73,6 +80,7 @@ const resultIcon = { pool: Trophy, competition: ListOrdered, team: UsersRound }
 
 <template>
   <section class="space-y-4 pb-2">
+    <RouterLink v-if="organizerAccess.hasTenantAdminAccess.value" :to="{ name: 'organizer-dashboard' }" class="app-surface flex items-center justify-between gap-2 p-3 text-sm font-semibold text-primary" aria-label="Cambiar al panel de organizador"><span>Modo organizador · Gestionar mis quinielas</span><ChevronRight class="h-5 w-5"/></RouterLink>
     <header class="safe-top flex items-start justify-between gap-3 pt-2">
       <div class="min-w-0">
         <h1 class="truncate font-display text-2xl font-bold leading-tight text-text">Hola, {{ firstName || 'de nuevo' }} 👋</h1>

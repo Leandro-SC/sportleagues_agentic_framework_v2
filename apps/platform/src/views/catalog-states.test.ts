@@ -35,7 +35,7 @@ vi.mock('../composables/useTenantAdminAccess', () => ({
 }))
 
 const Blank = { template: '<div />' }
-const routeNames = ['home', 'matches', 'leagues', 'profile', 'league-join', 'pool', 'admin', 'join', 'onboarding']
+const routeNames = ['home', 'matches', 'leagues', 'points', 'profile', 'league-join', 'pool', 'admin', 'join', 'onboarding']
 
 async function mountAt(path: string, component: object, pattern: string) {
   const router = createRouter({
