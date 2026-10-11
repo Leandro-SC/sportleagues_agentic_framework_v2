@@ -347,3 +347,10 @@ pronósticos, scoring/rankings, equipos dinámicos y APIs deportivas (ver
 Gates: typecheck, `npm test` (37 archivos / 247 tests), build, `verify:bundle` y `git diff --check`:
 PASS. **NO EJECUTADO:** revisión visual en navegador/dispositivo y E2E contra Supabase. Fases 05/05-bis
 siguen sin ACCEPTED; Fase 06 no inicia.
+
+## ADR-014 tickets multi-tenant (2026-10-11) — solo diseño
+
+Redactado `ADR-014` (estado **Proposed**) y su anexo técnico: modelo `pool_rounds/tickets/payments/ledger_entries`,
+estados separados, RPC idempotentes, RLS, ingresos solo desde ledger, amenazas, migraciones M1–M5, pruebas y
+decisiones D1–D13 pendientes de aprobación. Sin migraciones, RLS, pagos ni inicio de Fase 06. Handoff:
+`docs/agents/HANDOFF-ADR-014-TICKETS-20261011.md`. Tests: no aplican (documentación).
