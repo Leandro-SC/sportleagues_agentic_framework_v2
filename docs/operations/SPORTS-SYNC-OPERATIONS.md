@@ -27,18 +27,18 @@ Códigos: 200 (`ok`/`fresh`/`in_progress`/`degraded` con `code` y, si aplica, `q
 
 Rotación: generar un secreto nuevo, actualizarlo en el secreto de la función y en el proceso llamador en la misma ventana; no hay periodo de doble secreto (el viejo deja de valer de inmediato). Ante sospecha de filtración: rotar y revisar `provider_tenant_usage.rejected`, `provider_usage.quota_rejected` y `provider_quota_reservations` por consumo inesperado.
 
-## Presupuestos (política por defecto, pendiente de validación del propietario)
+## Presupuestos (límites definitivos fijados por el propietario)
 
 Se administran con `service_role`/postgres, sin migración. Nunca desde la app.
 
-- Global (`provider_quota_config`): `api_football` 100/día, 3 000/mes, reserva de sondeo 10 (catálogo no puede usarla).
+- Global (`provider_quota_config`): `api_football` **80/día, 2 400/mes**, reserva de sondeo **8** (10 % del diario; el catálogo llega a 72/día y `sync` puede usar las 80). Límites definitivos fijados por el propietario.
 - Por plan (`plan_provider_quota`): `free` 0/0 (sin acceso), `pro` 20/día y 300/mes por tenant.
 
 Ajuste (ejemplo; ejecutar solo con autorización, p. ej. desde `supabase db query` con credenciales del operador):
 
 ```sql
 update public.plan_provider_quota set daily_requests = 30, monthly_requests = 400 where provider = 'api_football' and plan_code = 'pro';
-update public.provider_quota_config set daily_limit = 100, monthly_limit = 3000, sync_reserve = 10 where provider = 'api_football';
+update public.provider_quota_config set daily_limit = 80, monthly_limit = 2400, sync_reserve = 8 where provider = 'api_football';
 ```
 
 Reglas: `monthly >= daily` y `sync_reserve < daily_limit` (restricciones de tabla). Un proveedor sin fila en `provider_quota_config` **falla cerrado** (`PROVIDER_NOT_CONFIGURED`).
@@ -65,7 +65,7 @@ Cada intento HTTP reserva antes de salir. Tras un intento emitido **no se devuel
 ## Lista de comprobación antes de desplegar (requiere autorización del propietario)
 
 1. ADR-021 aceptado; migración `20261023000100` promovida a `supabase/migrations/` y aplicada en QA, con `supabase/tests/provider-access-quota.sql` en verde (y reproducida la suite completa de regresión del catálogo).
-2. Límites por defecto validados (o ajustados) por el propietario.
+2. Límites definitivos del propietario aplicados (Free 0; Pro 20/día y 300/mes por tenant; global 80/día y 2 400/mes, reserva 8). Cualquier cambio posterior es decisión del propietario.
 3. Definir el proceso backend llamador y su almacén de secretos; confirmar que ningún flujo de la app invoca `sports-sync` (`grep` en `apps/platform/src`).
 4. Configurar secretos de la función (sección anterior) y comprobar `verify_jwt = false` en la nube; actualizar el comentario de `[functions.sports-sync]` en `supabase/config.toml` (aún habla de «JWT de administrador»).
 5. Prueba de humo en QA con tráfico sintético: 401 sin secreto, 403 con JWT de usuario, 413/415/405, 429 al agotar el cupo, `AUTO_RESULTS_OFF` con la bandera apagada. Prueba de concurrencia real con dos sesiones (clase C) sobre el contador.

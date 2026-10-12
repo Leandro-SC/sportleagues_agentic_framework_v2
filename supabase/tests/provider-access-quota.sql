@@ -151,8 +151,8 @@ begin
     perform pg_temp.rec('P14 ' || fn || ' es SECURITY DEFINER con search_path fijo',
       (select p.prosecdef and exists (select 1 from unnest(p.proconfig) c where c like 'search_path=%') from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = fn), '');
   end loop;
-  perform pg_temp.rec('P15 configuración inicial: api_football 100/3000 con reserva 10; free = 0/0, pro = 20/300',
-    (select count(*) from public.provider_quota_config where provider = 'api_football' and daily_limit = 100 and monthly_limit = 3000 and sync_reserve = 10) = 1
+  perform pg_temp.rec('P15 configuración inicial: api_football 80/2400 con reserva 8; free = 0/0, pro = 20/300',
+    (select count(*) from public.provider_quota_config where provider = 'api_football' and daily_limit = 80 and monthly_limit = 2400 and sync_reserve = 8) = 1
     and (select count(*) from public.plan_provider_quota where provider = 'api_football' and plan_code = 'free' and daily_requests = 0 and monthly_requests = 0) = 1
     and (select count(*) from public.plan_provider_quota where provider = 'api_football' and plan_code = 'pro' and daily_requests = 20 and monthly_requests = 300) = 1, '');
 
@@ -175,6 +175,26 @@ begin
     pg_temp.access('qa_p', 'search', v_ta) = 'AUTO_RESULTS_OFF' and pg_temp.access('qa_p', 'search') = 'OK' and pg_temp.access('qa_p', 'sync') = 'AUTO_RESULTS_OFF',
     pg_temp.access('qa_p', 'search', v_ta) || '/' || pg_temp.access('qa_p', 'search') || '/' || pg_temp.access('qa_p', 'sync'));
   update public.platform_feature_flags set enabled = true where key = 'auto_results';   -- solo dentro de la transacción de prueba (rollback)
+
+  -- ============ A2. Límites definitivos del propietario sobre la configuración REAL de api_football (80/día, 2 400/mes, reserva 8) ============
+  perform pg_temp.rec('L00 línea base: sin consumo previo de api_football hoy ni este mes en el entorno de prueba', pg_temp.gday('api_football') = 0 and pg_temp.gmon('api_football') = 0,
+    pg_temp.gday('api_football') || '/' || pg_temp.gmon('api_football'));
+  n_ok := 0; n_no := 0;
+  for i in 1..73 loop j := pg_temp.rsv('api_football', 'search'); if pg_temp.allowed(j) then n_ok := n_ok + 1; else n_no := n_no + 1; end if; end loop;
+  perform pg_temp.rec('L01 catálogo: exactamente 72 (= 80 - reserva 8) concedidas; la 73.ª se rechaza con GLOBAL_EXHAUSTED',
+    n_ok = 72 and n_no = 1 and j->>'reason' = 'GLOBAL_EXHAUSTED' and pg_temp.gday('api_football') = 72, n_ok || '/' || n_no || ' ' || j::text);
+  n_ok := 0; n_no := 0;
+  for i in 1..9 loop j := pg_temp.rsv('api_football', 'sync'); if pg_temp.allowed(j) then n_ok := n_ok + 1; else n_no := n_no + 1; end if; end loop;
+  perform pg_temp.rec('L02 sondeo: exactamente 8 más (total 80); la 81.ª se rechaza con GLOBAL_EXHAUSTED',
+    n_ok = 8 and n_no = 1 and j->>'reason' = 'GLOBAL_EXHAUSTED' and pg_temp.gday('api_football') = 80, n_ok || '/' || n_no || ' ' || j::text);
+  update public.provider_usage set requests = 0 where provider = 'api_football';        -- simula un día nuevo
+  update public.provider_usage_monthly set requests = 2399 where provider = 'api_football';
+  j := pg_temp.rsv('api_football', 'sync');
+  perform pg_temp.rec('L03 mensual: la solicitud 2 400 se concede', pg_temp.allowed(j) and pg_temp.gmon('api_football') = 2400, j::text);
+  j := pg_temp.rsv('api_football', 'sync');
+  perform pg_temp.rec('L04 mensual: la 2 401 se rechaza con GLOBAL_MONTH_EXHAUSTED y no incrementa', not pg_temp.allowed(j) and j->>'reason' = 'GLOBAL_MONTH_EXHAUSTED' and pg_temp.gmon('api_football') = 2400, j::text);
+  j := pg_temp.rsv('api_football', 'search', v_ta);
+  perform pg_temp.rec('L05 con global mensual agotado, un tenant PRO con cupo propio (20/día) también se rechaza', not pg_temp.allowed(j) and j->>'reason' = 'GLOBAL_MONTH_EXHAUSTED' and pg_temp.tday('api_football', v_ta) = 0, j::text);
 
   -- ============ B. Plan y tenant ============
   j := pg_temp.rsv('qa_a', 'search', v_tc);

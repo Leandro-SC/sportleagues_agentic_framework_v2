@@ -15,13 +15,22 @@
 // duplicado si la cuenta ya existe; la cuenta invitada queda solo como `user` (esta herramienta NO crea membresías
 // administrativas). El acceso a ligas QA lo obtiene el propio usuario con un código de invitación (`join_pool`),
 // nunca por DML directo. Esta herramienta no borra nada: la limpieza de cuentas requiere la lista exacta aprobada.
+import { spawnSync } from 'node:child_process'
 import { createClient } from '@supabase/supabase-js'
 
 const [command, emailArg, ...flags] = process.argv.slice(2)
-const url = process.env.SUPABASE_URL
-const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+// Credenciales: variables de entorno del operador o, si faltan, la CLI enlazada a QA (en memoria; nunca se imprimen).
+let url = process.env.SUPABASE_URL
+let key = process.env.SUPABASE_SERVICE_ROLE_KEY
 if (!url || !key) {
-  console.error('Define SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY en tu entorno (no se imprimen).')
+  const REF = 'juoftaofzepxbrrxbkhx'
+  const out = spawnSync('npx', ['supabase', 'projects', 'api-keys', '--project-ref', REF, '-o', 'json'], { encoding: 'utf8', shell: true }).stdout ?? ''
+  const keys = JSON.parse(out.slice(out.indexOf('[')) || '[]')
+  url = `https://${REF}.supabase.co`
+  key = keys.find((k) => k.name === 'service_role' && k.type === 'legacy')?.api_key
+}
+if (!url || !key) {
+  console.error('No hay credenciales de servicio de QA (ni en el entorno ni vía la CLI).')
   process.exit(2)
 }
 const admin = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
@@ -36,10 +45,10 @@ function category(email = '') {
 async function listAllUsers() {
   const users = []
   for (let page = 1; ; page++) {
-    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 })
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 50 })
     if (error) throw new Error(`listUsers: ${error.message}`)
     users.push(...data.users)
-    if (data.users.length < 200) break
+    if (data.users.length < 50) break
   }
   return users
 }
@@ -80,8 +89,11 @@ async function invite(email, execute) {
     console.error('Indica un correo válido.')
     process.exit(2)
   }
-  const users = await listAllUsers()
-  const existing = users.find((u) => u.email?.toLowerCase() === email.toLowerCase())
+  // Algunas filas heredadas de suites antiguas (columnas de token nulas) hacen fallar el listado de GoTrue: no es imprescindible, porque
+  // la invitación oficial ya rechaza por sí sola un correo registrado (sin enviar nada).
+  let users = null
+  try { users = await listAllUsers() } catch { /* se continúa sin listado */ }
+  const existing = users?.find((u) => u.email?.toLowerCase() === email.toLowerCase())
   if (existing) {
     console.log(JSON.stringify({
       action: 'none', reason: 'account_already_exists', confirmed: Boolean(existing.email_confirmed_at),
@@ -90,12 +102,18 @@ async function invite(email, execute) {
     return
   }
   if (!execute) {
-    console.log(JSON.stringify({ action: 'dry_run', would: 'inviteUserByEmail', note: 'Añade --execute para enviar la invitación oficial.' }, null, 2))
+    console.log(JSON.stringify({ action: 'dry_run', would: 'inviteUserByEmail', listing: users ? 'ok' : 'unavailable', note: 'Añade --execute para enviar la invitación oficial (rechaza duplicados por sí sola).' }, null, 2))
     return
   }
   const site = (process.env.QA_SITE_URL || 'https://sportleagues-qa.vercel.app').replace(/\/$/, '')
   const { error } = await admin.auth.admin.inviteUserByEmail(email, { redirectTo: `${site}/auth/callback` })
-  if (error) { console.error(`invite: ${error.message}`); process.exit(1) }
+  if (error) {
+    if (/already (been )?registered|email_exists/i.test(`${error.code ?? ''} ${error.message}`)) {
+      console.log(JSON.stringify({ action: 'none', reason: 'account_already_exists', next: 'No se duplica ni se envía nada. Si no ha entrado: «¿Olvidaste tu contraseña?» o Google; luego unirse a las ligas QA con su código.' }, null, 2))
+      return
+    }
+    console.error(`invite: ${error.message}`); process.exit(1)
+  }
   console.log(JSON.stringify({
     action: 'invited', status: 'pending_acceptance',
     next: 'Queda pendiente de que la persona acepte el correo. Después debe usar el código de unión de cada liga QA autorizada (join_pool); no se asigna ningún rol administrativo.',

@@ -36,9 +36,10 @@ create table public.plan_provider_quota (
 );
 
 -- Valores iniciales (política por defecto; ajustables por el operador con service_role, sin migración):
---   api_football: plan gratuito del proveedor = 100 solicitudes/día; techo mensual propio 3 000; reserva de sondeo 10.
+--   api_football (límites definitivos fijados por el propietario): 80 solicitudes/día y 2 400/mes (margen sobre las 100/día del plan gratuito del proveedor).
+--   Reserva de sondeo 8 = 10 % del diario (la proporción 10/100 anterior): catálogo ≤ 72/día; `sync` puede usar las 80; 8 < 80.
 --   free = 0/0 (sin acceso al proveedor); pro = 20/día y 300/mes por tenant.
-insert into public.provider_quota_config(provider, daily_limit, monthly_limit, sync_reserve) values ('api_football', 100, 3000, 10);
+insert into public.provider_quota_config(provider, daily_limit, monthly_limit, sync_reserve) values ('api_football', 80, 2400, 8);
 insert into public.plan_provider_quota(provider, plan_code, daily_requests, monthly_requests) values
   ('api_football', 'free', 0, 0),
   ('api_football', 'pro', 20, 300);

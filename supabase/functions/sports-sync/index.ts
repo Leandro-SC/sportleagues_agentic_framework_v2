@@ -14,7 +14,7 @@ import { createCatalogStore, type RpcClient } from './store.ts'
 // La clave del proveedor y la service-role viven solo en secretos de la función; jamás se devuelven ni se registran. Sin clave → NOT_CONFIGURED.
 // NO está desplegada ni programada (ver docs/operations/SPORTS-SYNC-OPERATIONS.md).
 const PROVIDER = 'api_football'
-const SYNC_RESERVE = 10
+const SYNC_RESERVE = 8
 
 function env(name: string): string | undefined {
   return Deno.env.get(name) || undefined
@@ -23,7 +23,7 @@ function env(name: string): string | undefined {
 // La configuración de la base de datos manda; esta variable solo puede RESTAR presupuesto (p_daily_cap).
 function dailyLimit(): number {
   const configured = Number(env('API_FOOTBALL_DAILY_LIMIT'))
-  return Number.isInteger(configured) && configured >= 20 && configured <= 100_000 ? configured : 100 // plan gratuito por defecto
+  return Number.isInteger(configured) && configured >= 20 && configured <= 100_000 ? configured : 80 // límite definitivo del propietario (ADR-021)
 }
 
 Deno.serve(createSportsSyncHandler({
