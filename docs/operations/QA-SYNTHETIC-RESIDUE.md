@@ -35,3 +35,5 @@ D22 (baja/offboarding de tenants y supresión de PII) sigue **pendiente** como r
 2026-10-11 (tickets Etapa 1): +1 ejecución de `scripts/qa/e2e/tickets-flow.mjs` (tenant `TKE-*`, 6 usuarios `tke-*@example.test`).
 
 2026-10-11/12 (tickets): +2 ejecuciones de `tickets-flow.mjs` y +1 de `mvp-flow.mjs` (total: tickets-flow 2, mvp-flow 7).
+
+2026-10-12 (catálogo híbrido): +1 ejecución de `catalog-flow.mjs` (tenants `CAE-*`, 5 usuarios `cae-*@example.test`), +1 de `mvp-flow.mjs` y +1 de `tickets-flow.mjs` (regresión). `catalog-concurrency.mjs` limpia su propio registro de `catalog_import_jobs` (una ejecución previa dejó un registro `conc-test:*` que se eliminó manualmente). El catálogo cargado en QA (`provider='wikidata'`) es dato real de fuente abierta, no residuo.
