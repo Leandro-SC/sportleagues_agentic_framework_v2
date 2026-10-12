@@ -1,13 +1,21 @@
 node_modules/
-# Android generado por `cap add android`: se versiona el proyecto, no los artefactos de build.
+# Android generado por `cap add android`: se versiona el proyecto (android/), no los artefactos de build.
+# (android/.gitignore, generado por Capacitor, aplica reglas adicionales equivalentes.)
 android/.gradle/
 android/build/
 android/app/build/
 android/local.properties
+android/.idea/
+android/captures/
 android/app/src/main/assets/public/
 android/app/src/main/assets/capacitor.config.json
 android/app/src/main/assets/capacitor.plugins.json
+android/app/src/main/res/xml/config.xml
 android/capacitor-cordova-android-plugins/
+android/**/*.apk
+android/**/*.aab
+*.apk
+*.aab
 # Firma de release: nunca al repositorio.
 *.keystore
 *.jks

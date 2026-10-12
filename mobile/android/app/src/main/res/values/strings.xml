@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SportLeagues</string>
+    <string name="title_activity_main">SportLeagues</string>
+    <string name="package_name">com.sportleagues.app</string>
+    <string name="custom_url_scheme">com.sportleagues.app</string>
+</resources>

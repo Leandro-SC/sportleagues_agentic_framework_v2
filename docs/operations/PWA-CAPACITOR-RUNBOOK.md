@@ -114,14 +114,138 @@ Chrome DevTools -> Lighthouse, modo móvil, en la URL QA (no se ha ejecutado):
 | --- | --- | --- |
 | Verificación en dispositivo Android/iOS (4.x) | PENDING | Requiere dispositivo y operador. |
 | Lighthouse | PENDING | No ejecutado. |
-| Compilación nativa Android (APK/AAB) | BLOCKED_EXTERNAL | Sin Android SDK (`ANDROID_HOME` vacío) ni JDK 21 verificado en este equipo; `npm install` de `mobile/` no ejecutado. Comando operador: ver `mobile/README.md`. |
+| Compilación nativa Android, APK **debug** | DONE_BUILD (compilado, no probado) | Compilado el 2026-10-11 con toolchain portable; ver §7. **No** instalado en dispositivo/emulador: PENDING. |
+| Compilación nativa Android, AAB/APK **release** | BLOCKED_EXTERNAL + BLOCKED_DECISION | Requiere keystore de release, appId definitivo y política de Play del propietario. |
+| Prueba del APK en dispositivo/emulador (instalación, WebView, login por correo, rotación, deep links, retorno OAuth) | PENDING | Sin dispositivo ni emulador en este equipo (HW limitado; no se instalaron imágenes de sistema). |
 | Firma de release (keystore) y Play Console | BLOCKED_EXTERNAL + BLOCKED_DECISION | Cuenta de desarrollador, keystore y política de Play del propietario. |
 | appId definitivo (`com.sportleagues.app` es provisional) | BLOCKED_DECISION | Una vez publicado en Play no puede cambiarse. |
 | Dominio final y `assetlinks.json` (App Links) | BLOCKED_DECISION | Requiere dominio y huella SHA-256 de firma del propietario; plantillas en `mobile/deep-links/`. |
 | Cableado de deep links nativos (`registerNativeDeepLinks`) en router/main | PENDING | Lógica y tests listos en `pwa.ts`; falta dominio y tocar `main.ts`/router (otro agente). |
-| OAuth Google dentro del wrapper | BLOCKED_DECISION | Google bloquea OAuth en WebViews embebidos; requiere ADR (PKCE + navegador del sistema + App Link, ver `docs/security/PKCE-MIGRATION-ASSESSMENT.md`). Correo/contraseña funciona sin cambios. |
+| OAuth Google dentro del wrapper | BLOCKED_DECISION | Google bloquea OAuth en WebViews embebidos; ruta recomendada en §8 y ADR-022 (Proposed, por aceptar el propietario). Correo/contraseña funciona sin cambios. |
 | Notificaciones push | Fuera de alcance / BLOCKED_DECISION | Proveedor sin decidir (FCM, etc.); añadiría SDK y datos personales (token) -> ADR. Hoy solo avisos dentro de la app. |
 | iOS nativo | Fuera del primer release | Arquitectura preparada; añadir `@capacitor/ios` requiere macOS/Xcode. |
 | UI de "Nueva versión disponible" | PENDING | Decisión de producto/frontend; el evento ya existe. |
 | Decisión `vite-plugin-pwa`/Workbox | PENDING (ADR) | SW manual cubre el MVP; el plugin permitiría precache hasheado. |
 | Cabeceras `Cache-Control` de `sw.js` en `vercel.json` | PENDING | Opcional, ver sección 2. |
+
+## 7. APK debug de Android: toolchain, build y verificación (2026-10-11)
+
+### 7.1 Tres estados distintos (no confundir)
+
+| Estado | Qué significa | Situación hoy |
+| --- | --- | --- |
+| PWA | Web instalable desde el navegador (manifest + SW). | Implementada; instalación en dispositivo PENDING. |
+| APK compilado | El wrapper Capacitor empaqueta `apps/platform/dist` y Gradle produce un `.apk`. | **Hecho** (debug). Solo demuestra que compila, firma con la clave debug y embebe el build web. |
+| App probada en dispositivo | Instalada y ejercitada en Android real/emulador. | **PENDING**: no se instaló ni se ejecutó el APK en ningún dispositivo o emulador. |
+
+### 7.2 Toolchain instalado (solo directorio de usuario; sin admin, sin PATH ni variables persistentes, nada en Program Files)
+
+Todo en `C:\Users\Acer\tools\android\`. Para revertirlo: borrar esa carpeta (y, opcionalmente, `C:\Users\Acer\.android\debug.keystore`, `analytics.settings`, `bin\` y `cli\`, creados/actualizados por Gradle y por la CLI de Android el 2026-10-11; el resto de `.android` ya existía de antes).
+
+| Componente | Versión real | Origen oficial | Ruta |
+| --- | --- | --- | --- |
+| JDK | Temurin 21.0.12.1+1 (LTS) | Adoptium (`api.adoptium.net`, zip x64 Windows; SHA-256 verificado contra el publicado: `f9d6e191ab098c0d416e7d588a24420a8621cd2f4720dab2459b8b7b2d2d8b4e`) | `...\android\jdk-21` |
+| Android cmdline-tools | build 16111833 (`cmdline-tools/latest`, reporta 23.0.0) | `dl.google.com` (SHA-1 verificado contra `repository2-3.xml`: `57d04f2d75eb8e8fffc5000a987e5de4b5a63e9d`) | `...\android\sdk\cmdline-tools\latest` |
+| platform-tools | 37.0.1 | `dl.google.com` | `...\android\sdk\platform-tools` |
+| Plataforma | `platforms;android-36` (r02) | `dl.google.com` | `...\android\sdk\platforms\android-36` |
+| Build-tools | `build-tools;36.0.0` | `dl.google.com` | `...\android\sdk\build-tools\36.0.0` |
+| Gradle | 8.14.3 (`-all`, del wrapper del proyecto) | `services.gradle.org` | `...\android\gradle-home` (`GRADLE_USER_HOME` solo por proceso; incluye también la caché de Maven Central/Google Maven) |
+| Android Gradle Plugin | 8.13.0 (plantilla Capacitor 8.5.3) | Google Maven | caché Gradle |
+
+Requisitos de Capacitor 8.5.3 leídos del propio proyecto generado: `compileSdk`/`targetSdk` 36, `minSdk` 24, Java 21 (`JavaVersion.VERSION_21` en `capacitor.build.gradle`). El JDK 23 del sistema **no** se usó ni se tocó.
+
+No se instalaron emuladores, imágenes de sistema ni extras.
+
+### 7.3 Licencias del SDK aceptadas
+
+Orden expresa del propietario («configuración del entorno SDK y preparación de compilación Android»). Se aceptó únicamente la licencia estándar `android-sdk-license` (necesaria para `platform-tools`, `platforms;android-36` y `build-tools;36.0.0`), registrada en `C:\Users\Acer\tools\android\sdk\licenses\android-sdk-license` (hash `24333f8a63b6825ea9c5514f83c2829b004d1fee`). No se aceptaron licencias de emuladores, imágenes de sistema, NDK ni otras. Revertir: borrar `C:\Users\Acer\tools\android\sdk\licenses\` (o todo el directorio).
+
+### 7.4 Comandos reproducibles (Windows, Git Bash; variables solo por proceso)
+
+Descarga (usar `curl.exe`: `Invoke-WebRequest` de Windows PowerShell 5.1 con barra de progreso fue ~10 veces más lento, 0,4 MB/s frente a 4,4 MB/s):
+
+```
+mkdir -p /c/Users/Acer/tools/android/_dl && cd /c/Users/Acer/tools/android/_dl
+curl.exe -L --fail -o jdk21.zip "https://api.adoptium.net/v3/binary/latest/21/ga/windows/x64/jdk/hotspot/normal/eclipse"
+curl.exe -L --fail -o cmdline.zip "https://dl.google.com/android/repository/commandlinetools-win-16111833_latest.zip"
+sha256sum jdk21.zip   # debe coincidir con el SHA-256 de 7.2 (f9d6e191ab098c0d416e7d588a24420a8621cd2f4720dab2459b8b7b2d2d8b4e)
+sha1sum cmdline.zip   # debe ser 57d04f2d75eb8e8fffc5000a987e5de4b5a63e9d
+cd .. && unzip -q _dl/jdk21.zip && mv jdk-21.0.12.1+1 jdk-21
+mkdir -p sdk/cmdline-tools && unzip -q _dl/cmdline.zip && mv cmdline-tools sdk/cmdline-tools/latest
+```
+
+Instalación del SDK mínimo (`sdkmanager.bat` es ahora un envoltorio de la CLI `android`, y su `.bat` parte los argumentos en `;`; por eso se usa `android.exe sdk install`). Las licencias se aceptan respondiendo `y` solo a las que pide ese conjunto de paquetes:
+
+```
+export JAVA_HOME="C:\\Users\\Acer\\tools\\android\\jdk-21"
+export PATH="/c/Users/Acer/tools/android/jdk-21/bin:$PATH"
+cd /c/Users/Acer/tools/android
+yes y | ./sdk/cmdline-tools/latest/bin/sdkmanager.bat --sdk_root="C:\\Users\\Acer\\tools\\android\\sdk" "platform-tools"
+yes y | ./sdk/cmdline-tools/latest/bin/android.exe sdk --sdk="C:\\Users\\Acer\\tools\\android\\sdk" install "platforms;android-36" "build-tools;36.0.0"
+./sdk/cmdline-tools/latest/bin/sdkmanager.bat --sdk_root="C:\\Users\\Acer\\tools\\android\\sdk" --list_installed
+```
+
+Proyecto y compilación (desde la raíz del repo):
+
+```
+cd mobile
+npm install                 # ~19 s; solo mobile/ (package-lock.json versionado)
+npx cap add android         # ~17 s; una sola vez (ya hecho; mobile/android/ se versiona)
+export JAVA_HOME="C:\\Users\\Acer\\tools\\android\\jdk-21" ANDROID_HOME="C:\\Users\\Acer\\tools\\android\\sdk" ANDROID_SDK_ROOT="C:\\Users\\Acer\\tools\\android\\sdk" GRADLE_USER_HOME="C:\\Users\\Acer\\tools\\android\\gradle-home"
+export PATH="/c/Users/Acer/tools/android/jdk-21/bin:$PATH"
+node scripts/build-android.mjs --skip-web   # cap sync (reusa apps/platform/dist) + gradlew assembleDebug
+# equivalente manual: npx cap sync android && cd android && ./gradlew.bat assembleDebug --no-daemon --max-workers=2 -Dorg.gradle.jvmargs=-Xmx1024m
+```
+
+PowerShell equivalente de las variables: `$env:JAVA_HOME='C:\Users\Acer\tools\android\jdk-21'; $env:ANDROID_HOME='C:\Users\Acer\tools\android\sdk'; $env:GRADLE_USER_HOME='C:\Users\Acer\tools\android\gradle-home'; $env:Path="$env:JAVA_HOME\bin;$env:Path"`. Sin `--skip-web` el script regenera el build web (`npm --prefix .. run build`).
+
+Máquina de 7,8 GB de RAM con ~0,6 GB libres durante el build: se usó `--no-daemon`, 2 workers y `-Xmx1024m` por línea de comandos (sin tocar `gradle.properties`).
+
+### 7.5 Resultado y tiempos aproximados
+
+| Paso | Tiempo |
+| --- | --- |
+| Descarga JDK 21 (205 MB, `Invoke-WebRequest`) | ~8 min |
+| Descarga cmdline-tools (155 MB, `curl.exe`) | ~28 s |
+| Instalación platforms/build-tools (`android sdk install`) | ~2 min 35 s |
+| `npm install` + `cap add android` | ~19 s + ~17 s |
+| Primera compilación `assembleDebug` (incluye descarga de Gradle 8.14.3 y dependencias) | 10 min 21 s (`BUILD SUCCESSFUL`, 123 tareas) |
+| Segunda compilación vía `build-android.mjs --skip-web` (caché caliente) | 2 min 13 s (`BUILD SUCCESSFUL`) |
+
+Salida: `mobile/android/app/build/outputs/apk/debug/app-debug.apk`
+
+- Tamaño: 6 104 380 bytes.
+- SHA-256: `cea3dfc7b2a9f8a7507fce91b20bf5156a24a9f284b580810defad2a319f2c43` (idéntico en las dos compilaciones).
+- `aapt2 dump badging`: `package: name='com.sportleagues.app' versionCode='1' versionName='1.0'`, `minSdkVersion:'24'`, `targetSdkVersion:'36'`, `compileSdkVersion='36'`, `application-label:'SportLeagues'`, `launchable-activity: com.sportleagues.app.MainActivity`, `application-debuggable`.
+- Permisos: `android.permission.INTERNET` (necesario: Supabase por HTTPS) y el permiso propio de firma `com.sportleagues.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` que AndroidX añade de forma automática para receivers dinámicos no exportados (no es acceso a datos del usuario). Ningún permiso innecesario; nada que eliminar.
+- `apksigner verify`: firma APK Signature Scheme v2 válida con el certificado debug automático de Gradle (`CN=Android Debug`, SHA-256 `a4541600f1b409d31b6b2a394e979048886c6966e617ec3c3c7c8de8d601e663`, almacén `C:\Users\Acer\.android\debug.keystore`). **Esta huella es de depuración: jamás usarla en `assetlinks.json` de producción ni para publicar.**
+- Manifest: sin `usesCleartextTraffic` ni `networkSecurityConfig`; `allowBackup=false` (ajustado desde el valor `true` de la plantilla); `MainActivity` `exported=true` solo con MAIN/LAUNCHER (sin intent filters de deep link: ver §7.6). Los demás `intent-filter`/`exported` del manifest fusionado pertenecen al receiver de `androidx.profileinstaller` (protegido con `android.permission.DUMP`).
+- Activos: `assets/public/` (253 entradas: `index.html`, `assets/*`, `sw.js`, `manifest.webmanifest`...) proviene de `apps/platform/dist`, y `assets/capacitor.config.json` no contiene `server.url` (`androidScheme: https`, `cleartext: false`, `allowMixedContent: false`). La app sirve los activos empaquetados; no apunta a ningún host remoto.
+- `appId`: `com.sportleagues.app` es **provisional**; el definitivo es decisión del propietario y no puede cambiarse tras publicar en Play.
+- Lo único que se verificó es el artefacto (herramientas de línea de comandos). Instalación, arranque, WebView, login, rotación, safe areas, deep links: PENDING en dispositivo.
+
+Advertencias no bloqueantes del build: `flatDir` desaconsejado (plantilla Capacitor) y «SDK XML version 4» (cmdline-tools y herramientas de Gradle de distintas fechas).
+
+Nota de dependencias: la plantilla de Capacitor incluye en `android/build.gradle` el classpath `com.google.gms:google-services:4.4.4`; solo se aplica si existe `app/google-services.json` (no existe), por lo que no hay SDK de Firebase/push en el APK. Cualquier push futuro requiere ADR (AGENTS.md §12).
+
+### 7.6 Deep links (App Links): BLOCKED_DECISION
+
+Revisada la plantilla `mobile/deep-links/android-intent-filters.template.xml`: ya es solo `https`, `autoVerify="true"`, sin comodines y con los dos prefijos canónicos `/j/` y `/p/`; no requiere cambios. **No se aplicó** al `AndroidManifest.xml` porque el dominio de producción y la huella SHA-256 del certificado de firma son del propietario (valores no inventados; `REPLACE_WITH_APP_LINK_HOST` sigue siendo placeholder). Cuando existan: pegar la plantilla en `MainActivity`, publicar `/.well-known/assetlinks.json` con el `package_name` final y la huella de **release** (no la debug), y verificar con `adb shell pm get-app-links com.sportleagues.app` en un dispositivo (PENDING).
+
+## 8. OAuth nativo (Google) en el wrapper: por qué no en la WebView y ruta recomendada
+
+Solo documentación; **no implementado**. Requiere ADR (AGENTS.md §12: cambia auth y compatibilidad de builds móviles): ver `docs/architecture/adr/ADR-022-native-oauth-pkce-system-browser.md` (estado Proposed, redactado por el coordinador).
+
+Por qué el flujo actual no sirve dentro del APK:
+
+1. Google bloquea el consentimiento OAuth en navegadores embebidos/WebViews (`Error 403: disallowed_useragent`, política de «Secure browsers» de Google). El wrapper Capacitor ejecuta la app en un WebView, de modo que `signInWithOAuth` con redirección dentro de él falla aunque funcione en Chrome o en la PWA instalada.
+2. El cliente usa `flowType: 'implicit'` (ADR-013): el token regresa en el fragmento `#access_token=` de la URL de retorno. Con WebView embebido eso exige además un esquema de retorno propio y expone el token en la URL (historial, intents, otras apps).
+3. En la WebView el origen es `https://localhost` (`androidScheme: https`); Supabase no puede redirigir allí un flujo de navegador externo sin un retorno verificado.
+
+Ruta recomendada (a implementar solo tras aceptar el ADR):
+
+1. **PKCE** (`flowType: 'pkce'`; ver `docs/security/PKCE-MIGRATION-ASSESSMENT.md`): el `code_verifier` queda en la app y el `code` de un solo uso se canjea con `exchangeCodeForSession`; el token nunca viaja en la URL.
+2. Abrir la URL de autorización de Supabase/Google en el **navegador del sistema** mediante **Chrome Custom Tabs** (plugin oficial `@capacitor/browser`, nueva dependencia a registrar), no en el WebView.
+3. Retorno por **App Link verificado** (`https://<dominio>/auth/callback`, `assetlinks.json` con la huella de release): Android reabre la app, `@capacitor/app` emite `appUrlOpen` y `registerNativeDeepLinks` (ya en `lib/pwa.ts`, sin cablear) valida host y ruta y navega a `/auth/callback`. Sin esquema personalizado (`sportleagues://`), suplantable.
+4. Redirect URLs de Supabase limitadas al dominio web y al App Link.
+5. Bloqueado por el propietario: dominio, huella de firma de release y appId definitivo. Hasta entonces, en el wrapper el acceso es con correo y contraseña.

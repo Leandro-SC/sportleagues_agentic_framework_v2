@@ -1,7 +1,23 @@
 # HANDOFF — Fase 11: PWA + wrapper Capacitor
 
 - Agente: Mobile
-- Estado: PARTIAL (código/config/tests listos; verificación en dispositivo y compilación nativa pendientes)
+- Estado: PARTIAL (código/config/tests listos; **APK debug compilado el 2026-10-11**; verificación en dispositivo PENDING; release/firma BLOCKED)
+
+## Actualización 2026-10-11 — APK debug de Android
+
+Distinción obligatoria: **PWA ≠ APK compilado ≠ app probada en dispositivo.** Hoy: PWA implementada (instalación PENDING); APK debug **compilado y verificado como artefacto**; **ninguna** prueba en dispositivo/emulador (PENDING).
+
+- Toolchain portable (sin admin, sin PATH/variables persistentes) en `C:\Users\Acer\tools\android\`: Temurin JDK 21.0.12.1, cmdline-tools 16111833, platform-tools 37.0.1, `platforms;android-36`, `build-tools;36.0.0`; Gradle 8.14.3 y AGP 8.13.0 (caché en `...\android\gradle-home`). Descargas verificadas por checksum oficial. Licencia aceptada: solo `android-sdk-license` en `...\android\sdk\licenses`. Revertir = borrar `C:\Users\Acer\tools\android\`. Detalle y comandos: runbook §7.
+- `mobile/`: `npm install` (solo `mobile/`; `package-lock.json` nuevo), `npx cap add android` (proyecto `mobile/android/` **versionado**; artefactos de build ignorados en `mobile/.gitignore`), `cap sync android` contra el `apps/platform/dist` existente (no se regeneró).
+- Resultado: `BUILD SUCCESSFUL` en 10 min 21 s (primera vez, incluye descargas) y 2 min 13 s (caché caliente, vía `node scripts/build-android.mjs --skip-web`).
+- APK: `mobile/android/app/build/outputs/apk/debug/app-debug.apk`, 6 104 380 bytes, SHA-256 `cea3dfc7b2a9f8a7507fce91b20bf5156a24a9f284b580810defad2a319f2c43` (idéntico en ambas compilaciones). Badging: `com.sportleagues.app` (provisional), versionCode 1 / versionName 1.0, minSdk 24, targetSdk 36, debuggable, firma v2 con clave debug de Gradle (SHA-256 del certificado `a4541600...e663`: solo depuración).
+- Seguridad del manifest: permisos solo `INTERNET` (+ permiso propio de firma de AndroidX); sin `usesCleartextTraffic`; `allowBackup` cambiado a `false` (la sesión de Supabase vive en el almacenamiento de la WebView); sin `server.url` (activos embebidos de `dist`); sin intent filters de deep link.
+- `mobile/scripts/build-android.mjs`: ahora exige JDK 21 (antes solo comprobaba que existiera `java`), admite `--skip-web` y se corrigió la invocación `.\gradlew.bat` en Windows (fallaba con «gradlew.bat no se reconoce»).
+- Deep links: plantilla revisada (solo https, autoVerify, sin comodines, `/j/` y `/p/`) y **no aplicada**: BLOCKED_DECISION (dominio y huella del propietario).
+- OAuth nativo: justificación y ruta (PKCE + Custom Tabs + App Link) documentadas en runbook §8; ADR-022 (Proposed) del coordinador; no implementado.
+- Archivos tocados en esta actualización: `mobile/.gitignore`, `mobile/README.md`, `mobile/scripts/build-android.mjs`, `mobile/package-lock.json` (nuevo), `mobile/android/**` (nuevo, generado por Capacitor; `AndroidManifest.xml` con `allowBackup=false`), `docs/operations/PWA-CAPACITOR-RUNBOOK.md`, este informe.
+- Riesgos: el APK es debug (debuggable, clave debug): **no distribuir ni publicar**. Release requiere keystore, appId definitivo y dominio del propietario. Gradle en esta máquina (~0,6 GB de RAM libre) es lento; no se usó emulador. La dependencia transitiva `com.google.gms:google-services` (classpath de la plantilla) no se aplica sin `google-services.json`.
+- PENDING en dispositivo: instalación, arranque y splash, WebView, login correo/contraseña, rotación y safe areas, comportamiento sin red, retorno de deep links, almacenamiento/cierre de sesión.
 
 ## Objetivo
 
@@ -37,7 +53,7 @@ Origen: `src/assets/branding/logo_app_tablo.png` sobre fondo `#03111c`; maskable
 - Kill-switch triple: `VITE_PWA_DISABLED=true` (desregistra y borra `sl-*`), mensaje `SL_KILL`, y SW de emergencia documentado.
 - SW no se registra dentro de Capacitor (activos locales).
 - Logout no toca el SW: no guarda datos privados; la caché privada es IndexedDB por cuenta (`purgePrivateCaches`).
-- `mobile/package.json` aislado: `@capacitor/core|cli|android` 8.5.3 y `@capacitor/app` 8.1.2 (solo para `appUrlOpen`); sin iOS ni push. No instalado.
+- `mobile/package.json` aislado: `@capacitor/core|cli|android` 8.5.3 y `@capacitor/app` 8.1.2 (solo para `appUrlOpen`); sin iOS ni push. Instalado el 2026-10-11 (solo en `mobile/`).
 - Deep links: lógica pura `deepLinkToRoute` + `registerNativeDeepLinks` (usa `Capacitor.Plugins.App`, sin importar el paquete en el bundle web); NO cableado en main/router (zona de otro agente y dominio sin decidir).
 - `apple-mobile-web-app-status-bar-style=black` en vez de `black-translucent` para evitar solape con la barra de estado en iOS.
 
@@ -60,7 +76,7 @@ Origen: `src/assets/branding/logo_app_tablo.png` sobre fondo `#03111c`; maskable
 
 ## Bloqueos
 
-- BLOCKED_EXTERNAL: compilación Android (sin `ANDROID_HOME`/SDK; JDK 23 presente, Capacitor 8 pide JDK 21 a confirmar; `npm install` de `mobile/` no ejecutado). Comando operador: `cd mobile && npm install && npm run add:android && npm run build:android`. Firma de release y Play Console.
+- (Resuelto 2026-10-11 para debug) Compilación Android: ver actualización arriba y runbook §7. Sigue BLOCKED_EXTERNAL: firma de release (keystore) y Play Console; PENDING: prueba en dispositivo.
 - BLOCKED_DECISION: appId definitivo (`com.sportleagues.app` provisional), dominio final + huella SHA-256 para `assetlinks.json` (plantilla, sin valores inventados), estrategia OAuth nativa (ADR), proveedor push (fuera de alcance), ADR de `vite-plugin-pwa`.
 
 ## Próximo paso permitido

@@ -9,7 +9,7 @@ Empaqueta el build web de `apps/platform` sin duplicar lógica de negocio (ADR-0
 | `@capacitor/core`, `@capacitor/android`, `@capacitor/cli` | Wrapper móvil (arquitectura base, AGENTS.md §4; no requiere ADR). |
 | `@capacitor/app` | Evento `appUrlOpen` para deep links (`/j/:code`, `/p/:poolId`). `pwa.ts` lo usa vía el registro global de Capacitor, sin importarlo en el bundle web. |
 
-Sin `@capacitor/ios` en el primer release. Sin plugins de push (decisión pendiente). Versiones verificadas en npm el 2026-10-11 (8.5.3 / app 8.1.2); **no instaladas** en esta fase.
+Sin `@capacitor/ios` en el primer release. Sin plugins de push (decisión pendiente). Instaladas el 2026-10-11 solo en `mobile/` (`npm install`, `package-lock.json` versionado): `@capacitor/*` 8.5.3, `@capacitor/app` 8.1.2.
 
 ## `capacitor.config.json`
 
@@ -24,32 +24,28 @@ Sin `@capacitor/ios` en el primer release. Sin plugins de push (decisión pendie
 | Comando | Qué hace |
 | --- | --- |
 | `npm install` | Instala Capacitor (primera vez). |
-| `npm run add:android` | Crea `mobile/android/` (una sola vez; se versiona). |
+| `npm run add:android` | Crea `mobile/android/` (una sola vez; **ya creado y versionado**). |
 | `npm run sync` | Build web (`npm --prefix .. run build`) + `cap sync android`. |
 | `npm run open:android` | Abre el proyecto en Android Studio. |
-| `npm run build:android` | `sync` + `gradlew assembleDebug` (APK debug sin firma). Si falta toolchain, sale con código 2 y lista qué falta. |
+| `npm run build:android` | `sync` + `gradlew assembleDebug` (APK debug firmado con la clave debug automática de Gradle; **no** es de release). Si falta toolchain o el JDK no es 21, sale con código 2 y lista qué falta. |
+| `npm run build:android -- --skip-web` | Igual, pero reutiliza el `apps/platform/dist` existente (solo `cap sync`, sin regenerar el build web). |
 | `npm run doctor` | Diagnóstico de Capacitor. |
 | `npm run icons` | Regenera los iconos PWA (Windows PowerShell). |
 
-### BLOCKED_EXTERNAL: compilación nativa
+### Compilación nativa (APK debug)
 
-No compilada en esta fase: este equipo no tiene `ANDROID_HOME` ni Android SDK; hay JDK 23 (Capacitor 8 exige JDK 21: confirmar en la documentación oficial). Comando exacto para el operador, con Android Studio + JDK 21 instalados y `ANDROID_HOME` definido:
+Estado (2026-10-11): **APK debug compilado** en este equipo con toolchain portable en `C:\Users\Acer\tools\android\` (JDK Temurin 21.0.12.1, Android SDK con `platforms;android-36`, `build-tools;36.0.0`, `platform-tools`; Gradle 8.14.3 del wrapper). Comandos, versiones, tiempos y verificación del artefacto: [`docs/operations/PWA-CAPACITOR-RUNBOOK.md`](../docs/operations/PWA-CAPACITOR-RUNBOOK.md) §7. Compilado **no** significa probado: la app no se ha instalado ni ejecutado en ningún dispositivo o emulador (PENDING).
 
-```
-cd mobile
-npm install
-npm run add:android
-npm run build:android
-```
+Salida: `mobile/android/app/build/outputs/apk/debug/app-debug.apk` (ignorada por git). `mobile/android/` **se versiona** (recomendación de Capacitor: contiene manifest, Gradle wrapper y personalizaciones); no se versionan `build/`, `.gradle/`, `local.properties`, `*.apk`/`*.aab`, ni los activos web copiados por `cap sync`. La firma de release (keystore) y Play Console son decisión/acción del propietario (`*.keystore`, `*.jks` y `keystore.properties` están en `.gitignore`); el agente no generó ningún keystore.
 
-El APK debug queda en `mobile/android/app/build/outputs/apk/debug/app-debug.apk`. La firma de release (keystore) y Play Console son decisión/acción del propietario (`*.keystore`, `*.jks` y `keystore.properties` están en `.gitignore`).
+Cambio de seguridad en el manifest generado: `android:allowBackup="false"` (el valor por defecto de Capacitor es `true`; con él, el almacenamiento de la WebView —incluida la sesión de Supabase— entraría en las copias de seguridad de Android). `usesCleartextTraffic` no se habilita. Permisos declarados: solo `INTERNET` (más el permiso propio, de firma, `<appId>.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` que añade AndroidX).
 
 ## Deep links (BLOCKED_DECISION: dominio y huella)
 
 Rutas canónicas (contrato Fase 02): `/j/:code` (código de 6 caracteres alfanuméricos) y `/p/:poolId`. Las demás rutas (`/auth/*`, `/admin`, etc.) **no** se exponen como deep link.
 
 1. Elegir host de producción (dominio propio; no usar el de QA).
-2. Pegar `deep-links/android-intent-filters.template.xml` en la `MainActivity` de `android/app/src/main/AndroidManifest.xml` sustituyendo `REPLACE_WITH_APP_LINK_HOST` (`autoVerify="true"`, https, sin comodines).
+2. Pegar `deep-links/android-intent-filters.template.xml` en la `MainActivity` de `android/app/src/main/AndroidManifest.xml` (**no aplicado**: el `AndroidManifest.xml` generado solo tiene el filtro MAIN/LAUNCHER, sin host inventado) sustituyendo `REPLACE_WITH_APP_LINK_HOST` (`autoVerify="true"`, https, sin comodines).
 3. Publicar `https://<host>/.well-known/assetlinks.json` (ubicación: `apps/platform/public/.well-known/assetlinks.json`; archivos estáticos prevalecen sobre el rewrite de Vercel) a partir de `deep-links/assetlinks.template.json` con el `package_name` final y la huella SHA-256 del certificado de firma **que aporta el propietario**. Nunca inventar ni reutilizar huellas de debug en producción.
 4. En la web, llamar a `registerNativeDeepLinks(router.push, [host])` (en `lib/pwa.ts`) al arrancar. `deepLinkToRoute` solo acepta https, host permitido y rutas `/j/:code` o `/p/:poolId`, y descarta query/hash. Sin sesión, `/j/:code` conserva el código como intención local no confiable y tras autenticarse se llama `join_pool` (la autorización sigue en servidor).
 5. iOS (futuro): Universal Links con `apple-app-site-association` y Associated Domains.
