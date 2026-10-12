@@ -1,0 +1,13 @@
+<!--
+  PLANTILLA (BLOCKED_DECISION). Pegar dentro de <activity android:name=".MainActivity"> en
+  mobile/android/app/src/main/AndroidManifest.xml SOLO cuando el propietario defina el dominio final.
+  Sustituir REPLACE_WITH_APP_LINK_HOST por el host de producción (p. ej. el dominio propio). No usar comodines.
+  Con android:autoVerify="true" Android verifica https://<host>/.well-known/assetlinks.json en la instalación.
+-->
+<intent-filter android:autoVerify="true">
+    <action android:name="android.intent.action.VIEW" />
+    <category android:name="android.intent.category.DEFAULT" />
+    <category android:name="android.intent.category.BROWSABLE" />
+    <data android:scheme="https" android:host="REPLACE_WITH_APP_LINK_HOST" android:pathPrefix="/j/" />
+    <data android:scheme="https" android:host="REPLACE_WITH_APP_LINK_HOST" android:pathPrefix="/p/" />
+</intent-filter>

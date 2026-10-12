@@ -1,0 +1,25 @@
+{
+  "name": "sportleagues-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Wrapper Capacitor (Android) que reutiliza el build web de apps/platform. Paquete aislado: no contamina el package.json raíz.",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "doctor": "cap doctor",
+    "build:web": "npm --prefix .. run build",
+    "add:android": "cap add android",
+    "sync": "npm run build:web && cap sync android",
+    "open:android": "cap open android",
+    "build:android": "node scripts/build-android.mjs",
+    "icons": "powershell -ExecutionPolicy Bypass -File scripts/generate-icons.ps1"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.5.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.3"
+  }
+}
