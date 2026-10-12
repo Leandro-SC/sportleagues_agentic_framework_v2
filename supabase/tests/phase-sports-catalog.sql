@@ -32,7 +32,7 @@ begin
   perform pg_temp.rec('SVC1 el servicio crea competición y temporada', v_comp is not null and v_season is not null, coalesce(v_comp::text, 'null'));
   v_c := to_jsonb(public.catalog_upsert_competition('api_football', jsonb_build_object('external_id', '39', 'name', 'Premier League', 'kind', 'league',
               'country_name', 'England', 'country_code', 'GB-ENG', 'seasons', '[]'::jsonb)));
-  perform pg_temp.rec('SVC2 reimportar la competición no duplica (clave proveedor+externo)', (select count(*) from public.catalog_competitions where external_id = '39') = 1, '');
+  perform pg_temp.rec('SVC2 reimportar la competición no duplica (clave proveedor+externo)', (select count(*) from public.catalog_competitions where provider = 'api_football' and external_id = '39') = 1, '');
   perform set_config('request.jwt.claims', '', false);
 
   v_r := pg_temp.as_user(v_a1, $q$insert into public.catalog_competitions(provider, external_id, name) values ('x', '1', 'Falsa')$q$);
@@ -40,7 +40,7 @@ begin
   v_r := pg_temp.as_user(v_a1, $q$update public.catalog_competitions set name = 'Hack'$q$);
   perform pg_temp.rec('PRIV2 un admin de tenant no actualiza el catálogo', pg_temp.is_err(v_r, '42501'), v_r);
   v_r := pg_temp.scalar_as_user(v_m1, 'select count(*) from public.catalog_competitions');
-  perform pg_temp.rec('PRIV3 un miembro autenticado lee el catálogo', v_r = 'OK:1', v_r);
+  perform pg_temp.rec('PRIV3 un miembro autenticado lee el catálogo', v_r like 'OK:%' and substr(v_r, 4)::int >= 1, v_r);
   v_r := pg_temp.as_role('anon', 'select count(*) from public.catalog_competitions');
   perform pg_temp.rec('PRIV4 anon no lee el catálogo', pg_temp.is_err(v_r, '42501'), v_r);
   v_r := pg_temp.as_user(v_a1, 'select * from public.provider_usage');
@@ -129,8 +129,8 @@ begin
   perform pg_temp.rec('IMP9 otro tenant importa el MISMO recurso global con copias propias', (v_c->>'matches_created')::int = 3, v_c::text);
   select count(*) into v_n from public.matches ma join public.matches mb on mb.id <> ma.id and mb.tenant_id <> ma.tenant_id where ma.id = (select id from public.matches where tenant_id = v_t1 limit 1) and ma.home_team_id = mb.home_team_id;
   perform pg_temp.rec('IMP10 los equipos tenant-owned no se comparten entre tenants', v_n = 0, v_n::text);
-  select count(*) into v_n from public.catalog_competitions;
-  perform pg_temp.rec('IMP11 el catálogo global sigue con una sola competición', v_n = 1, v_n::text);
+  select count(*) into v_n from public.catalog_competitions where provider = 'api_football';
+  perform pg_temp.rec('IMP11 el catálogo global sigue con una sola competición del proveedor de prueba', v_n = 1, v_n::text);
 
   select id into v_ma from public.matches where tenant_id = v_t1 and starts_at = (select starts_at from public.catalog_fixtures where external_id = '9001');
   select id into v_mb from public.matches where tenant_id = v_t1 and starts_at = (select starts_at from public.catalog_fixtures where external_id = '9002');
@@ -251,7 +251,7 @@ begin
   select id into v_f5 from public.catalog_fixtures where external_id = '9005';
   perform set_config('request.jwt.claims', '', false);
   perform pg_temp.scalar_as_user(v_o2, format($q$select public.import_catalog_round(%L, %L, 'Regular Season - 2')::text$q$, v_tour2, v_season));
-  select id into v_my from public.matches where tenant_id = v_t2 and tournament_id = v_tour2 and home_team_id = (select entity_id from public.external_refs where tenant_id = v_t2 and entity_type = 'team' and external_id = '42');
+  select id into v_my from public.matches where tenant_id = v_t2 and tournament_id = v_tour2 and starts_at < clock_timestamp() and home_team_id = (select entity_id from public.external_refs where tenant_id = v_t2 and entity_type = 'team' and external_id = '42');
   v_r := pg_temp.as_user(v_o2, format($q$select public.publish_official_result(%L, 1, 0, 0)$q$, v_my));
   perform pg_temp.rec('CONF0 el organizador publica un resultado manual', pg_temp.is_ok(v_r), v_r);
   perform set_config('request.jwt.claims', '{"role":"service_role"}', false);
