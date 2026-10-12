@@ -37,3 +37,5 @@ D22 (baja/offboarding de tenants y supresión de PII) sigue **pendiente** como r
 2026-10-11/12 (tickets): +2 ejecuciones de `tickets-flow.mjs` y +1 de `mvp-flow.mjs` (total: tickets-flow 2, mvp-flow 7).
 
 2026-10-12 (catálogo híbrido): +1 ejecución de `catalog-flow.mjs` (tenants `CAE-*`, 5 usuarios `cae-*@example.test`), +1 de `mvp-flow.mjs` y +1 de `tickets-flow.mjs` (regresión). `catalog-concurrency.mjs` limpia su propio registro de `catalog_import_jobs` (una ejecución previa dejó un registro `conc-test:*` que se eliminó manualmente). El catálogo cargado en QA (`provider='wikidata'`) es dato real de fuente abierta, no residuo.
+
+2026-10-12 (verificación posterior a `20261022000100`, por decisión del propietario): +1 ejecución de `mvp-flow.mjs` (tenants `E2E-14c8af65` y `-B`, 5 usuarios `e2e-*@example.test`) y +1 de `tickets-flow.mjs` (tenant `TKE-b2ba4334`, 6 usuarios `tke-*@example.test`). Resultado 32/32 y 24/24. Totales: mvp-flow 8, tickets-flow 3. Las suites SQL de regresión corrieron en modo rollback (0 filas persistidas).
