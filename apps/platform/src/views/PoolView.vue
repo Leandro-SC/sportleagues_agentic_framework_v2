@@ -3,10 +3,12 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { LoaderCircle } from 'lucide-vue-next'
 import AppShell from '../components/AppShell.vue'
+import ClosingSoonBanner from '../components/ClosingSoonBanner.vue'
 import EmptyState from '../components/EmptyState.vue'
 import EvolutionChart from '../components/EvolutionChart.vue'
 import ErrorState from '../components/ErrorState.vue'
 import PoolCard from '../components/PoolCard.vue'
+import PoolTicketsPanel from '../components/PoolTicketsPanel.vue'
 import PredictionMatchCard from '../components/PredictionMatchCard.vue'
 import RankingRow from '../components/RankingRow.vue'
 import ScreenHeader from '../components/ScreenHeader.vue'
@@ -43,6 +45,9 @@ const grouped = computed(() => {
   }
   return [...groups.values()]
 })
+const closingClassic = computed(() => play.ticketMode.value === 'tickets' || !play.canPredict.value ? [] : play.fixture.value
+  .filter((item) => item.status === 'scheduled' && !item.mine)
+  .map((item) => ({ key: item.matchId, label: `${item.homeName} vs ${item.awayName} sin pronóstico`, closesAt: item.lockAt })))
 const rosterNotice = computed(() => {
   if (play.participation.value === 'pending') return 'Tu inscripción está pendiente de aprobación del organizador.'
   if (play.participation.value === 'none') return 'Administras esta quiniela o aún no te has inscrito: puedes ver la parrilla, pero no pronosticar.'
@@ -88,6 +93,8 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
         <template v-else>
           <p v-if="rosterNotice" class="rounded-xl bg-surface-2 p-3 text-sm text-text-muted" role="status">{{ rosterNotice }}</p>
 
+          <ClosingSoonBanner :items="closingClassic" :now="now" />
+
           <section v-if="tab === 'summary'" class="space-y-6">
             <div v-if="play.myRow.value" class="app-surface flex items-center justify-between p-4">
               <div><p class="text-xs text-text-muted">Tu posición</p><p class="font-display text-2xl font-bold text-text">#{{ play.myRow.value.rank }}</p></div>
@@ -105,7 +112,12 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
               <ShareFlyerButton :input="{ kind: 'my-result', poolName: access.pool.value.name, playerName: auth.state.profile?.display_name ?? 'Jugador', rank: stats.stats.value.rank, participants: stats.stats.value.participants, points: stats.stats.value.points, exactHits: stats.stats.value.exact_hits, currentStreak: stats.stats.value.current_streak }"
                 filename="mi-resultado.png" title="Mi resultado en SportLeagues" label="Compartir mi resultado" />
             </div>
-            <div>
+            <div v-if="play.ticketMode.value === 'tickets'" class="app-surface space-y-3 p-4">
+              <h2 class="font-display text-base font-bold text-text">Esta quiniela usa tickets</h2>
+              <p class="text-sm text-text-muted">Pronostica desde la pestaña Partidos: cada jornada tiene sus tickets y solo compite el mejor ticket enviado.</p>
+              <SecondaryButton @click="tab = 'matches'">Ir a mis tickets</SecondaryButton>
+            </div>
+            <div v-else>
               <h2 class="mb-3 font-display text-base font-bold text-text">Próximos partidos</h2>
               <EmptyState v-if="!nextMatches.length" title="Sin partidos abiertos" description="Cuando el organizador programe partidos aparecerán aquí." />
               <div v-else class="space-y-3">
@@ -114,6 +126,9 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
               </div>
             </div>
           </section>
+
+          <PoolTicketsPanel v-else-if="tab === 'matches' && play.ticketMode.value === 'tickets' && auth.state.user" :pool-id="access.pool.value.id" :profile-id="auth.state.user.id"
+            :fixture="play.fixture.value" :timezone="play.tenantTimezone.value" :now="now" :can-predict="play.canPredict.value" />
 
           <section v-else-if="tab === 'matches'" class="space-y-6">
             <EmptyState v-if="!grouped.length" title="Aún no hay partidos" description="El organizador todavía no cargó la parrilla de esta quiniela." />

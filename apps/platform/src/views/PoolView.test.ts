@@ -21,7 +21,7 @@ function setup(overrides: Record<string, unknown> = {}, access: Record<string, u
     loadPool: vi.fn().mockResolvedValue(undefined), ...(overrides.stats as object | undefined),
   }
   h.play = {
-    tenantTimezone: ref('America/Lima'), participation: ref('participant'), fixture: ref([item]), leaderboard: ref([{ rank: 1, participant_id: 'x', display_name: 'Ana', points: 12, exact_hits: 2, outcome_hits: 1, played: 3, current_streak: 3, best_streak: 3, is_me: true }]),
+    tenantTimezone: ref('America/Lima'), ticketMode: ref('none'), participation: ref('participant'), fixture: ref([item]), leaderboard: ref([{ rank: 1, participant_id: 'x', display_name: 'Ana', points: 12, exact_hits: 2, outcome_hits: 1, played: 3, current_streak: 3, best_streak: 3, is_me: true }]),
     rounds: ref([{ id: 'r1', name: 'Fecha 1' }]), loading: ref(false), error: ref(''), savingMatchId: ref(''), myRow: ref({ rank: 1, points: 12 }), canPredict: ref(true),
     load: vi.fn().mockResolvedValue(undefined), loadLeaderboard: vi.fn().mockResolvedValue(undefined), savePrediction: vi.fn().mockResolvedValue(null), ...overrides,
   }
@@ -96,6 +96,23 @@ describe('PoolView', () => {
     expect(wrapper.text()).toContain('2 exactos · racha 3')
     await wrapper.get('select').setValue('r1')
     expect(play().loadLeaderboard).toHaveBeenCalledWith('r1')
+  })
+
+  it('en una quiniela con tickets el resumen remite a la pestaña Partidos y esta muestra el panel de tickets', async () => {
+    setup({ ticketMode: ref('tickets') })
+    const wrapper = await mountView()
+    expect(wrapper.text()).toContain('Esta quiniela usa tickets')
+    expect(wrapper.find('form').exists()).toBe(false)
+    await tab(wrapper, 'Partidos').trigger('click')
+    expect(wrapper.find('[aria-label="Tickets de la quiniela"]').exists()).toBe(true)
+  })
+
+  it('avisa de los cierres próximos sin pronóstico (quiniela clásica)', async () => {
+    const soon = { ...item, lockAt: new Date(Date.now() + 20 * 60_000).toISOString() }
+    setup({ fixture: ref([soon]) })
+    const wrapper = await mountView()
+    expect(wrapper.text()).toContain('Un cierre próximo')
+    expect(wrapper.text()).toContain('Alianza vs Cristal sin pronóstico')
   })
 
   it('niega el acceso con un mensaje y no carga datos', async () => {

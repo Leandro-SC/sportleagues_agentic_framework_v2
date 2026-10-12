@@ -20,8 +20,7 @@ describe('useSportsCatalog', () => {
       expect(sports.loading.value).toBe(true)
       expect(sports.catalog.value.matches).toEqual([])
 
-      await flushPromises()
-      expect(sports.loading.value).toBe(false)
+      await vi.waitFor(() => expect(sports.loading.value).toBe(false))   // el import() dinámico puede tardar más de un flush con la máquina cargada
       expect(sports.failed.value).toBe(false)
       expect(sports.catalog.value.matches.length).toBeGreaterThan(0)
       expect(sports.team('america')?.name).toBe('América')
@@ -32,7 +31,7 @@ describe('useSportsCatalog', () => {
     it('loads the dataset once and shares it between consumers', async () => {
       const first = useSportsCatalog()
       const second = useSportsCatalog()
-      await flushPromises()
+      await vi.waitFor(() => expect(first.loading.value).toBe(false))
       expect(second.catalog.value).toBe(first.catalog.value)
     })
   })
