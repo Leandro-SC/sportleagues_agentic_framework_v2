@@ -14,7 +14,7 @@ import { useSuperadmin } from './composables/useSuperadmin'
 import { useTenantAdminAccess } from './composables/useTenantAdminAccess'
 import { platformAdminRedirect, protectedRouteRedirect, tenantAdminRedirect } from './lib/navigation-guards'
 
-const GUARDED_ROUTES = ['points', 'onboarding', 'reset-password', 'pool', 'profile', 'matches', 'leagues', 'league-join', 'league', 'team']
+const GUARDED_ROUTES = ['points', 'my-tickets', 'onboarding', 'reset-password', 'pool', 'profile', 'matches', 'leagues', 'league-join', 'league', 'team']
 
 // Set while `/admin` or `/superadmin` are resolving their role check, so App.vue can show a
 // sober loading state instead of the previous route's content (or nothing) during that gap —
@@ -32,6 +32,7 @@ export const router = createRouter({
     { path: '/p/:poolId', name: 'pool', component: PoolView, props: true },
     { path: '/perfil', name: 'profile', component: ProfileView },
     { path: '/mis-puntos', name: 'points', component: () => import('./views/PointsView.vue') },
+    { path: '/mis-tickets', name: 'my-tickets', component: () => import('./views/MyTicketsView.vue') },
     { path: '/organizador', name: 'organizer-dashboard', component: () => import('./views/OrganizerDashboardView.vue') },
     { path: '/admin/ingresos', name: 'admin-income', component: () => import('./views/AdminIncomeView.vue') },
     { path: '/admin/parrilla', name: 'admin-fixture', component: () => import('./views/AdminFixtureView.vue') },

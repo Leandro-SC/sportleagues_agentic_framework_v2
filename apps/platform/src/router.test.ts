@@ -31,6 +31,7 @@ describe('route table', () => {
     expect(router.resolve('/ligas/unirme').name).toBe('league-join')
     expect(router.resolve('/j/AB12CD').name).toBe('join')
     expect(router.resolve('/mis-puntos').name).toBe('points')
+    expect(router.resolve('/mis-tickets').name).toBe('my-tickets')
     expect(router.resolve('/admin/ingresos').name).toBe('admin-income')
     expect(router.resolve('/admin/parrilla').name).toBe('admin-fixture')
     expect(router.resolve('/organizador').name).toBe('organizer-dashboard')

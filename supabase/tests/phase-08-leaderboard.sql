@@ -86,6 +86,26 @@ begin
   v_res := pg_temp.scalar_as_user(v_o, format($q$select count(*) from public.pool_leaderboard(%L)$q$, v_pool));
   perform pg_temp.rec('LB12 el organizador ve la tabla y no figura como participante', v_res = 'OK:3', v_res);
 
+  -- estadísticas, evolución y resumen (misma fuente que la tabla)
+  v_body := pg_temp.scalar_as_user(v_p, format($q$select string_agg(round_name || '/' || my_points || '/' || my_cumulative || '/' || avg_points || '/' || best_points, ' ; ' order by sort_order) from public.pool_points_evolution(%L)$q$, v_pool));
+  perform pg_temp.rec('ST1 evolución por jornada (R1: 7 → 7, media 6.33; R2: 5 → 12, media 1.67)', v_body = 'OK:R1/7/7/6.33/7 ; R2/5/12/1.67/5', v_body);
+  v_body := pg_temp.scalar_as_user(v_p, format($q$select rank || '/' || participants || '/' || points || '/' || exact_hits || '/' || outcome_hits || '/' || results_count || '/' || played || '/' || hit_rate || '/' || avg_points || '/' || best_round_points || '/' || current_streak || '/' || best_streak from public.my_pool_stats(%L)$q$, v_pool));
+  perform pg_temp.rec('ST2 mis estadísticas: #1 de 3, 12 pts, 2 exactos, 1 signo, acierto 100 %, media 4.00, mejor jornada 7, racha 3', v_body = 'OK:1/3/12/2/1/3/3/1.00/4.00/7/3/3', v_body);
+  v_body := pg_temp.scalar_as_user(v_p, 'select pool_name || ''/'' || rank || ''/'' || participants || ''/'' || points from public.my_points_summary()');
+  perform pg_temp.rec('ST3 «Mis puntos» lista mi quiniela con rango y puntos reales', v_body = 'OK:LB pool/1/3/12', v_body);
+  v_res := pg_temp.scalar_as_user(v_mem, format($q$select count(*) from public.my_pool_stats(%L)$q$, v_pool));
+  perform pg_temp.rec('ST4 quien no participa no tiene estadísticas propias (0 filas)', v_res = 'OK:0', v_res);
+  v_res := pg_temp.scalar_as_user(v_mem, format($q$select count(*) from public.pool_points_evolution(%L) where my_points is null$q$, v_pool));
+  perform pg_temp.rec('ST5 su evolución propia es nula (no se inventa)', v_res = 'OK:2', v_res);
+  v_res := pg_temp.scalar_as_user(v_mem, 'select count(*) from public.my_points_summary()');
+  perform pg_temp.rec('ST6 «Mis puntos» vacío para quien no participa', v_res = 'OK:0', v_res);
+  v_res := pg_temp.as_user(v_out, format($q$select * from public.pool_points_evolution(%L)$q$, v_pool));
+  perform pg_temp.rec('ST7 un ajeno al tenant no lee la evolución', pg_temp.is_err(v_res, '42501'), v_res);
+  v_res := pg_temp.as_user(v_out, format($q$select * from public.my_pool_stats(%L)$q$, v_pool));
+  perform pg_temp.rec('ST8 ni las estadísticas', pg_temp.is_err(v_res, '42501'), v_res);
+  v_res := pg_temp.as_role('anon', 'select * from public.my_points_summary()');
+  perform pg_temp.rec('ST9 anon no ejecuta el resumen', pg_temp.is_err(v_res, '42501'), v_res);
+
   -- un participante retirado desaparece de la tabla
   update public.participants set withdrawn_at = now(), withdrawn_by = v_r where id = v_pr;
   v_res := pg_temp.scalar_as_user(v_p, format($q$select count(*) from public.pool_leaderboard(%L)$q$, v_pool));

@@ -4,16 +4,22 @@ import { ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import PoolView from './PoolView.vue'
 
-const h = vi.hoisted(() => ({ access: {} as Record<string, unknown>, play: {} as Record<string, unknown> }))
+const h = vi.hoisted(() => ({ access: {} as Record<string, unknown>, play: {} as Record<string, unknown>, stats: {} as Record<string, unknown> }))
 vi.mock('../composables/useAuth', () => ({ useAuth: () => ({ state: { profile: { id: 'me', display_name: 'Ana' }, user: { id: 'me' } }, isAuthenticated: { value: true } }) }))
 vi.mock('../composables/usePoolAccess', () => ({ usePoolAccess: () => h.access }))
 vi.mock('../composables/usePoolPlay', () => ({ usePoolPlay: () => h.play }))
+vi.mock('../composables/usePoolStats', () => ({ usePoolStats: () => h.stats }))
 
 const future = new Date(Date.now() + 3 * 3600_000).toISOString()
 const item = { poolMatchId: 'pm1', matchId: 'm1', roundId: 'r1', roundName: 'Fecha 1', roundOrder: 1, homeName: 'Alianza', awayName: 'Cristal', homeShort: null, awayShort: null, startsAt: future, lockAt: new Date(Date.now() + 2 * 3600_000).toISOString(), status: 'scheduled', mine: null, result: null, points: null }
 
 function setup(overrides: Record<string, unknown> = {}, access: Record<string, unknown> = {}) {
   h.access = { pool: ref({ id: 'p1', name: 'Quiniela A' }), denied: ref(false), error: ref(''), loading: ref(false), load: vi.fn().mockResolvedValue(undefined), ...access }
+  h.stats = {
+    stats: ref({ rank: 1, participants: 3, points: 12, exact_hits: 2, outcome_hits: 1, results_count: 3, played: 3, hit_rate: 1, avg_points: 4, best_round_points: 7, current_streak: 3, best_streak: 3 }),
+    evolution: ref([{ round_id: 'r1', round_name: 'R1', sort_order: 1, my_points: 7, my_cumulative: 7, avg_points: 6.33, best_points: 7 }, { round_id: 'r2', round_name: 'R2', sort_order: 2, my_points: 5, my_cumulative: 12, avg_points: 1.67, best_points: 5 }]),
+    loadPool: vi.fn().mockResolvedValue(undefined), ...(overrides.stats as object | undefined),
+  }
   h.play = {
     tenantTimezone: ref('America/Lima'), participation: ref('participant'), fixture: ref([item]), leaderboard: ref([{ rank: 1, participant_id: 'x', display_name: 'Ana', points: 12, exact_hits: 2, outcome_hits: 1, played: 3, current_streak: 3, best_streak: 3, is_me: true }]),
     rounds: ref([{ id: 'r1', name: 'Fecha 1' }]), loading: ref(false), error: ref(''), savingMatchId: ref(''), myRow: ref({ rank: 1, points: 12 }), canPredict: ref(true),
@@ -41,6 +47,21 @@ describe('PoolView', () => {
   it('carga la parrilla del jugador autenticado una vez verificado el acceso', async () => {
     await mountView()
     expect(play().load).toHaveBeenCalledWith('p1', 'me')
+  })
+
+  it('el resumen muestra rendimiento real del servidor, evolución y el botón de compartir', async () => {
+    const wrapper = await mountView()
+    expect(wrapper.text()).toContain('Tu rendimiento')
+    expect(wrapper.text()).toContain('100%')
+    expect(wrapper.text()).toContain('Racha actual 3')
+    expect(wrapper.find('svg[role="img"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Compartir mi resultado')
+  })
+
+  it('sin estadísticas (no participa) no muestra bloque de rendimiento ni cifras inventadas', async () => {
+    setup({ stats: { stats: ref(null) } })
+    const wrapper = await mountView()
+    expect(wrapper.text()).not.toContain('Tu rendimiento')
   })
 
   it('el resumen muestra la posición propia y los próximos partidos', async () => {

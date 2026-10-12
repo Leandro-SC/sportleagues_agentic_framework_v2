@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { LoaderCircle } from 'lucide-vue-next'
 import AppShell from '../components/AppShell.vue'
 import EmptyState from '../components/EmptyState.vue'
+import EvolutionChart from '../components/EvolutionChart.vue'
 import ErrorState from '../components/ErrorState.vue'
 import PoolCard from '../components/PoolCard.vue'
 import PredictionMatchCard from '../components/PredictionMatchCard.vue'
@@ -11,8 +12,11 @@ import RankingRow from '../components/RankingRow.vue'
 import ScreenHeader from '../components/ScreenHeader.vue'
 import SecondaryButton from '../components/SecondaryButton.vue'
 import SegmentedTabs from '../components/SegmentedTabs.vue'
+import ShareFlyerButton from '../components/ShareFlyerButton.vue'
+import StatChip from '../components/StatChip.vue'
 import { usePoolAccess } from '../composables/usePoolAccess'
 import { usePoolPlay } from '../composables/usePoolPlay'
+import { usePoolStats } from '../composables/usePoolStats'
 import { useAuth } from '../composables/useAuth'
 
 type Tab = 'summary' | 'matches' | 'table'
@@ -21,6 +25,7 @@ const route = useRoute()
 const auth = useAuth()
 const access = usePoolAccess()
 const play = usePoolPlay()
+const stats = usePoolStats()
 
 const tab = ref<Tab>('summary')
 const tabs: { value: Tab; label: string }[] = [{ value: 'summary', label: 'Resumen' }, { value: 'matches', label: 'Partidos' }, { value: 'table', label: 'Tabla' }]
@@ -53,7 +58,7 @@ watch(
   () => route.params.poolId,
   (poolId) => {
     const id = typeof poolId === 'string' ? poolId : ''
-    void access.load(id).then(() => { if (access.pool.value && auth.state.user) void play.load(id, auth.state.user.id) })
+    void access.load(id).then(() => { if (access.pool.value && auth.state.user) { void play.load(id, auth.state.user.id); void stats.loadPool(id) } })
   },
   { immediate: true },
 )
@@ -88,6 +93,18 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
               <div><p class="text-xs text-text-muted">Tu posición</p><p class="font-display text-2xl font-bold text-text">#{{ play.myRow.value.rank }}</p></div>
               <div class="text-right"><p class="text-xs text-text-muted">Puntos</p><p class="font-display text-2xl font-bold text-primary">{{ play.myRow.value.points }}</p></div>
             </div>
+            <div v-if="stats.stats.value" class="app-surface space-y-4 p-4">
+              <h2 class="font-display text-base font-bold text-text">Tu rendimiento</h2>
+              <div class="grid grid-cols-3 gap-2 text-center">
+                <div class="rounded-xl bg-surface-2 p-2"><p class="font-display text-lg font-bold text-text">{{ Math.round(stats.stats.value.hit_rate * 100) }}%</p><p class="text-[11px] text-text-muted">Acierto</p></div>
+                <div class="rounded-xl bg-surface-2 p-2"><p class="font-display text-lg font-bold text-text">{{ stats.stats.value.exact_hits }}</p><p class="text-[11px] text-text-muted">Exactos</p></div>
+                <div class="rounded-xl bg-surface-2 p-2"><p class="font-display text-lg font-bold text-text">{{ stats.stats.value.avg_points.toFixed(1) }}</p><p class="text-[11px] text-text-muted">Pts/partido</p></div>
+              </div>
+              <div class="flex flex-wrap gap-2"><StatChip :label="`Racha actual ${stats.stats.value.current_streak}`" tone="success" /><StatChip :label="`Mejor racha ${stats.stats.value.best_streak}`" /><StatChip :label="`Mejor jornada ${stats.stats.value.best_round_points} pts`" /></div>
+              <EvolutionChart :points="stats.evolution.value" />
+              <ShareFlyerButton :input="{ kind: 'my-result', poolName: access.pool.value.name, playerName: auth.state.profile?.display_name ?? 'Jugador', rank: stats.stats.value.rank, participants: stats.stats.value.participants, points: stats.stats.value.points, exactHits: stats.stats.value.exact_hits, currentStreak: stats.stats.value.current_streak }"
+                filename="mi-resultado.png" title="Mi resultado en SportLeagues" label="Compartir mi resultado" />
+            </div>
             <div>
               <h2 class="mb-3 font-display text-base font-bold text-text">Próximos partidos</h2>
               <EmptyState v-if="!nextMatches.length" title="Sin partidos abiertos" description="Cuando el organizador programe partidos aparecerán aquí." />
@@ -121,6 +138,8 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
               <RankingRow v-for="row in play.leaderboard.value" :key="row.participant_id" :position="row.rank" :name="row.display_name" :points="row.points" :is-current-user="row.is_me"
                 :detail="`${row.exact_hits} exactos · racha ${row.current_streak}`" />
             </div>
+            <ShareFlyerButton v-if="play.leaderboard.value.length" :input="{ kind: 'ranking', poolName: access.pool.value.name, scopeLabel: roundFilter ? (play.rounds.value.find((r) => r.id === roundFilter)?.name ?? 'Jornada') : 'Tabla general', rows: play.leaderboard.value.map((r) => ({ rank: r.rank, name: r.display_name, points: r.points, isMe: r.is_me })) }"
+              filename="tabla.png" title="Tabla de posiciones" label="Compartir tabla" />
           </section>
         </template>
       </template>

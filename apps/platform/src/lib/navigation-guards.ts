@@ -1,4 +1,4 @@
-const PROFILE_REQUIRED = new Set(['pool', 'profile', 'points', 'matches', 'leagues', 'league-join', 'league', 'team'])
+const PROFILE_REQUIRED = new Set(['pool', 'profile', 'points', 'my-tickets', 'matches', 'leagues', 'league-join', 'league', 'team'])
 
 export function protectedRouteRedirect(routeName: string, authenticated: boolean, hasProfile: boolean): 'home' | 'onboarding' | null {
   if (!['onboarding', 'reset-password', ...PROFILE_REQUIRED].includes(routeName)) return null
