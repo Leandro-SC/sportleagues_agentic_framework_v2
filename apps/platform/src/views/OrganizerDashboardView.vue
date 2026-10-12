@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, watch } from 'vue'
+import { onBeforeUnmount, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ChartNoAxesCombined, ShieldCheck, Trophy, UsersRound, Wallet, CalendarClock } from 'lucide-vue-next'
 import AppShell from '../components/AppShell.vue'
@@ -8,15 +8,23 @@ import EmptyState from '../components/EmptyState.vue'
 import SecondaryButton from '../components/SecondaryButton.vue'
 import { useAuth } from '../composables/useAuth'
 import { useAdmin } from '../composables/useAdmin'
+import { useIdentityWatch } from '../composables/useIdentityWatch'
 
 const router = useRouter()
 const auth = useAuth()
-const admin = useAdmin()
+// Solo organizaciones y quinielas: sin lectura de branding ni polling (FE-03).
+const admin = useAdmin({ branding: false })
 const roleLabel = (role: string): string => (role === 'owner' ? 'Propietario' : 'Administrador')
 
 function reload(): void { if (auth.state.user) void admin.load(auth.state.user.id) }
 onMounted(reload)
 watch(admin.selectedTenantId, (tenantId, previousId) => { if (previousId && tenantId !== previousId) void admin.loadPools() })
+// Otra identidad en la misma pestaña (FE-05): descarta lo cargado y recarga, o sale si ya no hay sesión.
+useIdentityWatch(auth, {
+  onChange: (userId) => { admin.reset(); void admin.load(userId) },
+  onSignedOut: () => { admin.reset(); void router.replace({ name: 'home' }) },
+})
+onBeforeUnmount(admin.dispose)
 </script>
 
 <template>

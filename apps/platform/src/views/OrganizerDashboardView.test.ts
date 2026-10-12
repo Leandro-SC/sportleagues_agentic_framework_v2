@@ -1,17 +1,18 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
+import { reactive, ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import OrganizerDashboardView from './OrganizerDashboardView.vue'
 
-const h = vi.hoisted(() => ({ admin: {} as Record<string, unknown> }))
-vi.mock('../composables/useAuth', () => ({ useAuth: () => ({ state: { profile: { id: 'me', display_name: 'Ana' }, user: { id: 'me' } } }) }))
-vi.mock('../composables/useAdmin', () => ({ useAdmin: () => h.admin }))
+const h = vi.hoisted(() => ({ admin: {} as Record<string, unknown>, auth: {} as Record<string, unknown>, useAdminOptions: [] as unknown[] }))
+vi.mock('../composables/useAuth', () => ({ useAuth: () => ({ state: h.auth }) }))
+vi.mock('../composables/useAdmin', () => ({ useAdmin: (options?: unknown) => { h.useAdminOptions.push(options); return h.admin } }))
 
 function setupAdmin(overrides: Record<string, unknown> = {}) {
+  h.auth = reactive({ profile: { id: 'me', display_name: 'Ana' }, user: { id: 'me' } })
   h.admin = {
     tenants: ref([{ tenant_id: 'aaaaaaaa-1', role: 'owner', plan_code: 'free' }]), pools: ref([{ id: 'p1' }]), selectedTenantId: ref('aaaaaaaa-1'),
-    loading: ref(false), error: ref(''), load: vi.fn().mockResolvedValue(undefined), loadPools: vi.fn().mockResolvedValue(undefined), ...overrides,
+    loading: ref(false), error: ref(''), load: vi.fn().mockResolvedValue(undefined), loadPools: vi.fn().mockResolvedValue(undefined), reset: vi.fn(), dispose: vi.fn(), ...overrides,
   }
 }
 
@@ -69,5 +70,40 @@ describe('OrganizerDashboardView', () => {
     const empty = (await mountDashboard()).wrapper
     expect(empty.text()).toContain('Sin organizaciones administrables')
     expect(empty.text()).toContain('Mi perfil')
+  })
+})
+
+describe('OrganizerDashboardView - ciclo de vida e identidad (FE-03, FE-05)', () => {
+  it('FE-03: al desmontar llama a dispose() (detiene cualquier polling del composable)', async () => {
+    const { wrapper } = await mountDashboard()
+    const dispose = (h.admin as { dispose: ReturnType<typeof vi.fn> }).dispose
+    expect(dispose).not.toHaveBeenCalled()
+    wrapper.unmount()
+    expect(dispose).toHaveBeenCalledTimes(1)
+  })
+
+  it('FE-05: si otra pestaña inicia sesión con otro usuario descarta lo cargado y recarga con el nuevo id', async () => {
+    await mountDashboard()
+    const admin = h.admin as { load: ReturnType<typeof vi.fn>; reset: ReturnType<typeof vi.fn> }
+    expect(admin.load).toHaveBeenCalledTimes(1)
+    expect(admin.load).toHaveBeenLastCalledWith('me')
+    ;(h.auth as { user: { id: string } | null }).user = { id: 'otro' }
+    await flushPromises()
+    expect(admin.reset).toHaveBeenCalledTimes(1)
+    expect(admin.load).toHaveBeenCalledTimes(2)
+    expect(admin.load).toHaveBeenLastCalledWith('otro')
+  })
+
+  it('FE-05: si se cierra la sesión suelta los datos y vuelve a Inicio', async () => {
+    const { router } = await mountDashboard()
+    ;(h.auth as { user: unknown }).user = null
+    await flushPromises()
+    expect((h.admin as { reset: ReturnType<typeof vi.fn> }).reset).toHaveBeenCalledTimes(1)
+    expect(router.currentRoute.value.name).toBe('home')
+  })
+
+  it('FE-03: el panel no pide branding (no necesita colores ni imágenes ni polling)', async () => {
+    await mountDashboard()
+    expect(h.useAdminOptions).toContainEqual({ branding: false })
   })
 })

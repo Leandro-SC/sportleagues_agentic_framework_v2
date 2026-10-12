@@ -11,9 +11,10 @@ import PoolTicketsAdmin from '../components/PoolTicketsAdmin.vue'
 import PrimaryButton from '../components/PrimaryButton.vue'
 import SecondaryButton from '../components/SecondaryButton.vue'
 import StatChip from '../components/StatChip.vue'
-import { freeLimitMessage, lockMinutesFromInterval, validatePoints, validatePoolName } from '../lib/admin-contracts'
-import { useAdmin } from '../composables/useAdmin'
+import { freeLimitMessage, lockMinutesFromInterval, parseLockMinutesInput, parsePointsInput, validatePoints, validatePoolName } from '../lib/admin-contracts'
+import { BRANDING_COLORS_UNAVAILABLE, useAdmin } from '../composables/useAdmin'
 import { useAuth } from '../composables/useAuth'
+import { useIdentityWatch } from '../composables/useIdentityWatch'
 
 const router = useRouter()
 const auth = useAuth()
@@ -24,8 +25,9 @@ const requiresApproval = ref(false)
 const exactPoints = ref('3')
 const outcomePoints = ref('1')
 const tieBreaker = ref<'exact_predictions' | 'prediction_submitted_at'>('exact_predictions')
-const primaryColor = ref('#2C48C7')
-const secondaryColor = ref('#05070D')
+// Parten vacíos y se rellenan con los colores GUARDADOS del tenant (FE-02), nunca con valores de ejemplo.
+const primaryColor = ref('')
+const secondaryColor = ref('')
 const notice = ref('')
 const formError = ref('')
 const joinCode = ref('')
@@ -41,17 +43,25 @@ const openingIsBlockedByFreeLimit = computed(() => (
 ))
 
 async function refreshTenant(): Promise<void> {
-  await Promise.all([admin.loadPools(), admin.loadBrandingAssets()])
+  await Promise.all([admin.loadPools(), admin.loadBrandingAssets(), admin.loadBrandingColors()])
+}
+
+function resetForms(): void {
+  poolName.value = ''; lockMinutes.value = '15'; requiresApproval.value = false
+  exactPoints.value = '3'; outcomePoints.value = '1'; tieBreaker.value = 'exact_predictions'
+  primaryColor.value = ''; secondaryColor.value = ''
+  notice.value = ''; formError.value = ''; joinCode.value = ''; brandingError.value = ''
 }
 
 async function savePool(): Promise<void> {
   formError.value = validatePoolName(poolName.value) ?? ''
-  const minutes = Number(lockMinutes.value)
-  if (!formError.value && (!Number.isInteger(minutes) || minutes < 0 || minutes > 1440)) formError.value = 'El bloqueo debe estar entre 0 y 1440 minutos.'
   if (formError.value) return
+  // Un bloqueo en blanco no es 0 minutos (FE-01).
+  const minutes = parseLockMinutesInput(lockMinutes.value)
+  if (!minutes.ok) { formError.value = minutes.message; return }
   const result = admin.selectedPool.value
-    ? await admin.updatePool('update', poolName.value, minutes, requiresApproval.value)
-    : await admin.createPool(poolName.value, minutes, requiresApproval.value)
+    ? await admin.updatePool('update', poolName.value, minutes.value, requiresApproval.value)
+    : await admin.createPool(poolName.value, minutes.value, requiresApproval.value)
   if (result) { formError.value = result; return }
   notice.value = admin.selectedPool.value ? 'Configuración guardada.' : 'Quiniela creada.'
   if (!admin.selectedPool.value && admin.pools.value[0]) choosePool(admin.pools.value[0].id)
@@ -71,10 +81,14 @@ async function changeStatus(action: 'open' | 'pause' | 'archive'): Promise<void>
 }
 
 async function saveRules(): Promise<void> {
-  const exact = Number(exactPoints.value); const outcome = Number(outcomePoints.value)
-  formError.value = validatePoints(exact, outcome) ?? ''
+  // Puntos en blanco no son 0 (FE-01).
+  const exact = parsePointsInput(exactPoints.value, 'Puntos exacto')
+  if (!exact.ok) { formError.value = exact.message; return }
+  const outcome = parsePointsInput(outcomePoints.value, 'Puntos 1X2')
+  if (!outcome.ok) { formError.value = outcome.message; return }
+  formError.value = validatePoints(exact.value, outcome.value) ?? ''
   if (formError.value) return
-  const result = await admin.publishRules(exact, outcome, tieBreaker.value)
+  const result = await admin.publishRules(exact.value, outcome.value, tieBreaker.value)
   if (result) formError.value = result; else notice.value = 'Nueva versión de reglas publicada.'
 }
 
@@ -91,7 +105,10 @@ async function copyJoinCode(): Promise<void> {
 }
 
 async function saveBranding(): Promise<void> {
-  if (!/^#[0-9A-Fa-f]{6}$/.test(primaryColor.value) || !/^#[0-9A-Fa-f]{6}$/.test(secondaryColor.value)) { formError.value = 'Usa colores hexadecimales de seis dígitos.'; return }
+  // Sin los colores actuales del tenant no se guarda nada: se pisarían a ciegas (FE-02).
+  if (admin.brandingColorsStatus.value !== 'ready') { formError.value = BRANDING_COLORS_UNAVAILABLE; return }
+  const valid = (value: string): boolean => value.trim() === '' || /^#[0-9A-Fa-f]{6}$/.test(value.trim())
+  if (!valid(primaryColor.value) || !valid(secondaryColor.value)) { formError.value = 'Usa colores hexadecimales de seis dígitos.'; return }
   const result = await admin.saveBranding(primaryColor.value, secondaryColor.value)
   if (result) formError.value = result; else notice.value = 'Branding guardado.'
 }
@@ -120,7 +137,17 @@ watch(() => admin.rule.value, (rule) => {
   if (!rule) return
   exactPoints.value = String(rule.exact_points); outcomePoints.value = String(rule.outcome_points); tieBreaker.value = rule.tie_breaker
 })
-watch(() => admin.selectedTenantId.value, () => { void refreshTenant() })
+watch(() => admin.brandingColors.value, (colors) => {
+  primaryColor.value = colors?.primary ?? ''
+  secondaryColor.value = colors?.secondary ?? ''
+}, { immediate: true })
+// Solo el cambio de organización por el selector recarga: `load()` ya trae pools/branding/colores
+// del tenant inicial y no debe duplicarse al fijar `selectedTenantId` (FE-03).
+watch(() => admin.selectedTenantId.value, () => { if (!admin.loading.value) void refreshTenant() })
+useIdentityWatch(auth, {
+  onChange: (userId) => { admin.reset(); resetForms(); void admin.load(userId) },
+  onSignedOut: () => { admin.reset(); resetForms(); void router.replace({ name: 'home' }) },
+})
 onMounted(async () => { if (auth.state.user) await admin.load(auth.state.user.id) })
 onBeforeUnmount(admin.dispose)
 </script>
@@ -210,8 +237,9 @@ onBeforeUnmount(admin.dispose)
         <section class="app-surface p-4">
           <div class="mb-3 flex items-center gap-2"><Palette class="h-5 w-5 text-primary" /><h2 class="font-display font-bold text-text">Branding</h2></div>
           <p class="mb-3 text-sm text-text-muted">{{ planLabel === 'PRO' ? 'Personaliza los colores y la identidad visual de tu quiniela.' : 'El branding personalizado requiere PRO.' }}</p>
-          <div class="grid grid-cols-2 gap-3"><FormField id="primary-color" v-model="primaryColor" label="Color primario" :disabled="planLabel === 'FREE'" /><FormField id="secondary-color" v-model="secondaryColor" label="Color secundario" :disabled="planLabel === 'FREE'" /></div>
-          <PrimaryButton class="mt-3" :disabled="planLabel === 'FREE'" :loading="admin.saving.value" @click="saveBranding">Guardar branding</PrimaryButton>
+          <p v-if="planLabel === 'PRO' && admin.brandingColorsStatus.value === 'error'" class="mb-3 text-sm text-warn" role="status">{{ BRANDING_COLORS_UNAVAILABLE }}</p>
+          <div class="grid grid-cols-2 gap-3"><FormField id="primary-color" v-model="primaryColor" label="Color primario" placeholder="#2C48C7" :disabled="planLabel === 'FREE'" /><FormField id="secondary-color" v-model="secondaryColor" label="Color secundario" placeholder="#05070D" :disabled="planLabel === 'FREE'" /></div>
+          <PrimaryButton class="mt-3" :disabled="planLabel === 'FREE' || admin.brandingColorsStatus.value !== 'ready'" :loading="admin.saving.value" @click="saveBranding">Guardar branding</PrimaryButton>
 
           <div class="mt-6 border-t border-border pt-5">
             <div class="mb-4"><h3 class="font-display text-base font-bold text-text">Identidad visual</h3><p class="mt-1 text-sm text-text-muted">Las imágenes se optimizan y se guardan de forma privada.</p></div>

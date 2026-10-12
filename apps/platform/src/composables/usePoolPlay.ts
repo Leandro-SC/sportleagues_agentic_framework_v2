@@ -3,6 +3,7 @@ import { getSupabaseClient } from '../lib/supabase'
 import { humanizePredictionError } from '../lib/prediction-ux'
 import { describeSuggestionError, parseSuggestion, type ScorelineSuggestion } from '../lib/scoreline-suggestion'
 import { getOfflineCache, privateNamespace } from '../lib/offline-cache'
+import { readInChunks } from '../lib/chunks'
 import { dedupe } from '../lib/swr'
 import type { SportsAdminClient } from './useSportsAdmin'
 
@@ -34,7 +35,14 @@ export function poolCacheTtlMs(fixture: Pick<FixtureItem, 'status' | 'startsAt'>
 
 // Experiencia del participante (Fase 07/08): parrilla del pool con el lock que persiste el servidor, mis pronósticos, resultados y
 // tabla. Solo lectura bajo RLS + RPC `save_prediction` / `pool_leaderboard`; el cliente nunca decide permisos ni cierres.
-export function usePoolPlay(clientFactory: () => SportsAdminClient = () => getSupabaseClient() as unknown as SportsAdminClient) {
+//
+// `currentUserId` (FE-05): id del usuario autenticado AHORA. Las lecturas se hacen con el JWT vigente en cada momento; si entre el
+// inicio y el fin de una carga la identidad cambia (otra pestaña inicia sesión con otra cuenta), lo leído NO se pinta ni se escribe en
+// la caché privada `u:<profileId>` del usuario anterior. Sin getter (tests) no se comprueba.
+export function usePoolPlay(
+  clientFactory: () => SportsAdminClient = () => getSupabaseClient() as unknown as SportsAdminClient,
+  currentUserId?: () => string | null | undefined,
+) {
   const tenantTimezone = ref('UTC')
   const ticketMode = ref<'none' | 'tickets'>('none')
   const participation = ref<Participation>('none')
@@ -51,6 +59,7 @@ export function usePoolPlay(clientFactory: () => SportsAdminClient = () => getSu
   const updatedAt = ref<number | null>(null)
   let currentPoolId = ''
   let currentProfileId = ''
+  let loadToken = 0
 
   const myRow = computed(() => leaderboard.value.find((row) => row.is_me) ?? null)
   const canPredict = computed(() => participation.value === 'participant')
@@ -60,6 +69,10 @@ export function usePoolPlay(clientFactory: () => SportsAdminClient = () => getSu
     if (readError) throw new Error(readError.message)
     return (data ?? []) as Row[]
   }
+
+  // Filtros `.in()` troceados en lotes de 100 ids (FE-11): evita URL gigantes con parrillas de cientos de partidos.
+  const rowsIn = (table: string, columns: string, column: string, ids: readonly string[]): Promise<Row[]> =>
+    readInChunks(ids, (batch) => rows(table, columns, (q) => q.in(column, batch)))
 
   async function fetchSnapshot(poolId: string, profileId: string): Promise<PoolSnapshot> {
     const [pool] = await rows('pools', 'id, tenant_id, ticketing_mode', (q) => q.eq('id', poolId))
@@ -74,17 +87,17 @@ export function usePoolPlay(clientFactory: () => SportsAdminClient = () => getSu
 
     const poolMatches = await rows('pool_matches', 'id, match_id, lock_at', (q) => q.eq('pool_id', poolId))
     const matchIds = poolMatches.map((row) => row.match_id as string)
-    const matches = matchIds.length ? await rows('matches', 'id, round_id, home_team_id, away_team_id, starts_at, status', (q) => q.in('id', matchIds)) : []
+    const matches = await rowsIn('matches', 'id, round_id, home_team_id, away_team_id, starts_at, status', 'id', matchIds)
     const teamIds = [...new Set(matches.flatMap((m) => [m.home_team_id as string, m.away_team_id as string]))]
     const roundIds = [...new Set(matches.map((m) => m.round_id as string))]
     const [teams, roundRows, results, predictions] = await Promise.all([
-      teamIds.length ? rows('teams', 'id, name, short_name', (q) => q.in('id', teamIds)) : Promise.resolve([]),
-      roundIds.length ? rows('rounds', 'id, name, sort_order', (q) => q.in('id', roundIds)) : Promise.resolve([]),
-      matchIds.length ? rows('official_results', 'match_id, home_score, away_score, revision', (q) => q.in('match_id', matchIds)) : Promise.resolve([]),
+      rowsIn('teams', 'id, name, short_name', 'id', teamIds),
+      rowsIn('rounds', 'id, name, sort_order', 'id', roundIds),
+      rowsIn('official_results', 'match_id, home_score, away_score, revision', 'match_id', matchIds),
       me ? rows('predictions', 'id, pool_match_id, home_score, away_score, ticket_id', (q) => q.eq('pool_id', poolId).eq('participant_id', me.id as string)).then((list) => list.filter((p) => !p.ticket_id)) : Promise.resolve([]),   // con tickets, los pronósticos viven en el ticket (usePoolTickets)
     ])
     const predictionIds = predictions.map((p) => p.id as string)
-    const events = predictionIds.length ? await rows('scoring_events', 'prediction_id, points, result_revision, rule_version', (q) => q.in('prediction_id', predictionIds)) : []
+    const events = await rowsIn('scoring_events', 'prediction_id, points, result_revision, rule_version', 'prediction_id', predictionIds)
 
     const team = new Map(teams.map((t) => [t.id as string, t]))
     const round = new Map(roundRows.map((r) => [r.id as string, r]))
@@ -127,15 +140,30 @@ export function usePoolPlay(clientFactory: () => SportsAdminClient = () => getSu
    * Carga la quiniela. Con caché privada disponible: pinta al instante lo último guardado y revalida (o no toca la red si sigue fresco).
    * `force` (tras guardar un pronóstico) ignora la caché: lo que se muestre después de una escritura viene siempre del servidor.
    */
+  const sameIdentity = (profileId: string): boolean => !currentUserId || currentUserId() === profileId
+
+  /** Vacía lo mostrado (cambio de identidad): ningún dato del usuario anterior queda en pantalla. */
+  function reset(): void {
+    loadToken++
+    tenantTimezone.value = 'UTC'; ticketMode.value = 'none'; participation.value = 'none'
+    fixture.value = []; leaderboard.value = []; rounds.value = []
+    loading.value = false; error.value = ''; fromCache.value = false; offline.value = false; updatedAt.value = null
+    savingMatchId.value = ''; suggestingPoolMatchId.value = ''
+    currentPoolId = ''; currentProfileId = ''
+  }
+
   async function load(poolId: string, profileId: string, options: { force?: boolean } = {}): Promise<void> {
     currentPoolId = poolId; currentProfileId = profileId
+    const token = ++loadToken
     error.value = ''
     const cache = getOfflineCache()
+    const cacheGeneration = cache.privateGeneration // FE-10: una purga (cierre de sesión) durante la lectura invalida la escritura
     const ns = privateNamespace(profileId)
     const key = `pool:${poolId}`
     let painted = false
     if (!options.force) {
       const hit = await cache.get<PoolSnapshot>(ns, key, POOL_CACHE_VERSION)
+      if (token !== loadToken || !sameIdentity(profileId)) return
       if (hit) {
         apply(hit.value); painted = true; fromCache.value = true; updatedAt.value = hit.storedAt
         if (hit.fresh) { offline.value = false; return }
@@ -145,24 +173,31 @@ export function usePoolPlay(clientFactory: () => SportsAdminClient = () => getSu
     try {
       // Dos componentes que piden la misma quiniela a la vez comparten UNA ronda de lecturas.
       const snapshot = await dedupe(`${ns}|${key}`, () => fetchSnapshot(poolId, profileId))
+      // El snapshot se leyó con el JWT vigente durante la lectura: si ya es otra identidad, no es de `profileId`.
+      if (token !== loadToken || !sameIdentity(profileId)) return
       apply(snapshot)
       fromCache.value = false; offline.value = false; updatedAt.value = Date.now()
-      await cache.set(ns, key, snapshot, { version: POOL_CACHE_VERSION, ttlMs: poolCacheTtlMs(snapshot.fixture) })
+      await cache.set(ns, key, snapshot, { version: POOL_CACHE_VERSION, ttlMs: poolCacheTtlMs(snapshot.fixture), generation: cacheGeneration })
     } catch {
+      if (token !== loadToken || !sameIdentity(profileId)) return
       if (painted) offline.value = true // se conserva lo guardado y se avisa; no es un error bloqueante
       else error.value = 'No fue posible cargar la quiniela.'
     } finally {
-      loading.value = false
+      if (token === loadToken) loading.value = false
     }
   }
 
   async function loadLeaderboard(roundId: string | null = null): Promise<void> {
+    const profileId = currentProfileId
     const { data, error: rpcError } = await clientFactory().rpc('pool_leaderboard', { p_pool_id: currentPoolId, p_round_id: roundId })
+    if (!sameIdentity(profileId)) return
     leaderboard.value = rpcError ? [] : ((data ?? []) as LeaderRow[]).map((row) => ({ ...row, points: Number(row.points) }))
   }
 
   /** Guarda (o edita) el pronóstico. El servidor decide el cierre; el mensaje devuelto ya está listo para mostrarse. */
   async function savePrediction(matchId: string, home: number, away: number): Promise<string | null> {
+    // La quiniela en pantalla es de otra identidad: no se escribe con el JWT nuevo (FE-05).
+    if (!sameIdentity(currentProfileId)) return 'Tu sesión cambió. Vuelve a abrir la quiniela para continuar.'
     savingMatchId.value = matchId
     try {
       const { error: rpcError } = await clientFactory().rpc('save_prediction', { p_pool_id: currentPoolId, p_match_id: matchId, p_home_score: home, p_away_score: away })
@@ -200,5 +235,5 @@ export function usePoolPlay(clientFactory: () => SportsAdminClient = () => getSu
     }
   }
 
-  return { tenantTimezone, ticketMode, participation, fixture, leaderboard, rounds, loading, error, savingMatchId, myRow, canPredict, fromCache, offline, updatedAt, suggestAvailable, suggestingPoolMatchId, load, loadLeaderboard, savePrediction, suggestScoreline }
+  return { tenantTimezone, ticketMode, participation, fixture, leaderboard, rounds, loading, error, savingMatchId, myRow, canPredict, fromCache, offline, updatedAt, suggestAvailable, suggestingPoolMatchId, load, reset, loadLeaderboard, savePrediction, suggestScoreline }
 }

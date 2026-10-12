@@ -1,4 +1,5 @@
 import { computed, ref } from 'vue'
+import { readInChunks } from '../lib/chunks'
 import { getSupabaseClient } from '../lib/supabase'
 import { humanizeSportsRpcError, type MatchRow, type ResultRow, type ResultsMode, type RoundRow, type TeamRow, type TournamentRow } from '../lib/sports-admin'
 
@@ -92,7 +93,7 @@ export function useSportsAdmin(clientFactory: () => SportsAdminClient = () => ge
     rounds.value = await read<RoundRow>('rounds', (query) => query.eq('tournament_id', id).order('sort_order'))
     matches.value = await read<MatchRow>('matches', (query) => query.eq('tournament_id', id).order('starts_at'))
     const ids = matches.value.map((match) => match.id)
-    const resultRows = ids.length ? await read<ResultRow>('official_results', (query) => query.in('match_id', ids)) : []
+    const resultRows = await readInChunks(ids, (batch) => read<ResultRow>('official_results', (query) => query.in('match_id', batch)))
     results.value = Object.fromEntries(resultRows.map((row) => [row.match_id, row]))
   }
 

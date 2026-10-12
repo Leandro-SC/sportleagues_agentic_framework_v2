@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { CalendarClock, ChevronDown, ChevronUp, LoaderCircle, Trash2 } from 'lucide-vue-next'
 import AppShell from '../components/AppShell.vue'
@@ -14,18 +14,21 @@ import SecondaryButton from '../components/SecondaryButton.vue'
 import SegmentedTabs from '../components/SegmentedTabs.vue'
 import StatChip from '../components/StatChip.vue'
 import { lockMinutesFromInterval } from '../lib/admin-contracts'
+import { parseScoreInput } from '../lib/prediction-ux'
 import {
   SPORT_OPTIONS, isoToZonedLocal, lockAtPreview, parseTeamLines, validateCountryCode, validateEntityName, validateKickoff,
   validateOptionalColor, validateScore, type MatchRow,
 } from '../lib/sports-admin'
 import { useAdmin } from '../composables/useAdmin'
 import { useAuth } from '../composables/useAuth'
+import { useIdentityWatch } from '../composables/useIdentityWatch'
 import { useSportsAdmin } from '../composables/useSportsAdmin'
 
 type Tab = 'teams' | 'rounds' | 'matches' | 'results'
 const router = useRouter()
 const auth = useAuth()
-const admin = useAdmin()
+// Sin lectura de branding ni polling en la parrilla (FE-03).
+const admin = useAdmin({ branding: false })
 const sports = useSportsAdmin()
 
 const tab = ref<Tab>('matches')
@@ -142,9 +145,12 @@ async function togglePool(matchId: string): Promise<void> {
 
 async function publish(match: MatchRow): Promise<void> {
   const draft = scoreDraft.value[match.id]
-  const home = Number(draft?.home); const away = Number(draft?.away)
-  if (fail(validateScore(home) ?? validateScore(away))) return
-  if (fail(await sports.publishResult(match.id, home, away))) return
+  // Un campo en blanco no es 0 (FE-01): se valida la cadena con la misma lógica que los pronósticos.
+  const home = parseScoreInput(draft?.home ?? ''); const away = parseScoreInput(draft?.away ?? '')
+  if (!home.ok) { fail(`Revisa el marcador del local. ${home.message}`); return }
+  if (!away.ok) { fail(`Revisa el marcador de la visita. ${away.message}`); return }
+  if (fail(validateScore(home.value) ?? validateScore(away.value))) return
+  if (fail(await sports.publishResult(match.id, home.value, away.value))) return
   ok(sports.results.value[match.id]?.revision && sports.results.value[match.id]!.revision > 1 ? 'Resultado corregido.' : 'Resultado publicado.')
 }
 
@@ -154,7 +160,14 @@ watch(() => admin.selectedPoolId.value, (id) => { void sports.loadPoolMatches(id
 watch(() => sports.results.value, (results) => {
   for (const [id, result] of Object.entries(results)) scoreDraft.value[id] = { home: String(result.home_score), away: String(result.away_score) }
 })
+// Cambio de identidad con la vista montada (FE-05): el borrador de torneo/partidos/resultados pertenece
+// a la sesión anterior; se descarta y se vuelve a Inicio (el guard re-evalúa el acceso al reabrir).
+useIdentityWatch(auth, {
+  onChange: () => { admin.reset(); void router.replace({ name: 'home' }) },
+  onSignedOut: () => { admin.reset(); void router.replace({ name: 'home' }) },
+})
 onMounted(async () => { if (auth.state.user) await admin.load(auth.state.user.id) })
+onBeforeUnmount(admin.dispose)
 </script>
 
 <template>

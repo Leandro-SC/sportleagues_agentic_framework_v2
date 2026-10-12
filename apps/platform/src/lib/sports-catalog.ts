@@ -173,10 +173,6 @@ export function matchMoment(match: Match, now: Date): string {
   return dayOffset(startsAt, now) === 0 ? 'Hoy' : shortDate(startsAt)
 }
 
-export function kickoffTime(match: Match): string {
-  return clock(new Date(match.starts_at))
-}
-
 export function relativeTimeLabel(isoDate: string, now: Date): string {
   const minutes = Math.max(0, Math.floor((now.getTime() - new Date(isoDate).getTime()) / 60000))
   if (minutes < 1) return 'Hace un momento'

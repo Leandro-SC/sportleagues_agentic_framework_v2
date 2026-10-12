@@ -1,13 +1,13 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { computed, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import AdminFixtureView from './AdminFixtureView.vue'
 
-const h = vi.hoisted(() => ({ sports: {} as Record<string, unknown>, admin: {} as Record<string, unknown>, catalog: {} as Record<string, unknown> }))
+const h = vi.hoisted(() => ({ sports: {} as Record<string, unknown>, admin: {} as Record<string, unknown>, catalog: {} as Record<string, unknown>, auth: {} as Record<string, unknown> }))
 
 vi.mock('../composables/useAuth', () => ({
-  useAuth: () => ({ state: { profile: { id: 'p', display_name: 'Ana Pérez' }, user: { id: 'p' } }, isAuthenticated: { value: true } }),
+  useAuth: () => ({ state: h.auth, isAuthenticated: { value: true } }),
 }))
 vi.mock('../composables/useAdmin', () => ({ useAdmin: () => h.admin }))
 vi.mock('../composables/useSportsAdmin', () => ({ useSportsAdmin: () => h.sports }))
@@ -18,6 +18,7 @@ const started = new Date(Date.now() - 3600_000).toISOString()
 const future = new Date(Date.now() + 86_400_000).toISOString()
 
 function setup(overrides: Record<string, unknown> = {}) {
+  h.auth = reactive({ profile: { id: 'p', display_name: 'Ana Pérez' }, user: { id: 'p' } })
   const snapshot = ref({
     teams: [nt('t1', 'Sporting Cristal', 'club', 'PE'), nt('t2', 'Alianza Lima', 'club', 'PE'), nt('t3', 'Peru', 'national', 'PE')],
     competitions: [], seasons: [], memberships: [], cursors: { teams: '', competitions: '', seasons: '', countries: '' },
@@ -27,7 +28,7 @@ function setup(overrides: Record<string, unknown> = {}) {
   h.catalog = { snapshot, status, freshness: ref('fresh'), updatedAt: ref(Date.now()), loading: computed(() => false), failed: computed(() => false), offline: computed(() => false), ensureLoaded: vi.fn().mockResolvedValue(undefined), reload: vi.fn() }
   h.admin = {
     tenants: ref([{ tenant_id: 'tenant-1234', role: 'admin', plan_code: 'free' }]), selectedTenantId: ref('tenant-1234'), selectedPoolId: ref('pool-1'),
-    selectedPool: ref({ id: 'pool-1', name: 'Quiniela A', lock_offset: '00:15:00' }), loading: ref(false), error: ref(''), load: vi.fn(),
+    selectedPool: ref({ id: 'pool-1', name: 'Quiniela A', lock_offset: '00:15:00' }), loading: ref(false), error: ref(''), load: vi.fn(), reset: vi.fn(), dispose: vi.fn(),
   }
   h.sports = {
     timezone: ref('America/Lima'), tournaments: ref([{ id: 'to-1', name: 'Liga', season_label: '2026' }]), selectedTournamentId: ref('to-1'),
@@ -179,6 +180,47 @@ describe('AdminFixtureView', () => {
     expect(radios[1]!.attributes('disabled')).toBeUndefined()
     await radios[1]!.trigger('change')
     expect(sports().setResultsMode).toHaveBeenCalledWith('automatic')
+  })
+
+  it('FE-01: un marcador en blanco NO se publica como 0 (ni local, ni visita, ni ambos)', async () => {
+    const wrapper = await mountView()
+    await wrapper.findAll('[role="tab"]').find((t) => t.text() === 'Resultados')!.trigger('click')
+    const publish = () => wrapper.findAll('button').find((button) => button.text() === 'Publicar')!
+
+    await wrapper.get('#score-h-m1').setValue('2') // visita en blanco
+    await publish().trigger('click'); await flushPromises()
+    expect(sports().publishResult).not.toHaveBeenCalled()
+    expect(wrapper.get('[role="alert"]').text()).toContain('visita')
+
+    await wrapper.get('#score-h-m1').setValue('') // local en blanco, visita con valor
+    await wrapper.get('#score-a-m1').setValue('1')
+    await publish().trigger('click'); await flushPromises()
+    expect(sports().publishResult).not.toHaveBeenCalled()
+    expect(wrapper.get('[role="alert"]').text()).toContain('local')
+
+    await wrapper.get('#score-a-m1').setValue('')
+    await publish().trigger('click'); await flushPromises()
+    expect(sports().publishResult).not.toHaveBeenCalled()
+
+    await wrapper.get('#score-h-m1').setValue('0'); await wrapper.get('#score-a-m1').setValue('0') // 0 escrito a propósito sí es válido
+    await publish().trigger('click'); await flushPromises()
+    expect(sports().publishResult).toHaveBeenCalledWith('m1', 0, 0)
+  })
+
+  it('FE-03: al desmontar detiene el polling de branding (dispose)', async () => {
+    const wrapper = await mountView()
+    const dispose = (h.admin as { dispose: ReturnType<typeof vi.fn> }).dispose
+    expect(dispose).not.toHaveBeenCalled()
+    wrapper.unmount()
+    expect(dispose).toHaveBeenCalledTimes(1)
+  })
+
+  it('FE-05: si cambia la identidad con la vista montada descarta el estado y vuelve a Inicio', async () => {
+    const wrapper = await mountView()
+    ;(h.auth as { user: { id: string } | null }).user = { id: 'otro-usuario' }
+    await flushPromises()
+    expect((h.admin as { reset: ReturnType<typeof vi.fn> }).reset).toHaveBeenCalledTimes(1)
+    expect(wrapper.html()).not.toContain('Parrilla deportiva</h1>')
   })
 
   it('muestra el estado sin acceso cuando el usuario no administra ningún tenant', async () => {

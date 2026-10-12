@@ -60,9 +60,9 @@ onMounted(() => {
 async function logout(): Promise<void> {
   loggingOut.value = true
   error.value = ''
-  const result = await auth.signOut()
+  // `signOut` limpia siempre el estado local (aunque el servidor falle): se sale a Inicio en cualquier caso (FE-06).
+  await auth.signOut()
   loggingOut.value = false
-  if (result) { error.value = result; return }
   settingsOpen.value = false
   await router.replace({ name: 'home' })
 }

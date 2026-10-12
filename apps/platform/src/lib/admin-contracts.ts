@@ -1,4 +1,6 @@
-export type TenantRole = 'owner' | 'admin' | 'member'
+import { parseNonNegativeInteger } from './number-input'
+
+export type TenantRole ='owner' | 'admin' | 'member'
 export type PaymentStatus = 'paid' | 'pending' | 'invited'
 export type PoolStatus = 'draft' | 'open' | 'paused' | 'archived'
 export type BrandingAssetKind = 'logo' | 'banner'
@@ -21,6 +23,22 @@ export function validatePoints(exactPoints: number, outcomePoints: number): stri
   return Number.isInteger(exactPoints) && Number.isInteger(outcomePoints) && exactPoints >= 0 && outcomePoints >= 0
     ? null
     : 'Los puntos deben ser números enteros iguales o mayores que cero.'
+}
+
+export const MAX_POINTS = 1000
+export const MAX_LOCK_MINUTES = 1440
+
+export type FieldNumber = { ok: true; value: number } | { ok: false; message: string }
+
+// Un campo en blanco NO es 0 (FE-01): se valida la cadena antes de convertir.
+export function parseLockMinutesInput(raw: string): FieldNumber {
+  const parsed = parseNonNegativeInteger(raw, MAX_LOCK_MINUTES)
+  return parsed.ok ? parsed : { ok: false, message: `El bloqueo debe ser un número entero entre 0 y ${MAX_LOCK_MINUTES} minutos.` }
+}
+
+export function parsePointsInput(raw: string, label: string): FieldNumber {
+  const parsed = parseNonNegativeInteger(raw, MAX_POINTS)
+  return parsed.ok ? parsed : { ok: false, message: `${label}: ingresa un número entero entre 0 y ${MAX_POINTS}.` }
 }
 
 export function freeLimitMessage(plan: 'free' | 'pro', activePools: number): string | null {

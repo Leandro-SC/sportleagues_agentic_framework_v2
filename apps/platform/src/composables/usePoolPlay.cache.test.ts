@@ -136,3 +136,96 @@ describe('frecuencia de actualización diferenciada', () => {
     expect(poolCacheTtlMs([], now)).toBe(600_000)
   })
 })
+
+describe('identidad y purgas durante una lectura en vuelo (FE-05, FE-10)', () => {
+  it('FE-05: si la identidad vigente cambia mientras se lee, NO se escribe en la caché privada del usuario anterior ni se pinta', async () => {
+    let current: string | null = 'me'
+    const a = fake(tables(), { down: false, delay: 10 })
+    const play = usePoolPlay(() => a.client, () => current)
+    const loading = play.load('p1', 'me')
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    current = 'otro-usuario' // otra pestaña inicia sesión con otra cuenta: las lecturas siguientes usan su JWT
+    await loading
+    expect(await cache.get(privateNamespace('me'), 'pool:p1', 'pool-play-v1')).toBeNull()
+    expect(play.fixture.value).toEqual([])
+    expect(play.error.value).toBe('')
+  })
+
+  it('FE-05: con la identidad estable sí cachea (el control no rompe el caso normal)', async () => {
+    const a = fake(tables())
+    const play = usePoolPlay(() => a.client, () => 'me')
+    await play.load('p1', 'me')
+    expect(await cache.get(privateNamespace('me'), 'pool:p1', 'pool-play-v1')).not.toBeNull()
+    expect(play.fixture.value).toHaveLength(1)
+  })
+
+  it('FE-05: guardar un pronóstico con otra identidad no llama a save_prediction con el JWT nuevo', async () => {
+    let current: string | null = 'me'
+    const a = fake(tables())
+    const play = usePoolPlay(() => a.client, () => current)
+    await play.load('p1', 'me')
+    current = 'otro-usuario'
+    expect(await play.savePrediction('m1', 1, 0)).toMatch(/sesión cambió/)
+    expect(a.rpc).not.toHaveBeenCalledWith('save_prediction', expect.anything())
+  })
+
+  it('FE-05: reset() vacía lo mostrado para que no quede nada del usuario anterior', async () => {
+    const a = fake(tables())
+    const play = usePoolPlay(() => a.client, () => 'me')
+    await play.load('p1', 'me')
+    expect(play.fixture.value).toHaveLength(1)
+    play.reset()
+    expect(play.fixture.value).toEqual([])
+    expect(play.participation.value).toBe('none')
+  })
+
+  it('FE-10: un cierre de sesión (purga) mientras se lee impide que la escritura en vuelo recree la caché privada', async () => {
+    const a = fake(tables(), { down: false, delay: 10 })
+    const play = usePoolPlay(() => a.client)
+    const loading = play.load('p1', 'me')
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    await purgePrivateCaches() // SIGNED_OUT llega antes de que termine el fetch
+    await loading
+    expect(await cache.get(privateNamespace('me'), 'pool:p1', 'pool-play-v1')).toBeNull()
+  })
+
+  it('FE-10: OfflineCache.set descarta una escritura privada con generación vieja pero admite la pública', async () => {
+    const generation = cache.privateGeneration
+    await cache.clearPrivate()
+    expect(cache.privateGeneration).toBe(generation + 1)
+    expect(await cache.set(privateNamespace('me'), 'k', { a: 1 }, { version: 'v', ttlMs: 1000, generation })).toBe(false)
+    expect(await cache.get(privateNamespace('me'), 'k', 'v')).toBeNull()
+    expect(await cache.set('public', 'k', { a: 1 }, { version: 'v', ttlMs: 1000, generation })).toBe(true)
+    expect(await cache.set(privateNamespace('me'), 'k2', { a: 1 }, { version: 'v', ttlMs: 1000, generation: cache.privateGeneration })).toBe(true)
+  })
+})
+
+describe('parrillas grandes: filtros .in() troceados (FE-11)', () => {
+  it('380 partidos no producen ninguna lista .in() de más de 100 ids y la parrilla sale completa', async () => {
+    const many = Array.from({ length: 380 }, (_, index) => index)
+    const t = tables()
+    t.pool_matches = many.map((n) => ({ id: `pm${n}`, pool_id: 'p1', match_id: `m${n}`, lock_at: future }))
+    t.matches = many.map((n) => ({ id: `m${n}`, round_id: 'r1', home_team_id: 'a', away_team_id: 'b', starts_at: future, status: 'scheduled' }))
+    t.official_results = many.slice(0, 250).map((n) => ({ match_id: `m${n}`, home_score: 1, away_score: 0, revision: 1 }))
+    const a = fake(t)
+    const sizes: number[] = []
+    const spied = {
+      ...a.client,
+      from: (table: string) => {
+        const source = (a.client.from as unknown as (name: string) => { select: (columns: string) => Record<string, unknown> })(table)
+        return { ...source, select: (columns: string) => {
+          const query = source.select(columns) as { in: (column: string, values: string[]) => unknown }
+          const original = query.in
+          query.in = (column, values) => { sizes.push(values.length); return original(column, values) }
+          return query as never
+        } }
+      },
+    } as unknown as SportsAdminClient
+    const play = usePoolPlay(() => spied)
+    await play.load('p1', 'me')
+    expect(sizes.length).toBeGreaterThan(4)
+    expect(Math.max(...sizes)).toBeLessThanOrEqual(100)
+    expect(play.fixture.value).toHaveLength(380)
+    expect(play.fixture.value.filter((item) => item.result)).toHaveLength(250)
+  })
+})

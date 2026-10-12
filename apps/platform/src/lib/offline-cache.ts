@@ -58,6 +58,7 @@ export class OfflineCache {
   private readonly now: () => number
   private readonly factory: IDBFactory | null
   private dbPromise: Promise<IDBDatabase | null> | null = null
+  private privateGen = 0
 
   constructor(options: CacheOptions = {}) {
     this.dbName = options.dbName ?? 'sportleagues-cache'
@@ -117,12 +118,23 @@ export class OfflineCache {
     return { value: entry.value, storedAt: entry.storedAt, fresh: now <= entry.expiresAt }
   }
 
-  async set<T>(ns: CacheNamespace, key: string, value: T, options: { version: string; ttlMs: number }): Promise<boolean> {
+  /**
+   * Contador de purgas privadas (FE-10). Quien lee datos privados de la red lo captura ANTES de leer y lo pasa a `set`:
+   * si entretanto hubo un cierre de sesión / cambio de usuario (`clearPrivate`), la escritura se descarta y no recrea
+   * datos del usuario anterior.
+   */
+  get privateGeneration(): number {
+    return this.privateGen
+  }
+
+  async set<T>(ns: CacheNamespace, key: string, value: T, options: { version: string; ttlMs: number; generation?: number }): Promise<boolean> {
     const bytes = approximateBytes(value)
     if (bytes > this.maxBytes / 2) return false // un único valor no puede acaparar la caché
     const now = this.now()
     const entry: CacheEntry<T> = { id: `${ns}|${key}`, ns, key, value, version: options.version, storedAt: now, expiresAt: now + options.ttlMs, touchedAt: now, bytes }
-    const stored = await this.run('readwrite', async (store) => { store.put(entry); return true })
+    const stale = (): boolean => ns !== 'public' && options.generation !== undefined && options.generation !== this.privateGen
+    if (stale()) return false
+    const stored = await this.run('readwrite', async (store) => { if (stale()) return false; store.put(entry); return true })
     if (!stored) return false
     await this.enforceLimits()
     return true
@@ -141,6 +153,7 @@ export class OfflineCache {
 
   // Borra todo dato privado (cierre de sesión / cambio de usuario). Conserva únicamente el catálogo público.
   async clearPrivate(exceptUserId?: string): Promise<void> {
+    this.privateGen += 1
     await this.run('readwrite', async (store) => {
       const all = await request<CacheEntry[]>(store.getAll())
       for (const entry of all) {

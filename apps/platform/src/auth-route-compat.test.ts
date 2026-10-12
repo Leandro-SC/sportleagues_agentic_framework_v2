@@ -93,3 +93,19 @@ describe('route guards in the main app (Superadmin UI disabled, the default and 
     expect(await visit(mainRouter, '/admin')).toBe('home')
   })
 })
+
+describe('the real router fails closed for a route nobody classified (FE-04)', () => {
+  it('a newly added, unclassified route requires a session and a profile instead of passing through', async () => {
+    const target = createAppRouter({ superadminUi: false, history: createMemoryHistory() })
+    target.addRoute({ path: '/ruta-nueva', name: 'ruta-nueva', component: { template: '<div />' } })
+    expect(await visit(target, '/ruta-nueva')).toBe('home') // sin sesión
+    session.authenticated = true
+    expect(await visit(target, '/ruta-nueva')).toBe('ruta-nueva') // sesión + perfil
+  })
+
+  it('public routes stay reachable without a session', async () => {
+    const target = createAppRouter({ superadminUi: false, history: createMemoryHistory() })
+    expect(await visit(target, '/j/AB12CD')).toBe('join')
+    expect(await visit(target, '/')).toBe('home')
+  })
+})

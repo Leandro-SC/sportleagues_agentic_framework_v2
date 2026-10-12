@@ -1,10 +1,23 @@
-const PROFILE_REQUIRED = new Set(['pool', 'profile', 'points', 'my-tickets', 'matches', 'leagues', 'league-join', 'league', 'team'])
+import { ADMIN_ROUTE_NAMES } from './role-navigation'
+
+// Clasificación de rutas, FALLA CERRADO (FE-04): una ruta nueva que no figure en ninguna lista exige sesión y perfil.
+// Así olvidarla en esta tabla nunca deja una pantalla sin guard; el test del router obliga además a clasificarla.
+//
+// Públicas (UX): no exigen sesión. `join` pide sesión dentro de la vista y conserva el código; `not-found` redirige a home.
+export const PUBLIC_ROUTE_NAMES: ReadonlySet<string> = new Set(['home', 'auth-callback', 'join', 'not-found'])
+// Con guard asíncrono propio en el router (membresía admin / is_platform_admin): este guard no las decide.
+export const SELF_GUARDED_ROUTE_NAMES: ReadonlySet<string> = new Set([...ADMIN_ROUTE_NAMES, 'superadmin'])
+// Solo sesión (sin perfil): el perfil se crea aquí o la sesión es la de recuperación de contraseña.
+export const SESSION_ONLY_ROUTE_NAMES: ReadonlySet<string> = new Set(['onboarding', 'reset-password'])
+// Sesión + perfil.
+export const PROFILE_REQUIRED_ROUTE_NAMES: ReadonlySet<string> = new Set(['pool', 'profile', 'points', 'my-tickets', 'matches', 'leagues', 'league-join', 'league', 'team'])
 
 export function protectedRouteRedirect(routeName: string, authenticated: boolean, hasProfile: boolean): 'home' | 'onboarding' | null {
-  if (!['onboarding', 'reset-password', ...PROFILE_REQUIRED].includes(routeName)) return null
+  if (PUBLIC_ROUTE_NAMES.has(routeName) || SELF_GUARDED_ROUTE_NAMES.has(routeName)) return null
   if (!authenticated) return 'home'
-  if (PROFILE_REQUIRED.has(routeName) && !hasProfile) return 'onboarding'
-  return null
+  if (SESSION_ONLY_ROUTE_NAMES.has(routeName)) return null
+  // Cualquier otra ruta (clasificada como PROFILE_REQUIRED o desconocida) exige perfil.
+  return hasProfile ? null : 'onboarding'
 }
 
 // Deciding whether `/superadmin` is reachable never looks at tenant role, tenant membership or

@@ -10,7 +10,7 @@ import {
   validateNewPassword,
 } from '../lib/auth-validation'
 import { clearJoinIntent } from '../lib/join-intent'
-import { purgePrivateCaches } from '../lib/offline-cache'
+import { getOfflineCache, purgePrivateCaches } from '../lib/offline-cache'
 import { getSupabaseClient } from '../lib/supabase'
 
 type Profile = { id: string; display_name: string }
@@ -34,6 +34,8 @@ let ensureAttemptedFor: string | null = null
 let restoreInFlight: Promise<void> | null = null
 
 const PROFILE_ERROR = 'No pudimos guardar tu perfil. Inténtalo de nuevo.'
+const SIGN_OUT_NOTICE = 'Cerramos tu sesión en este dispositivo, pero no pudimos confirmarlo con el servidor. Si usas un equipo compartido, vuelve a intentarlo con conexión.'
+let expiredPurged = false
 
 async function loadProfile(): Promise<void> {
   if (!state.user) { state.profile = null; return }
@@ -86,6 +88,8 @@ export function useAuth() {
           void syncProfile()
         })
       }
+      // FE-10: las entradas vencidas solo se borraban al releerlas; una limpieza por arranque acota la retención real.
+      if (!expiredPurged) { expiredPurged = true; void getOfflineCache().purgeExpired().catch(() => undefined) }
       const { data, error } = await client.auth.getSession()
       if (error) state.error = error.message
       state.session = data.session
@@ -133,6 +137,9 @@ export function useAuth() {
     const { error } = await client.auth.updateUser({ password })
     if (error) return authErrorMessage(error)
     state.recovery = false
+    // Quien tuviera otra sesión abierta con la contraseña anterior (p. ej. un atacante) la pierde. Es un refuerzo: si falla,
+    // el cambio de contraseña ya se hizo y no se bloquea ni se muestra error.
+    try { await client.auth.signOut({ scope: 'others' }) } catch { /* no bloqueante */ }
     return null
   }
 
@@ -162,10 +169,32 @@ export function useAuth() {
     return null
   }
 
+  /**
+   * Cierra la sesión de ESTE dispositivo (`scope: 'local'`; el valor por defecto `global` revocaría también las sesiones del
+   * ordenador, el móvil, etc.). El estado local, la invitación pendiente y la caché privada se limpian SIEMPRE, aunque el
+   * servidor no responda (auth-js ya borra su copia local aunque falle la revocación). Devuelve un aviso amable si el
+   * servidor no pudo confirmar la revocación; nunca el texto crudo del error.
+   */
   async function signOut(): Promise<string | null> {
-    const { error } = await client.auth.signOut()
-    if (!error) { state.session = null; state.user = null; state.profile = null; state.recovery = false; ensureAttemptedFor = null; clearJoinIntent(); void purgePrivateCaches() }
-    return error?.message ?? null
+    let notice: string | null = null
+    try {
+      const { error } = await client.auth.signOut({ scope: 'local' })
+      if (error) notice = SIGN_OUT_NOTICE
+    } catch {
+      notice = SIGN_OUT_NOTICE
+    } finally {
+      state.session = null; state.user = null; state.profile = null; state.recovery = false
+      ensureAttemptedFor = null; cacheOwner = null
+      clearJoinIntent()
+      void purgePrivateCaches()
+    }
+    return notice
+  }
+
+  /** «Cancelar» en la pantalla de nueva contraseña: la sesión de recuperación no debe quedar abierta ni persistida. */
+  async function cancelRecovery(): Promise<void> {
+    state.recovery = false
+    await signOut()
   }
 
   return {
@@ -177,6 +206,7 @@ export function useAuth() {
     requestPasswordReset,
     updatePassword,
     clearRecovery,
+    cancelRecovery,
     signInWithGoogle,
     completeCallback,
     saveProfile,

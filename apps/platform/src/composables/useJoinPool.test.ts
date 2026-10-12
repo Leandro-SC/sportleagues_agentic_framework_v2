@@ -63,4 +63,24 @@ describe('pending invitation after sign-in', () => {
     expect(joiner.error.value).toMatch(/no es válido|expiró/)
     expect(localStorage.getItem(KEY)).toBeNull()
   })
+
+  it('keeps the invitation and asks to sign in again when the JWT expired (not an invalid code)', async () => {
+    saveJoinIntent('AB12CD')
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'JWT expired', code: 'PGRST301' } })
+    const joiner = useJoinPool()
+    expect(await joiner.resumeIntent()).toBeNull()
+    expect(joiner.sessionExpired.value).toBe(true)
+    expect(joiner.error.value).toMatch(/sesión expiró/)
+    expect(joiner.error.value).not.toMatch(/no es válido/)
+    expect(JSON.parse(localStorage.getItem(KEY)!).code).toBe('AB12CD')
+  })
+
+  it('never shows raw server text to the user', async () => {
+    saveJoinIntent('AB12CD')
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'relation "pool_join_codes" is locked', code: '55P03' } })
+    const joiner = useJoinPool()
+    await joiner.resumeIntent()
+    expect(joiner.error.value).not.toContain('pool_join_codes')
+    expect(joiner.error.value).toBe('No fue posible unirse a la quiniela. Inténtalo de nuevo.')
+  })
 })

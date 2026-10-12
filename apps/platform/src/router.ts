@@ -6,10 +6,8 @@ import { useAuth } from './composables/useAuth'
 import { useSuperadmin } from './composables/useSuperadmin'
 import { useTenantAdminAccess } from './composables/useTenantAdminAccess'
 import { isSuperadminUiEnabled } from './lib/feature-flags'
-import { platformAdminRedirect, protectedRouteRedirect, tenantAdminRedirect } from './lib/navigation-guards'
+import { platformAdminRedirect, protectedRouteRedirect, PUBLIC_ROUTE_NAMES, SELF_GUARDED_ROUTE_NAMES, tenantAdminRedirect } from './lib/navigation-guards'
 import { isAdminRouteName } from './lib/role-navigation'
-
-const GUARDED_ROUTES = ['points', 'my-tickets', 'onboarding', 'reset-password', 'pool', 'profile', 'matches', 'leagues', 'league-join', 'league', 'team']
 
 // Set while `/admin` or `/superadmin` are resolving their role check, so App.vue can show a
 // sober loading state instead of the previous route's content (or nothing) during that gap —
@@ -110,7 +108,10 @@ export function createAppRouter(options: RouterOptions) {
       }
     }
 
-    if (!GUARDED_ROUTES.includes(String(to.name))) return true
+    // Falla cerrado (FE-04): solo las rutas públicas explícitas y las de guard propio pasan sin sesión; una ruta nueva
+    // no clasificada exige sesión y perfil. La decisión vive en `protectedRouteRedirect` (lib/navigation-guards.ts).
+    const name = String(to.name)
+    if (PUBLIC_ROUTE_NAMES.has(name) || SELF_GUARDED_ROUTE_NAMES.has(name)) return true
     const auth = useAuth()
     if (auth.state.loading) await auth.restore()
     const redirect = protectedRouteRedirect(String(to.name), auth.isAuthenticated.value, Boolean(auth.state.profile))

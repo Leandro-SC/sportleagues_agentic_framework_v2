@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createMemoryHistory } from 'vue-router'
 import { isSuperadminUiEnabled } from './lib/feature-flags'
-import { protectedRouteRedirect } from './lib/navigation-guards'
+import { PROFILE_REQUIRED_ROUTE_NAMES, protectedRouteRedirect, PUBLIC_ROUTE_NAMES, SELF_GUARDED_ROUTE_NAMES, SESSION_ONLY_ROUTE_NAMES } from './lib/navigation-guards'
 import { ADMIN_ROUTE_NAMES } from './lib/role-navigation'
 import { buildRoutes, createAppRouter, router } from './router'
 import routerSource from './router.ts?raw'
@@ -9,7 +9,33 @@ import routerSource from './router.ts?raw'
 // Rutas públicas o con guard propio (asíncrono) en router.ts; todo lo demás es una pantalla de la
 // app que exige sesión + perfil. Si alguien añade una ruta nueva y olvida protegerla, este test falla.
 // `not-found` es el comodín que redirige a home; `superadmin` solo existe con la bandera ADR-018.
-const PUBLIC_OR_SELF_GUARDED = new Set(['home', 'auth-callback', 'join', 'onboarding', 'reset-password', 'admin', 'admin-income', 'admin-fixture', 'organizer-dashboard', 'superadmin', 'not-found'])
+const PUBLIC_OR_SELF_GUARDED = new Set([...PUBLIC_ROUTE_NAMES, ...SELF_GUARDED_ROUTE_NAMES, ...SESSION_ONLY_ROUTE_NAMES])
+
+describe('route classification (FE-04, fails closed)', () => {
+  const classified = new Set([...PUBLIC_ROUTE_NAMES, ...SELF_GUARDED_ROUTE_NAMES, ...SESSION_ONLY_ROUTE_NAMES, ...PROFILE_REQUIRED_ROUTE_NAMES])
+
+  it('every route built (with and without the Superadmin flag) is explicitly classified as public, self-guarded, session-only or profile-required', () => {
+    const all = [...buildRoutes({ superadminUi: true, superadminView: async () => ({ template: '<div />' }) }), ...buildRoutes({ superadminUi: false })]
+    const unclassified = all.map((route) => String(route.name)).filter((name) => !classified.has(name))
+    expect(unclassified, `rutas sin clasificar en lib/navigation-guards.ts: ${unclassified.join(', ')}`).toEqual([])
+  })
+
+  it('every route has a name (an unnamed route would skip the guard classification)', () => {
+    expect(buildRoutes({ superadminUi: true, superadminView: async () => ({ template: '<div />' }) }).filter((route) => !route.name)).toEqual([])
+  })
+
+  it('the classification sets are disjoint', () => {
+    const sets = [PUBLIC_ROUTE_NAMES, SELF_GUARDED_ROUTE_NAMES, SESSION_ONLY_ROUTE_NAMES, PROFILE_REQUIRED_ROUTE_NAMES]
+    const all = sets.flatMap((set) => [...set])
+    expect(new Set(all).size).toBe(all.length)
+  })
+
+  it('an unknown/new route name is protected by default (session + profile)', () => {
+    expect(protectedRouteRedirect('ruta-nueva', false, false)).toBe('home')
+    expect(protectedRouteRedirect('ruta-nueva', true, false)).toBe('onboarding')
+    expect(protectedRouteRedirect('ruta-nueva', true, true)).toBeNull()
+  })
+})
 
 describe('route table', () => {
   const names = router.getRoutes().map((route) => String(route.name))

@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { readInChunks } from '../lib/chunks'
 import { getSupabaseClient } from '../lib/supabase'
 import { humanizeTicketError, type TicketRow } from '../lib/tickets'
 import type { SportsAdminClient } from './useSportsAdmin'
@@ -50,7 +51,7 @@ export function usePoolTickets(clientFactory: () => SportsAdminClient = () => ge
       const [me] = await select('participants', 'id', (q) => q.eq('pool_id', forPoolId).eq('profile_id', forProfileId))
       const preds = me ? await select('predictions', 'id, ticket_id, pool_match_id, home_score, away_score', (q) => q.eq('pool_id', forPoolId).eq('participant_id', me.id as string)) : []
       const mine = preds.filter((p) => p.ticket_id)
-      const events = mine.length ? await select('scoring_events', 'prediction_id, points, result_revision, rule_version', (q) => q.in('prediction_id', mine.map((p) => p.id as string))) : []
+      const events = await readInChunks(mine.map((p) => p.id as string), (batch) => select('scoring_events', 'prediction_id, points, result_revision, rule_version', (q) => q.in('prediction_id', batch)))
       const latest = (id: string): number | null => {
         const list = events.filter((e) => e.prediction_id === id).sort((a, b) => num(b.result_revision) - num(a.result_revision) || num(b.rule_version) - num(a.rule_version))
         return list.length ? num(list[0]!.points) : null

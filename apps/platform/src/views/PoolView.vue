@@ -20,6 +20,7 @@ import { usePoolAccess } from '../composables/usePoolAccess'
 import { usePoolPlay } from '../composables/usePoolPlay'
 import { usePoolStats } from '../composables/usePoolStats'
 import { useAuth } from '../composables/useAuth'
+import { useIdentityWatch } from '../composables/useIdentityWatch'
 import type { ScorelineSuggestion } from '../lib/scoreline-suggestion'
 
 type Tab = 'summary' | 'matches' | 'table'
@@ -27,7 +28,8 @@ const router = useRouter()
 const route = useRoute()
 const auth = useAuth()
 const access = usePoolAccess()
-const play = usePoolPlay()
+// El getter de identidad evita pintar o cachear lecturas hechas con el JWT de otro usuario (FE-05).
+const play = usePoolPlay(undefined, () => auth.state.user?.id ?? null)
 const stats = usePoolStats()
 
 const tab = ref<Tab>('summary')
@@ -72,14 +74,18 @@ async function suggest(poolMatchId: string, matchId: string): Promise<void> {
   }
 }
 
-watch(
-  () => route.params.poolId,
-  (poolId) => {
-    const id = typeof poolId === 'string' ? poolId : ''
-    void access.load(id).then(() => { if (access.pool.value && auth.state.user) { void play.load(id, auth.state.user.id); void stats.loadPool(id) } })
-  },
-  { immediate: true },
-)
+function loadPool(): void {
+  const id = typeof route.params.poolId === 'string' ? route.params.poolId : ''
+  void access.load(id).then(() => { if (access.pool.value && auth.state.user) { void play.load(id, auth.state.user.id); void stats.loadPool(id) } })
+}
+
+watch(() => route.params.poolId, loadPool, { immediate: true })
+// Otra identidad con la vista montada (FE-05): lo mostrado era del usuario anterior. Se vacía, se limpian mensajes y sugerencias
+// (también las de IA estadística) y se vuelve a verificar el acceso y cargar con el id vigente; sin sesión, se vuelve a Inicio.
+useIdentityWatch(auth, {
+  onChange: () => { play.reset(); messages.value = {}; suggestions.value = {}; suggestionMessages.value = {}; loadPool() },
+  onSignedOut: () => { play.reset(); messages.value = {}; suggestions.value = {}; suggestionMessages.value = {}; void router.replace({ name: 'home' }) },
+})
 watch(roundFilter, (id) => { void play.loadLeaderboard(id || null) })
 onMounted(() => { timer = setInterval(() => { now.value = new Date() }, 15_000) })
 onBeforeUnmount(() => { if (timer) clearInterval(timer) })
@@ -142,7 +148,7 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
             </div>
           </section>
 
-          <PoolTicketsPanel v-else-if="tab === 'matches' && play.ticketMode.value === 'tickets' && auth.state.user" :pool-id="access.pool.value.id" :profile-id="auth.state.user.id"
+          <PoolTicketsPanel v-else-if="tab === 'matches' && play.ticketMode.value === 'tickets' && auth.state.user" :key="auth.state.user.id" :pool-id="access.pool.value.id" :profile-id="auth.state.user.id"
             :fixture="play.fixture.value" :timezone="play.tenantTimezone.value" :now="now" :can-predict="play.canPredict.value" />
 
           <section v-else-if="tab === 'matches'" class="space-y-6">
