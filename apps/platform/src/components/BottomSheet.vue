@@ -21,14 +21,14 @@ function close(): void {
     >
       <div
         v-if="open"
-        class="safe-bottom fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-lg rounded-t-2xl border-t border-border bg-surface p-5 shadow-lg"
+        class="safe-bottom fixed inset-x-0 bottom-0 z-50 mx-auto max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-t-2xl border-t border-border bg-surface p-5 shadow-lg"
         role="dialog"
         aria-modal="true"
       >
         <div class="mx-auto mb-4 h-1.5 w-10 rounded-pill bg-surface-3" />
         <div class="mb-4 flex items-center justify-between">
           <h2 v-if="title" class="text-lg font-bold text-text">{{ title }}</h2>
-          <button type="button" aria-label="Cerrar" class="ml-auto rounded-full p-1.5 text-text-muted hover:bg-surface-2" @click="close">
+          <button type="button" aria-label="Cerrar" class="icon-button -mr-2 ml-auto text-text-muted" @click="close">
             <X class="h-5 w-5" />
           </button>
         </div>

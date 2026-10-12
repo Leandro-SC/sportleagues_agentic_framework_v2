@@ -52,7 +52,7 @@ async function mountView() {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
-      { path: '/admin/parrilla', name: 'admin-fixture', component: AdminFixtureView }, { path: '/admin', name: 'admin', component: Blank }, { path: '/', name: 'home', component: Blank },
+      { path: '/admin/parrilla', name: 'admin-fixture', component: AdminFixtureView }, { path: '/admin', name: 'admin', component: Blank }, { path: '/organizador', name: 'organizer-dashboard', component: Blank }, { path: '/admin/ingresos', name: 'admin-income', component: Blank }, { path: '/', name: 'home', component: Blank },
       { path: '/partidos', name: 'matches', component: Blank }, { path: '/ligas', name: 'leagues', component: Blank }, { path: '/mis-puntos', name: 'points', component: Blank }, { path: '/perfil', name: 'profile', component: Blank },
     ],
   })

@@ -26,7 +26,6 @@ const initials = computed(() => {
       </RouterLink>
       <h1 v-if="title && variant === 'app'" class="hidden text-sm font-semibold text-text-muted sm:block">{{ title }}</h1>
       <div v-if="variant === 'app'" class="flex items-center gap-3">
-        <RouterLink to="/admin" class="rounded-pill px-2.5 py-1 text-xs font-semibold text-secondary hover:bg-secondary-100">Admin</RouterLink>
         <RouterLink
           to="/perfil"
           class="press-scale flex h-9 w-9 items-center justify-center rounded-full bg-surface-2 text-xs font-bold text-text ring-1 ring-primary/40"

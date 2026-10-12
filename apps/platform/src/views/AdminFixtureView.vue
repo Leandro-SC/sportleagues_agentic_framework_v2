@@ -158,7 +158,7 @@ onMounted(async () => { if (auth.state.user) await admin.load(auth.state.user.id
 </script>
 
 <template>
-  <AppShell variant="app" active="home" title="Parrilla deportiva" :user-name="auth.state.profile?.display_name">
+  <AppShell variant="app" active="fixture" title="Parrilla deportiva" :user-name="auth.state.profile?.display_name">
     <section class="space-y-6 pt-2">
       <div>
         <h1 class="font-display text-xl font-bold text-text">Parrilla deportiva</h1>

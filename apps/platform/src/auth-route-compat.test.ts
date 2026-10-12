@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createMemoryHistory } from 'vue-router'
 
 // Compatibilidad del nuevo login (contraseña/Google) con los guards de /admin y /superadmin:
 // los guards dependen solo de la sesión y de las comprobaciones server-side, no del método de login.
-const session = vi.hoisted(() => ({ authenticated: false, platformAdmin: false, tenantAdmin: false, loading: false }))
+// ADR-018: `/superadmin` solo existe en un build con la bandera encendida; en la app principal
+// (bandera apagada) cae en el comodín hacia home sin consultar is_platform_admin().
+const session = vi.hoisted(() => ({ authenticated: false, platformAdmin: false, tenantAdmin: false, loading: false, platformChecks: 0 }))
 
 vi.mock('./composables/useAuth', () => ({
   useAuth: () => ({
@@ -11,44 +14,82 @@ vi.mock('./composables/useAuth', () => ({
     restore: async () => {},
   }),
 }))
-vi.mock('./composables/useSuperadmin', () => ({ useSuperadmin: () => ({ checkAccess: async () => session.platformAdmin }) }))
+vi.mock('./composables/useSuperadmin', () => ({ useSuperadmin: () => ({ checkAccess: async () => { session.platformChecks += 1; return session.platformAdmin } }) }))
 vi.mock('./composables/useTenantAdminAccess', () => ({ useTenantAdminAccess: () => ({ checkAccess: async () => session.tenantAdmin }) }))
 
-import { router } from './router'
+import { createAppRouter, router as mainRouter } from './router'
 
-async function visit(path: string): Promise<string> {
-  await router.replace('/auth/callback') // posición neutra
-  await router.push(path)
-  return String(router.currentRoute.value.name)
+type AppRouter = ReturnType<typeof createAppRouter>
+
+async function visit(target: AppRouter, path: string): Promise<string> {
+  await target.replace('/auth/callback') // posición neutra
+  await target.push(path)
+  return String(target.currentRoute.value.name)
 }
 
-beforeEach(() => { Object.assign(session, { authenticated: false, platformAdmin: false, tenantAdmin: false, loading: false }) })
+beforeEach(() => { Object.assign(session, { authenticated: false, platformAdmin: false, tenantAdmin: false, loading: false, platformChecks: 0 }) })
 
-describe('route guards with the password / Google session', () => {
+describe('route guards with the password / Google session (Superadmin UI enabled by build flag)', () => {
+  const flagged = () => createAppRouter({ superadminUi: true, history: createMemoryHistory(), superadminView: async () => ({ template: '<div />' }) })
+
   it('blocks /admin and /superadmin without a session', async () => {
-    expect(await visit('/admin')).toBe('home')
-    expect(await visit('/superadmin')).toBe('home')
+    const target = flagged()
+    expect(await visit(target, '/admin')).toBe('home')
+    expect(await visit(target, '/superadmin')).toBe('home')
   })
 
   it('a signed-in user with no privileges reaches neither area', async () => {
     session.authenticated = true
-    expect(await visit('/admin')).toBe('home')
-    expect(await visit('/superadmin')).toBe('home')
+    const target = flagged()
+    expect(await visit(target, '/admin')).toBe('home')
+    expect(await visit(target, '/superadmin')).toBe('home')
   })
 
   it('/admin depends only on tenant admin access and /superadmin only on platform admin access', async () => {
     session.authenticated = true; session.tenantAdmin = true
-    expect(await visit('/admin')).toBe('admin')
-    expect(await visit('/superadmin')).toBe('home')
+    const target = flagged()
+    expect(await visit(target, '/admin')).toBe('admin')
+    expect(await visit(target, '/superadmin')).toBe('home')
     session.tenantAdmin = false; session.platformAdmin = true
-    expect(await visit('/superadmin')).toBe('superadmin')
-    expect(await visit('/admin')).toBe('home')
+    expect(await visit(target, '/superadmin')).toBe('superadmin')
+    expect(await visit(target, '/admin')).toBe('home')
+  })
+})
+
+describe('route guards in the main app (Superadmin UI disabled, the default and only public build)', () => {
+  it('the exported app router has no /superadmin route', () => {
+    expect(mainRouter.getRoutes().map((route) => String(route.name))).not.toContain('superadmin')
+    expect(mainRouter.resolve('/superadmin').name).toBe('not-found')
+  })
+
+  it('/superadmin resolves to home and never calls is_platform_admin(), even for a platform admin', async () => {
+    session.authenticated = true; session.platformAdmin = true
+    expect(await visit(mainRouter, '/superadmin')).toBe('home')
+    expect(await visit(mainRouter, '/superadmin/tenants')).toBe('home')
+    expect(session.platformChecks).toBe(0)
+  })
+
+  it('a platform admin without tenant membership still gets neither /admin nor /superadmin (ADR-008 section 9)', async () => {
+    session.authenticated = true; session.platformAdmin = true; session.tenantAdmin = false
+    expect(await visit(mainRouter, '/admin')).toBe('home')
+    expect(await visit(mainRouter, '/superadmin')).toBe('home')
+    expect(session.platformChecks).toBe(0)
+  })
+
+  it('/admin keeps depending only on tenant admin access', async () => {
+    expect(await visit(mainRouter, '/admin')).toBe('home')
+    session.authenticated = true
+    expect(await visit(mainRouter, '/admin')).toBe('home')
+    session.tenantAdmin = true
+    expect(await visit(mainRouter, '/admin')).toBe('admin')
+    expect(await visit(mainRouter, '/organizador')).toBe('organizer-dashboard')
+    expect(await visit(mainRouter, '/admin/ingresos')).toBe('admin-income')
   })
 
   it('the password reset screen needs a session and never grants admin access', async () => {
-    expect(await visit('/auth/reset')).toBe('home')
+    expect(await visit(mainRouter, '/auth/reset')).toBe('home')
     session.authenticated = true
-    expect(await visit('/auth/reset')).toBe('reset-password')
-    expect(await visit('/admin')).toBe('home')
+    expect(await visit(mainRouter, '/auth/reset')).toBe('reset-password')
+    expect(await visit(mainRouter, '/admin')).toBe('home')
   })
 })

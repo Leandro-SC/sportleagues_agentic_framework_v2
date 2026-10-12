@@ -126,7 +126,7 @@ onBeforeUnmount(admin.dispose)
 </script>
 
 <template>
-  <AppShell variant="app" active="home" title="Administración" :user-name="auth.state.profile?.display_name">
+  <AppShell variant="app" active="pools" title="Administración" :user-name="auth.state.profile?.display_name">
     <section class="space-y-6 pt-2">
       <div class="flex items-start justify-between gap-3">
         <div>
@@ -143,9 +143,9 @@ onBeforeUnmount(admin.dispose)
       </EmptyState>
 
       <template v-else>
-        <label class="block text-sm font-medium text-text-muted">Tenant administrado
+        <label class="block text-sm font-medium text-text-muted">Organización administrada
           <select v-model="admin.selectedTenantId.value" class="field-surface mt-1.5 w-full px-3 py-3 text-sm">
-            <option v-for="tenant in admin.tenants.value" :key="tenant.tenant_id" :value="tenant.tenant_id">Tenant {{ tenant.tenant_id.slice(0, 8) }} · {{ tenant.role }}</option>
+            <option v-for="tenant in admin.tenants.value" :key="tenant.tenant_id" :value="tenant.tenant_id">Organización {{ tenant.tenant_id.slice(0, 8) }} · {{ tenant.role === 'owner' ? 'Propietario' : 'Administrador' }}</option>
           </select>
         </label>
 
@@ -155,8 +155,8 @@ onBeforeUnmount(admin.dispose)
         </button>
 
         <button type="button" class="app-surface flex w-full items-center justify-between gap-3 p-4 text-left" @click="router.push({ name: 'admin-income' })">
-          <span class="flex items-center gap-2 font-display font-bold text-text"><Wallet class="h-5 w-5 text-primary" />Ingresos y tickets</span>
-          <span class="text-xs text-text-muted">Próximamente →</span>
+          <span class="flex items-center gap-2 font-display font-bold text-text"><Wallet class="h-5 w-5 text-primary" />Mis finanzas</span>
+          <span class="text-xs text-text-muted">Estado de pagos manuales →</span>
         </button>
 
         <section class="app-surface p-4">

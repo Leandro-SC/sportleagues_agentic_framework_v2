@@ -22,7 +22,7 @@ function setup(overrides: Record<string, unknown> = {}, access: Record<string, u
   }
   h.play = {
     tenantTimezone: ref('America/Lima'), ticketMode: ref('none'), participation: ref('participant'), fixture: ref([item]), leaderboard: ref([{ rank: 1, participant_id: 'x', display_name: 'Ana', points: 12, exact_hits: 2, outcome_hits: 1, played: 3, current_streak: 3, best_streak: 3, is_me: true }]),
-    rounds: ref([{ id: 'r1', name: 'Fecha 1' }]), loading: ref(false), error: ref(''), savingMatchId: ref(''), myRow: ref({ rank: 1, points: 12 }), canPredict: ref(true), offline: ref(false), updatedAt: ref(null), fromCache: ref(false),
+    rounds: ref([{ id: 'r1', name: 'Fecha 1' }]), loading: ref(false), error: ref(''), savingMatchId: ref(''), suggestAvailable: ref(false), suggestingPoolMatchId: ref(''), suggestScoreline: vi.fn(), myRow: ref({ rank: 1, points: 12 }), canPredict: ref(true), offline: ref(false), updatedAt: ref(null), fromCache: ref(false),
     load: vi.fn().mockResolvedValue(undefined), loadLeaderboard: vi.fn().mockResolvedValue(undefined), savePrediction: vi.fn().mockResolvedValue(null), ...overrides,
   }
 }
@@ -100,6 +100,18 @@ describe('PoolView', () => {
     await tab(wrapper, 'Partidos').trigger('click')
     expect(wrapper.find('form').exists()).toBe(false)
     expect(wrapper.text()).toContain('Administras esta quiniela')
+  })
+
+  it('ADR-015: el administrador de una quiniela con tickets no ve formularios de pronóstico ni botones para emitir/enviar tickets', async () => {
+    setup({ ticketMode: ref('tickets'), participation: ref('none'), canPredict: ref(false) })
+    const wrapper = await mountView()
+    expect(wrapper.text()).toContain('Administras esta quiniela')
+    await tab(wrapper, 'Partidos').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[aria-label="Tickets de la quiniela"]').exists()).toBe(true)
+    expect(wrapper.find('form').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Nuevo ticket')
+    expect(wrapper.text()).not.toContain('Enviar ticket')
   })
 
   it('la tabla muestra puntos, exactos y racha, y pide la jornada al servidor', async () => {

@@ -8,6 +8,7 @@ import CatalogBoundary from '../components/CatalogBoundary.vue'
 import BottomSheet from '../components/BottomSheet.vue'
 import EmptyState from '../components/EmptyState.vue'
 import FollowedTeamCard from '../components/FollowedTeamCard.vue'
+import PoolCreationRequestCard from '../components/PoolCreationRequestCard.vue'
 import PreviewBadge from '../components/PreviewBadge.vue'
 import SegmentedTabs from '../components/SegmentedTabs.vue'
 import { useAuth } from '../composables/useAuth'
@@ -39,6 +40,8 @@ const tabOptions: Array<{ value: Tab; label: string }> = [
   { value: 'logros', label: 'Logros' },
 ]
 
+// La solicitud solo se ofrece cuando se pudo comprobar que la cuenta NO administra ninguna organización.
+const canRequestPool = computed(() => Boolean(auth.state.user) && !adminAccess.loading.value && !adminAccess.error.value && !adminAccess.hasTenantAdminAccess.value)
 const initials = computed(() => initialsOf(auth.state.profile?.display_name))
 const previewStats = computed(() => sports.catalog.value.profileStats)
 const followedTeams = computed(() => followed.ids.value.map((id) => sports.team(id)).filter((team) => team !== undefined))
@@ -102,6 +105,8 @@ async function logout(): Promise<void> {
       </dl>
       <p v-if="myPools.error.value" class="text-center text-xs text-danger" role="alert">{{ myPools.error.value }}</p>
 
+      <PoolCreationRequestCard v-if="canRequestPool" />
+
       <SegmentedTabs v-model="tab" :options="tabOptions" label="Secciones del perfil" variant="underline" />
 
       <CatalogBoundary v-if="sports.loading.value || sports.failed.value" :loading="sports.loading.value" :failed="sports.failed.value" :rows="3" row-height="5rem" @retry="sports.retry" />
@@ -140,9 +145,9 @@ async function logout(): Promise<void> {
           v-if="adminAccess.hasTenantAdminAccess.value"
           type="button"
           class="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-text hover:bg-surface-2"
-          @click="settingsOpen = false; router.push({ name: 'admin' })"
+          @click="settingsOpen = false; router.push({ name: 'organizer-dashboard' })"
         >
-          <LayoutDashboard class="h-5 w-5 text-secondary" aria-hidden="true" />Panel de administración
+          <LayoutDashboard class="h-5 w-5 text-secondary" aria-hidden="true" />Modo organizador
         </button>
         <button
           type="button"
