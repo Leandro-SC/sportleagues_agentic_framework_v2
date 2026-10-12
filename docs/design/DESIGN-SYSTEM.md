@@ -49,7 +49,7 @@ para fondos de badges/alertas, y el color base para texto/iconos/bordes.
 | Token | Valor | Uso |
 | --- | --- | --- |
 | `radius-lg` | `1rem` | Inputs, botones secundarios de icono |
-| `radius-xl` | `1.25rem` | Cards de contenido (`MatchCard`, `app-surface`) |
+| `radius-xl` | `1.25rem` | Cards de contenido (`MatchCard (retirado: sin referencias)`, `app-surface`) |
 | `radius-2xl` | `1.5rem` | Cards destacadas (`PoolCard` hero, sheets) |
 | `radius-pill` | `999px` | Botones, chips, BottomSheet handle |
 | `shadow-glow-primary` | glow verde | Botón primario, ítem activo de navegación, avatar |
@@ -88,7 +88,7 @@ para fondos de badges/alertas, y el color base para texto/iconos/bordes.
 | `PrimaryButton.vue` | Botón pill sólido verde neón, texto `canvas` (oscuro, contraste ≈ 14:1; el blanco daba ≈ 1,5:1), glow sutil. Estado disabled en `surface-3`. |
 | `SecondaryButton.vue` | Botón pill outline (borde verde o rojo en `tone="danger"`), fondo transparente, texto blanco. |
 | `PoolCard.vue` | Card de quiniela con gradiente `surface-2` → `surface`, icono trofeo en badge verde, chips de estado. |
-| `MatchCard.vue` | Card de partido (`app-surface`), fila de equipos, marcador o "vs", chip de estado (en vivo / bloqueado / finalizado). |
+| `MatchCard (retirado: sin referencias).vue` | Card de partido (`app-surface`), fila de equipos, marcador o "vs", chip de estado (en vivo / bloqueado / finalizado). |
 | `RankingRow.vue` | Fila de leaderboard; usuario actual resaltado con borde/fondo verde tintado. |
 | `StatChip.vue` | Badge pill pequeño con 5 tonos semánticos (`brand` cian, `success`/`warn`/`danger`, `neutral`). |
 | `FormField.vue` | Label + input con `.field-surface`, foco en verde, error en rojo. |
@@ -99,7 +99,7 @@ para fondos de badges/alertas, y el color base para texto/iconos/bordes.
 | `SearchField.vue` | Buscador pill con icono, botón limpiar y `role="search"`. |
 | `SegmentedTabs.vue` | Tablist accesible (flechas ←/→). Variantes `pill` (Hoy/Mañana/Esta semana), `chip` (Resumen/Equipos/…) y `underline` (Partidos/Plantilla/Estadísticas). |
 | `SectionHeader.vue` | Título de sección + enlace "Ver todos" opcional. |
-| `ScoreboardCard.vue` / `UpcomingMatchCard.vue` / `TeamMatchRow.vue` / `LiveMatchCarousel.vue` | Tarjetas de partido: listado de Partidos, próximos partidos, fila compacta de equipo y carrusel "En vivo" de Inicio. |
+| `ScoreboardCard.vue` / `UpcomingMatchCard (retirado: sin referencias).vue` / `TeamMatchRow.vue` / `LiveMatchCarousel.vue` | Tarjetas de partido: listado de Partidos, próximos partidos, fila compacta de equipo y carrusel "En vivo" de Inicio. |
 | `MatchStatusPill.vue` | Estado de partido: En vivo (verde con pulso), Finalizado, Hoy · hora, Mañana · hora. |
 | `StandingsTable.vue` | Tabla de posiciones (compacta o `detailed` con G/E/P/DG); líder resaltado. |
 | `TeamCrest.vue` | Escudo genérico SVG con colores e iniciales del equipo; texto con contraste calculado. No reproduce escudos oficiales. |

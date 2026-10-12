@@ -1,6 +1,6 @@
 # ADR-019 — Motor estadístico Elo + Poisson y sugerencia de marcador
 
-- Estado: **Proposed** (2026-10-12). Propuesta en `supabase/proposed/20261021000100_stats_elo_poisson.sql`; **no se aplica a QA ni a producción sin autorización expresa**.
+- Estado: **Accepted para QA** (2026-10-12, por la orden del propietario de aplicar `20261021` «cuando corresponda»). **Aplicada solo en Supabase QA.** No aplicada en producción. La primera `rebuild_team_ratings` por entorno y el job que la repita siguen pendientes de autorización.
 - Contrato detallado: `docs/architecture/STATS-ENGINE-CONTRACT.md` (fórmulas, parámetros, errores).
 - Relacionados: ADR-003/005 (scoring en servidor), ADR-011 (lock), ADR-012 (resultados revisables), ADR-015 (administrar o competir), AGENTS.md §4 y §7, `docs/requirements/04-stats-engine.md`.
 - Impacto AGENTS.md §12: esquema (columnas en `team_ratings`, dos tablas nuevas) y función de lectura nueva para el participante.
@@ -19,3 +19,6 @@
 - Pendiente de autorización: aplicar a QA, primera reconstrucción por entorno, y el job de servidor que la repita tras resultados o correcciones.
 - Limitaciones declaradas: sin sede neutral, forma ni lesiones; el marcador más probable puede no coincidir con el 1X2 más probable.
 - Antes de promocionar otra `model_version`, reconstruir sus ratings y solo entonces alternar `is_current`.
+
+## Verificación en QA
+- Suite SQL 115/115 (rollback, reproducida), reversión verificada, E2E real: `rated=false` al inicio; tras publicar 2-1 y reconstruir, ratings 1508,15 / 1491,85 (= cálculo esperado); reconstruir dos veces da la misma huella; ningún pronóstico se guarda solo (`model_predictions`=0).

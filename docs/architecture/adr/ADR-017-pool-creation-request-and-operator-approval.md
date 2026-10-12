@@ -1,6 +1,6 @@
 # ADR-017 — Solicitud de creación de quiniela y aprobación por operador
 
-- Estado: **Proposed** (2026-10-12). El diseño y el código quedan preparados en `supabase/proposed/`; **no se aplica a QA ni a producción sin autorización expresa del propietario**.
+- Estado: **Accepted para QA** (2026-10-12, por la orden del propietario de aplicar `20261020` «cuando corresponda» tras revisión, pruebas y reversión). **Aplicada solo en Supabase QA** (27/27 migraciones). No aplicada en producción: requiere autorización posterior. Pendientes de decisión del propietario: política de enfriamiento definitiva (7 días, ya fijada en la orden) y consola externa de operador (hoy: `scripts/qa/review-pool-request.mjs`).
 - Origen: `docs/agents/ENCARGO_MAESTRO_SPORTLEAGUES.md` §2 y §12-Lote B (el usuario puede «solicitar crear su propia quiniela» desde Mi perfil).
 - Relacionados: ADR-002 (aislamiento por tenant), ADR-008 (frontera de autorización global), ADR-015 (administrar o competir), AGENTS.md §5 y §12.
 - Impacto AGENTS.md §12: cambia autorización (cómo un usuario llega a ser organizador) y añade una tabla de esquema.
@@ -34,3 +34,7 @@ Hoy un perfil llega a ser `owner`/`admin` de un tenant solo por aprovisionamient
 - Mientras la migración no esté aplicada, la UI muestra la función como «aún no disponible en este entorno».
 - La consola externa de operador (futura) usará `review_pool_creation_request`; hasta entonces es un procedimiento manual documentado.
 - Pendiente de decisión del propietario: aplicar la migración a QA; política de enfriamiento definitiva; si la aprobación crea el tenant automáticamente o lo hace el operador.
+
+## Verificación en QA
+- Suite SQL 138/138 (rollback, reproducida por el coordinador), reversión 8/8, regresión de 13 suites 1025/1025 tras aplicar.
+- E2E real de ciclo de vida (5 identidades fijas): 5 solicitudes simultáneas → 1 pendiente; sin autoaprobación (42501); aprobación crea tenant gratuito + owner una sola vez; rechazo → `cooldown_active`; 142 PASS, 0 FAIL.
