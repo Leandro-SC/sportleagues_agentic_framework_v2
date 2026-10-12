@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import { getSupabaseClient } from '../lib/supabase'
-import { humanizeSportsRpcError, type MatchRow, type ResultRow, type RoundRow, type TeamRow, type TournamentRow } from '../lib/sports-admin'
+import { humanizeSportsRpcError, type MatchRow, type ResultRow, type ResultsMode, type RoundRow, type TeamRow, type TournamentRow } from '../lib/sports-admin'
 
 type RpcError = { message: string; code?: string; hint?: string }
 type Query = PromiseLike<{ data: unknown[] | null; error: RpcError | null }> & {
@@ -15,11 +15,11 @@ export type SportsAdminClient = {
 }
 
 const COLUMNS = {
-  tournaments: 'id, name, sport_code, country_code, season_label, color',
-  teams: 'id, name, short_name, country_code, primary_color, secondary_color',
+  tournaments: 'id, name, sport_code, country_code, season_label, color, results_mode',
+  teams: 'id, name, short_name, country_code, primary_color, secondary_color, kind',
   rounds: 'id, tournament_id, name, sort_order',
   matches: 'id, tournament_id, round_id, home_team_id, away_team_id, starts_at, status',
-  official_results: 'match_id, home_score, away_score, revision',
+  official_results: 'match_id, home_score, away_score, revision, source',
 } as const
 
 // Administración de la base deportiva. Toda escritura pasa por RPC (ADR-011): el tenant lo deriva el servidor de la entidad o
@@ -39,6 +39,8 @@ export function useSportsAdmin(clientFactory: () => SportsAdminClient = () => ge
   const saving = ref(false)
   const error = ref('')
 
+  const autoResultsAvailable = ref(false)
+  const resultsMode = computed<ResultsMode>(() => selectedTournament.value?.results_mode ?? 'manual')
   const selectedTournament = computed(() => tournaments.value.find((tournament) => tournament.id === selectedTournamentId.value) ?? null)
   const enrolledTeams = computed(() => teams.value.filter((team) => enrolledTeamIds.value.includes(team.id)))
   const teamName = (id: string): string => teams.value.find((team) => team.id === id)?.name ?? '—'
@@ -59,6 +61,7 @@ export function useSportsAdmin(clientFactory: () => SportsAdminClient = () => ge
         read<TeamRow>('teams', (query) => query.eq('tenant_id', forTenantId).order('name')),
       ])
       timezone.value = ((tenantRows.data?.[0] as { timezone?: string } | undefined)?.timezone) ?? 'UTC'
+      autoResultsAvailable.value = await readAutoResultsAvailability(forTenantId)
       tournaments.value = tournamentRows
       teams.value = teamRows
       if (!tournaments.value.some((tournament) => tournament.id === selectedTournamentId.value)) selectedTournamentId.value = tournaments.value[0]?.id ?? ''
@@ -67,6 +70,16 @@ export function useSportsAdmin(clientFactory: () => SportsAdminClient = () => ge
       error.value = 'No fue posible cargar la parrilla.'
     } finally {
       loading.value = false
+    }
+  }
+
+  // Solo informativo para la UI: la base de datos vuelve a comprobar interruptor de plataforma y plan al activar el modo automático.
+  async function readAutoResultsAvailability(forTenantId: string): Promise<boolean> {
+    try {
+      const response = await clientFactory().rpc('tenant_can_use_auto_results', { p_tenant_id: forTenantId })
+      return response?.data === true
+    } catch {
+      return false
     }
   }
 
@@ -165,6 +178,25 @@ export function useSportsAdmin(clientFactory: () => SportsAdminClient = () => ge
     return message
   }
 
+  /** Incorpora equipos del catálogo global al torneo activo (copias del tenant vinculadas por external_refs; máx. 60 por llamada). */
+  async function importCatalogTeams(catalogTeamIds: string[]): Promise<{ message: string | null; enrolled: number; alreadyEnrolled: number }> {
+    let enrolled = 0
+    let already = 0
+    for (let i = 0; i < catalogTeamIds.length; i += 60) {
+      const { message, data } = await mutate('import_catalog_teams', { p_tournament_id: selectedTournamentId.value, p_team_ids: catalogTeamIds.slice(i, i + 60) }, 'none')
+      if (message) { await loadCatalog(tenantId.value); return { message, enrolled, alreadyEnrolled: already } }
+      const summary = (data ?? {}) as { enrolled?: number; already_enrolled?: number }
+      enrolled += summary.enrolled ?? 0
+      already += summary.already_enrolled ?? 0
+    }
+    await loadCatalog(tenantId.value)
+    return { message: null, enrolled, alreadyEnrolled: already }
+  }
+
+  async function setResultsMode(mode: ResultsMode): Promise<string | null> {
+    return (await mutate('set_tournament_results_mode', { p_tournament_id: selectedTournamentId.value, p_mode: mode }, 'catalog')).message
+  }
+
   /** Publica o corrige el resultado. La revisión esperada evita pisar una corrección ajena (ADR-012). */
   async function publishResult(matchId: string, homeScore: number, awayScore: number): Promise<string | null> {
     const expected = results.value[matchId]?.revision ?? 0
@@ -173,7 +205,7 @@ export function useSportsAdmin(clientFactory: () => SportsAdminClient = () => ge
 
   return {
     tenantId, timezone, tournaments, teams, enrolledTeamIds, enrolledTeams, rounds, matches, results, poolMatchIds, selectedTournamentId, selectedTournament,
-    loading, saving, error, teamName,
-    loadCatalog, loadTournament, loadPoolMatches, saveTournament, saveTeam, addTeamsInBulk, setEnrolled, saveRound, reorderRounds, saveMatch, removeMatch, setPoolMatch, publishResult,
+    loading, saving, error, teamName, autoResultsAvailable, resultsMode,
+    loadCatalog, loadTournament, loadPoolMatches, saveTournament, saveTeam, addTeamsInBulk, setEnrolled, saveRound, reorderRounds, saveMatch, removeMatch, setPoolMatch, publishResult, importCatalogTeams, setResultsMode,
   }
 }

@@ -10,6 +10,7 @@ import {
   validateNewPassword,
 } from '../lib/auth-validation'
 import { clearJoinIntent } from '../lib/join-intent'
+import { purgePrivateCaches } from '../lib/offline-cache'
 import { getSupabaseClient } from '../lib/supabase'
 
 type Profile = { id: string; display_name: string }
@@ -58,6 +59,8 @@ async function ensureProfile(): Promise<void> {
   await loadProfile()
 }
 
+let cacheOwner: string | null = null
+
 async function syncProfile(): Promise<void> {
   await loadProfile()
   await ensureProfile()
@@ -74,6 +77,9 @@ export function useAuth() {
         subscribed = true
         client.auth.onAuthStateChange((event, session) => {
           if (event === 'PASSWORD_RECOVERY') state.recovery = true
+          // Datos privados cacheados: nunca sobreviven a un cierre de sesión ni se muestran a otra identidad.
+          if (event === 'SIGNED_OUT') { cacheOwner = null; void purgePrivateCaches() }
+          else if (session?.user && session.user.id !== cacheOwner) { void purgePrivateCaches(session.user.id); cacheOwner = session.user.id }
           state.session = session
           state.user = session?.user ?? null
           // Sin await dentro del callback: supabase-js documenta que bloquearlo puede interbloquear el cliente.
@@ -158,7 +164,7 @@ export function useAuth() {
 
   async function signOut(): Promise<string | null> {
     const { error } = await client.auth.signOut()
-    if (!error) { state.session = null; state.user = null; state.profile = null; state.recovery = false; ensureAttemptedFor = null; clearJoinIntent() }
+    if (!error) { state.session = null; state.user = null; state.profile = null; state.recovery = false; ensureAttemptedFor = null; clearJoinIntent(); void purgePrivateCaches() }
     return error?.message ?? null
   }
 

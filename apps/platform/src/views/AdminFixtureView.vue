@@ -3,6 +3,9 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { CalendarClock, ChevronDown, ChevronUp, LoaderCircle, Trash2 } from 'lucide-vue-next'
 import AppShell from '../components/AppShell.vue'
+import CatalogTeamPicker from '../components/CatalogTeamPicker.vue'
+import ResultsModePanel from '../components/ResultsModePanel.vue'
+import TeamBadge from '../components/TeamBadge.vue'
 import EmptyState from '../components/EmptyState.vue'
 import ErrorState from '../components/ErrorState.vue'
 import FormField from '../components/FormField.vue'
@@ -76,6 +79,17 @@ async function addTeams(): Promise<void> {
   if (fail(await sports.addTeamsInBulk(teams))) return
   bulkTeams.value = rejected.join('\n')
   ok(`${teams.length} equipo(s) añadidos${rejected.length ? `; ${rejected.length} línea(s) omitidas por duplicadas o inválidas` : ''}.`)
+}
+
+async function importFromCatalog(ids: string[]): Promise<void> {
+  const outcome = await sports.importCatalogTeams(ids)
+  if (fail(outcome.message)) return
+  ok(`${outcome.enrolled} equipo(s) incorporados al torneo${outcome.alreadyEnrolled ? `; ${outcome.alreadyEnrolled} ya estaban inscritos` : ''}.`)
+}
+
+async function changeResultsMode(mode: 'manual' | 'automatic'): Promise<void> {
+  if (fail(await sports.setResultsMode(mode))) return
+  ok(mode === 'manual' ? 'Modo de resultados: manual.' : 'Modo de resultados: automático.')
 }
 
 async function toggleEnrolled(teamId: string): Promise<void> {
@@ -192,6 +206,8 @@ onMounted(async () => { if (auth.state.user) await admin.load(auth.state.user.id
 
           <section v-if="tab === 'teams'" class="app-surface space-y-4 p-4">
             <h2 class="font-display font-bold text-text">Equipos</h2>
+            <CatalogTeamPicker :enrolled-names="sports.enrolledTeams.value.map((team) => team.name)" :importing="sports.saving.value" @import="importFromCatalog" />
+            <h3 class="font-display font-bold text-text">¿Falta un equipo? Añádelo manualmente</h3>
             <label class="block text-sm font-medium text-text-muted">Alta exprés (uno por línea; «Nombre, ABR» opcional)
               <textarea v-model="bulkTeams" rows="5" class="field-surface mt-1.5 w-full px-3 py-3 text-sm" placeholder="Club Norte, CNO&#10;Club Sur, CSU" />
             </label>
@@ -199,7 +215,7 @@ onMounted(async () => { if (auth.state.user) await admin.load(auth.state.user.id
             <EmptyState v-if="!sports.teams.value.length" title="Aún no hay equipos" description="Añádelos arriba; se inscriben en el torneo activo." />
             <ul v-else class="divide-y divide-border">
               <li v-for="team in sports.teams.value" :key="team.id" class="flex items-center justify-between gap-3 py-2.5">
-                <span class="text-sm font-semibold text-text">{{ team.name }}<span v-if="team.short_name" class="ml-2 text-text-muted">{{ team.short_name }}</span></span>
+                <span class="flex items-center gap-2 text-sm font-semibold text-text"><TeamBadge :name="team.name" :kind="team.kind" :country-code="team.country_code" :short-name="team.short_name ?? undefined" size="xs" />{{ team.name }}<span v-if="team.short_name" class="ml-1 text-text-muted">{{ team.short_name }}</span></span>
                 <label class="flex items-center gap-2 text-sm text-text-muted"><input type="checkbox" class="h-4 w-4 rounded accent-primary" :checked="sports.enrolledTeamIds.value.includes(team.id)" @change="toggleEnrolled(team.id)" />En el torneo</label>
               </li>
             </ul>
@@ -262,13 +278,14 @@ onMounted(async () => { if (auth.state.user) await admin.load(auth.state.user.id
 
           <section v-else class="app-surface space-y-4 p-4">
             <h2 class="font-display font-bold text-text">Resultados oficiales</h2>
+            <ResultsModePanel :mode="sports.resultsMode.value" :auto-available="sports.autoResultsAvailable.value" :saving="sports.saving.value" @select="changeResultsMode" />
             <p class="text-sm text-text-muted">Publicar o corregir un resultado recalcula los puntos de forma idempotente. Cada corrección queda auditada.</p>
             <EmptyState v-if="!startedMatches.length" title="Aún no hay partidos iniciados" description="Los resultados se publican cuando el partido empieza." />
             <ul v-else class="space-y-3">
               <li v-for="match in startedMatches" :key="match.id" class="rounded-xl border border-border p-3">
                 <div class="flex items-center justify-between gap-2">
                   <p class="text-sm font-semibold text-text">{{ sports.teamName(match.home_team_id) }} vs {{ sports.teamName(match.away_team_id) }}</p>
-                  <StatChip v-if="sports.results.value[match.id]" :label="`Rev. ${sports.results.value[match.id]!.revision}`" tone="success" />
+                  <StatChip v-if="sports.results.value[match.id]" :label="`Rev. ${sports.results.value[match.id]!.revision}${sports.results.value[match.id]!.source === 'provider' ? ' · proveedor' : ''}`" tone="success" />
                 </div>
                 <div class="mt-3 flex items-end gap-2">
                   <FormField :id="`score-h-${match.id}`" :model-value="scoreDraft[match.id]?.home ?? ''" type="number" label="Local" @update:model-value="scoreDraft[match.id] = { home: $event, away: scoreDraft[match.id]?.away ?? '' }" />

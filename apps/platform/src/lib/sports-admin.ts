@@ -12,11 +12,12 @@ export const SPORT_OPTIONS = [
 ] as const
 
 export type MatchStatus = 'scheduled' | 'live' | 'final'
-export type TournamentRow = { id: string; name: string; sport_code: string; country_code: string | null; season_label: string | null; color: string | null }
-export type TeamRow = { id: string; name: string; short_name: string | null; country_code: string | null; primary_color: string | null; secondary_color: string | null }
+export type ResultsMode = 'manual' | 'automatic'
+export type TournamentRow = { id: string; name: string; sport_code: string; country_code: string | null; season_label: string | null; color: string | null; results_mode?: ResultsMode }
+export type TeamRow = { id: string; name: string; short_name: string | null; country_code: string | null; primary_color: string | null; secondary_color: string | null; kind?: 'club' | 'national' }
 export type RoundRow = { id: string; tournament_id: string; name: string; sort_order: number }
 export type MatchRow = { id: string; tournament_id: string; round_id: string; home_team_id: string; away_team_id: string; starts_at: string; status: MatchStatus }
-export type ResultRow = { match_id: string; home_score: number; away_score: number; revision: number }
+export type ResultRow = { match_id: string; home_score: number; away_score: number; revision: number; source?: 'manual' | 'provider' }
 
 const HEX = /^#[0-9A-Fa-f]{6}$/
 
@@ -110,6 +111,9 @@ export function humanizeSportsRpcError(message: string | null | undefined, code?
   if (/only scheduled matches/.test(text)) return 'Solo se editan partidos programados.'
   if (/team with matches cannot be removed/.test(text)) return 'Un equipo con partidos no puede salir del torneo.'
   if (/cannot be removed from|cannot be deleted|used by pools or with official results|with predictions/.test(text)) return 'Este partido ya está en uso (quinielas, pronósticos o resultado) y no puede borrarse ni quitarse.'
+  if (/premium plan that is not available/.test(text)) return 'Los resultados automáticos son una función Premium que aún no está disponible. Sigue publicando los marcadores manualmente.'
+  if (/at most 60 teams/.test(text)) return 'Puedes incorporar hasta 60 equipos por vez.'
+  if (/no teams selected/.test(text)) return 'Selecciona al menos un equipo del catálogo.'
   if (/duplicate key|23505/.test(text) || code === '23505') return 'Ya existe un registro con ese nombre u orden.'
   if (/not authorized|42501/.test(text) || code === '42501') return 'No tienes permisos para realizar esta acción.'
   return 'No pudimos completar esta acción. Inténtalo de nuevo.'
