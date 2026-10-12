@@ -92,6 +92,7 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 
         <template v-else>
           <p v-if="rosterNotice" class="rounded-xl bg-surface-2 p-3 text-sm text-text-muted" role="status">{{ rosterNotice }}</p>
+          <p v-if="play.offline.value" class="rounded-xl bg-warn-100 p-3 text-sm font-medium text-warn" role="status" data-test="offline-notice">Sin conexión: mostrando lo último guardado{{ play.updatedAt.value ? ` (${new Date(play.updatedAt.value).toLocaleString('es', { dateStyle: 'short', timeStyle: 'short' })})` : '' }}. Pronosticar y emitir tickets requiere conexión: el servidor confirma siempre cada acción.</p>
 
           <ClosingSoonBanner :items="closingClassic" :now="now" />
 

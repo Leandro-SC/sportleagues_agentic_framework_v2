@@ -1,58 +1,58 @@
-# ADR-016 — Catálogo deportivo global y conector de proveedor (API-Football)
+# ADR-016 — Catálogo deportivo central, resultados híbridos y conector de proveedor
 
-- Estado: Accepted (2026-10-11, por encargo expreso del propietario) — **el despliegue a producción/Vercel del conector requiere autorización aparte**
-- Complementa: ADR-009 (catálogo y escudos), ADR-010 (contexto de fixture por quiniela), ADR-011 (lock/calendario), ADR-012 (resultados revisables)
-- Impacto AGENTS.md §12: proveedor externo nuevo, esquema central (datos globales fuera de tenants), cambio de lectura móvil.
+- Estado: Accepted (2026-10-12, por decisión de producto del propietario). **No se despliega a Vercel ni se activa ningún proveedor sin autorización aparte.**
+- Complementa: ADR-009 (catálogo y escudos), ADR-010, ADR-011 (lock/calendario), ADR-012 (resultados revisables), ADR-015.
+- Impacto AGENTS.md §12: esquema central (datos globales fuera de tenants), proveedor externo (preparado, inactivo), lectura móvil.
 
-## Contexto
+## Decisión de producto (vigente)
 
-Hoy cada organizador crea torneos, equipos y partidos a mano (tenant-owned). Se quiere importar competiciones reales desde API-Football (API-Sports)
-sin que cada organizador consuma la cuota, sin mezclar datos privados entre tenants y sin que el móvil hable con el proveedor.
+SportLeagues usa un **catálogo deportivo central precargado** y **resultados híbridos**. La actualización automática por API deportiva es una **función Premium futura**.
+Esta decisión sustituye el enfoque inicial «importación bajo demanda desde API-Football para todos los organizadores».
 
-## Decisión
+## Decisión técnica
 
-1. **Tres niveles de lectura: proveedor → Supabase → dispositivo.** Solo una Edge Function (`sports-sync`, `service_role`, clave en secretos de función) llama al
-   proveedor. Los móviles solo leen Supabase y guardan caché local (ver §7).
-2. **Catálogo global de solo lectura para clientes** (`catalog_competitions`, `catalog_seasons`, `catalog_teams`, `catalog_fixtures`): sin `tenant_id` porque son datos
-   deportivos públicos, no datos de un organizador. RLS: `SELECT` a `authenticated`; **ninguna** escritura de clientes. Identidad única `(provider, external_id)`.
-3. **Los datos de los tenants siguen aislados.** Importar una jornada **copia** al tenant (torneo/equipos/jornada/partidos tenant-owned) mediante la RPC
-   `import_catalog_round` (autoriza `is_tenant_admin` del torneo; el tenant sale de la entidad). El vínculo se guarda en `external_refs` (Fase 06): equipo y
-   partido por `(tenant, provider, tipo, external_id)`. Quinielas, tickets, pronósticos, ingresos y permisos no se comparten.
-3. **Importación una sola vez por recurso compartido**: `catalog_import_jobs` + `pg_advisory_xact_lock` + índice único parcial `(provider, resource_key)` donde
-   `status='running'`. Una segunda solicitud simultánea recibe `in_progress` (o `fresh` si ya se importó dentro de la ventana) y **no** consume cuota.
-4. **Cuota**: contador atómico diario por proveedor (`provider_usage`, día UTC) con tope configurable (por defecto 100 = plan Free, con reserva). Sin cuota, la función
-   degrada (devuelve datos del catálogo ya guardado y `provider_unavailable`/`quota_exhausted`); nunca descarga ligas anticipadamente.
-5. **Sincronización de estados/resultados** (`catalog_propagate_*`, solo `service_role`):
-   - horario: se aplica con la maquinaria de ADR-011 (`apply_fixture_update`): adelantar bloquea ya; **nunca reabre un lock alcanzado**;
-   - estados del proveedor se mapean a `scheduled|live|final` + `matches.provider_state` (`postponed|cancelled|abandoned`) sin ampliar el enum de partido
-     (el estado sigue siendo monótono); un partido cancelado no recibe resultado y por tanto no puntúa;
-   - resultado final (marcador a 90 minutos, `score.fulltime`) → `official_results` con `source='provider'` y `published_by` nulo; una diferencia posterior sube la
-     **revisión** y recalcula idempotentemente (`_recalculate_match_scoring`, ADR-012). Un resultado **manual** nunca se sobrescribe: se registra un conflicto;
-   - todo cambio queda en `fixture_sync_log` (legible por administradores del tenant) y las importaciones en `audit_log`.
-6. **Escudos**: no se almacenan, copian ni redistribuyen. No se pudo verificar con fuentes oficiales que los términos de API-Sports permitan guardar o servir
-   logos de clubes (marcas de terceros); se mantiene la política de ADR-009 (escudo generado por iniciales/colores). No se guarda siquiera la URL del logo.
-   Reabrir solo con licencia documentada.
-7. **Caché móvil** (`lib/offline-cache`): IndexedDB (justificada: no existía persistencia estructurada; solo `localStorage` para banderas), espacio de nombres por
-   `usuario:tenant`, versión de esquema + `updated_at`, TTL por tipo, tope de tamaño con desalojo LRU, borrado al cerrar sesión, deduplicación de solicitudes en vuelo
-   y modo solo lectura sin conexión con indicador de antigüedad. **No** se cachean credenciales, tokens ni datos privados en cachés compartidas; las escrituras
-   (pronósticos, tickets) se confirman siempre en servidor y la hora del dispositivo jamás decide un lock.
-8. **Adaptador desacoplado**: interfaz `SportsProvider` (buscar competiciones, temporadas, fixtures por jornada, fixtures por ids) + implementación `api-football`.
-   Cambiar de proveedor = nueva implementación y otro valor de `provider`; el esquema no cambia.
+1. **Catálogo global de solo lectura para clientes** (`catalog_competitions`, `catalog_seasons`, `catalog_teams`, `catalog_competition_teams`, `catalog_countries`,
+   `catalog_sources`, `catalog_fixtures`): sin `tenant_id` (datos deportivos públicos). RLS: `SELECT` a `authenticated`; ninguna escritura de clientes. Identidad
+   única `(provider, external_id)`; la semilla usa `provider='wikidata'` (Q-id estable; selecciones `NT:Q…`).
+2. **Fuente y licencia.** Semilla construida con `scripts/catalog/build-catalog.mjs` desde **Wikidata (CC0)**; se carga con `scripts/catalog/load-catalog.mjs`
+   (`catalog_seed_load`, idempotente, solo postgres/service_role). Procedencia y licencia quedan en `catalog_sources`. Las pertenencias a ligas son «clubes registrados en la liga
+   según Wikidata en la fecha de carga» (puede incluir/omitir clubes de la temporada vigente): el organizador siempre puede añadir equipos manualmente. Sin datos ficticios.
+3. **Recursos visuales.** Banderas: paquete MIT `flag-icons` vendorizado en `public/flags` (con licencia). **Escudos de clubes: no se almacenan ni se enlazan** (no existe una fuente libre y
+   autorizada; ni API-Sports ni Wikimedia ofrecen licencia verificada para logos de clubes). Se mantiene el escudo generado (ADR-009). Reabrir solo con licencia documentada.
+4. **Los datos de los tenants siguen aislados.** Importar equipos (`import_catalog_teams`, máx. 60) o una jornada (`import_catalog_round`) **copia** a entidades tenant-owned
+   y vincula con `external_refs` (Fase 06). Autoriza `is_tenant_admin` del torneo; el tenant sale de la entidad, nunca del cliente. Un equipo manual homónimo se reutiliza.
+   Quinielas, tickets, pronósticos, ingresos y permisos no se comparten. `teams.kind` (club|national) y `country_code` (ISO-3166-1 o subdivisión `GB-ENG`) permiten bandera.
+5. **Resultados híbridos.** `tournaments.results_mode`: `manual` (todos; por defecto) | `automatic`.
+   - **Manual:** `publish_official_result` (revisión esperada, idempotente, auditado, recalcula scoring). Un resultado publicado/confirmado por un administrador es `source='manual'`.
+   - **Automático (Premium futuro):** `set_tournament_results_mode('automatic')` exige, **en la base de datos**, `platform_feature_flags.auto_results = true` (APAGADO) **y** plan `pro` del tenant.
+     La propagación (`catalog_propagate_fixtures`, solo service_role) vuelve a comprobarlo por partido y solo actúa sobre partidos vinculados por `external_refs` en torneos automáticos.
+     Sin cobertura/vínculo → administración manual.
+   - **Conflictos:** el proveedor nunca sobrescribe un resultado manual: se registra `conflict_manual_result` en `fixture_sync_log` (visible a administradores). Una corrección del
+     proveedor sobre un resultado de proveedor sube la revisión y recalcula idempotentemente (ADR-012). Reprogramaciones respetan ADR-011 (adelantar bloquea ya; un lock alcanzado nunca se reabre).
+     Aplazados/cancelados/abandonados se reflejan en `matches.provider_state` sin ampliar `match_status`. El marcador es a 90 minutos (`score.fulltime`).
+6. **Adaptador desacoplado** (`supabase/functions/_shared/sports`): interfaz `SportsProvider` + implementación API-Football (plan-aware); el proveedor se elige por configuración de backend
+   (`provider`, `API_FOOTBALL_PLAN`); football-data.org u otro = nueva implementación, sin cambios en pronósticos, tickets, rankings ni frontend. La Edge Function `sports-sync` **no está desplegada**
+   ni programada; control de cuota diario atómico (`provider_consume`), deduplicación de importaciones concurrentes (`catalog_begin_import`), 429 con reintentos acotados y degradación controlada.
+   Hallazgo verificado del plan Free de API-Football: solo temporadas 2022–2024, sin parámetro `ids`, `date` limitado a ±1 día, `live=all` disponible → la sincronización de temporadas en curso
+   requiere plan de pago (coste fuera de alcance).
+7. **Caché móvil** (`lib/offline-cache`, `lib/swr`, `lib/catalog-local`): IndexedDB (justificada: antes solo `localStorage` para banderas), espacios `public` y `u:<usuario>`, versión de esquema, TTL con ventana
+   «obsoleto» de 7 días, límites de bytes/entradas con desalojo LRU, borrado de datos privados al cerrar sesión/cambiar de usuario, deduplicación de solicitudes en vuelo, revalidación en segundo plano,
+   catálogo local-first con sincronización incremental por `updated_at` y estado «sin conexión / actualizado». Frecuencias: catálogo 24 h; quiniela 1 min (partidos activos) o 10 min.
+   **Solo lectura:** pronósticos, tickets y resultados se confirman siempre en servidor; tras guardar se fuerza lectura del servidor; la hora del dispositivo nunca decide un lock.
 
 ## Alternativas descartadas
 
-- Que cada tenant llame al proveedor: multiplica cuota y filtra credenciales/horarios al cliente.
-- Catálogo por tenant: duplica importaciones y rompe la deduplicación.
-- Ampliar `match_status` con `postponed/cancelled`: cambia la máquina de estados protegida por H1–H6 (rango de regresión y `else 3` implícito).
-- Descargar todas las ligas: contradice el control de costes.
+- Importación a demanda por organizador desde un proveedor: multiplica cuota/coste y no es necesario para el modo manual.
+- Ampliar `match_status`: cambia la máquina de estados protegida por H1–H6.
+- Descargar o enlazar escudos de terceros: sin licencia verificada.
+- Catálogo por tenant: duplica y rompe la deduplicación.
 
 ## Consecuencias / riesgos
 
-- Dependencia de la disponibilidad y cuota del proveedor: mitigada con catálogo persistente y degradación.
-- Plan Free: temporadas actuales pueden no estar cubiertas (limitación del plan, no del diseño); se informa en la UI/respuesta de la función.
-- El marcador a 90 min puede diferir del que el organizador desee en eliminatorias; el administrador puede corregir manualmente (queda como `manual`).
-- Un partido cancelado conserva pronósticos hasta el lock natural (no hay puntos); el organizador puede retirarlo de la quiniela si no tiene pronósticos.
+- Calidad de Wikidata: pertenencia a ligas imperfecta fuera de Europa (documentada y mitigada con alta manual). Catálogo sin deportes distintos del fútbol por ahora.
+- Un partido cancelado conserva pronósticos hasta el lock natural (sin puntos); el organizador puede retirarlo si no tiene pronósticos.
+- Sin cooldown tras fallos del proveedor (cada intento está acotado por la cuota diaria): mejora futura si se activa Premium.
 
 ## Rollback
 
-Migración forward-only con `down` en `supabase/proposed/down/`. Deshabilitar = no desplegar/borrar la función; los datos importados a tenants permanecen válidos.
+Migraciones forward-only con `down` en `supabase/proposed/down/` (probados dentro de una transacción). Datos copiados a tenants permanecen válidos.

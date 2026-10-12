@@ -25,7 +25,7 @@ export function resetSwrForTests(): void {
   inflight.clear()
 }
 
-function dedupe<T>(id: string, start: () => Promise<T>): Promise<T> {
+export function dedupe<T>(id: string, start: () => Promise<T>): Promise<T> {
   const running = inflight.get(id) as Promise<T> | undefined
   if (running) return running
   const promise = start().finally(() => { if (inflight.get(id) === promise) inflight.delete(id) })

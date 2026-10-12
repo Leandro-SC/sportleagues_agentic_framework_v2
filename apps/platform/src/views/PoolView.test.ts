@@ -22,7 +22,7 @@ function setup(overrides: Record<string, unknown> = {}, access: Record<string, u
   }
   h.play = {
     tenantTimezone: ref('America/Lima'), ticketMode: ref('none'), participation: ref('participant'), fixture: ref([item]), leaderboard: ref([{ rank: 1, participant_id: 'x', display_name: 'Ana', points: 12, exact_hits: 2, outcome_hits: 1, played: 3, current_streak: 3, best_streak: 3, is_me: true }]),
-    rounds: ref([{ id: 'r1', name: 'Fecha 1' }]), loading: ref(false), error: ref(''), savingMatchId: ref(''), myRow: ref({ rank: 1, points: 12 }), canPredict: ref(true),
+    rounds: ref([{ id: 'r1', name: 'Fecha 1' }]), loading: ref(false), error: ref(''), savingMatchId: ref(''), myRow: ref({ rank: 1, points: 12 }), canPredict: ref(true), offline: ref(false), updatedAt: ref(null), fromCache: ref(false),
     load: vi.fn().mockResolvedValue(undefined), loadLeaderboard: vi.fn().mockResolvedValue(undefined), savePrediction: vi.fn().mockResolvedValue(null), ...overrides,
   }
 }
@@ -43,6 +43,19 @@ const play = () => h.play as Record<string, ReturnType<typeof vi.fn>>
 
 describe('PoolView', () => {
   beforeEach(() => setup())
+
+  it('sin conexión muestra lo último guardado con su fecha y recuerda que el servidor confirma cada acción', async () => {
+    setup({ offline: ref(true), updatedAt: ref(Date.parse('2026-10-12T15:00:00Z')) })
+    const wrapper = await mountView()
+    const notice = wrapper.get('[data-test="offline-notice"]')
+    expect(notice.text()).toContain('Sin conexión')
+    expect(notice.text()).toContain('el servidor confirma siempre cada acción')
+  })
+
+  it('con conexión no muestra el aviso de sin conexión', async () => {
+    const wrapper = await mountView()
+    expect(wrapper.find('[data-test="offline-notice"]').exists()).toBe(false)
+  })
 
   it('carga la parrilla del jugador autenticado una vez verificado el acceso', async () => {
     await mountView()
