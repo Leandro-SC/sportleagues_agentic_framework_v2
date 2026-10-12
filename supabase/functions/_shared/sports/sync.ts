@@ -16,6 +16,9 @@ export interface CatalogStore {
   upsertFixtures(seasonId: string, fixtures: ProviderFixture[]): Promise<string[]>
   propagate(fixtureIds: string[]): Promise<PropagationCounters>
   dueFixtures(limit: number): Promise<{ external_id: string; season_id: string }[]>
+  // ADR-021: liquida las reservas de cuota que esta operación hizo (una por intento HTTP). 'succeeded' = el trabajo terminó; 'failed' = terminó con el
+  // código indicado. Opcional: los dobles de prueba que no llevan libro de reservas no lo implementan. Un fallo aquí NUNCA devuelve cuota (el intento salió).
+  settleReservations?(outcome: 'succeeded' | 'failed', errorCode: string | null): Promise<void>
 }
 
 export type SyncDeps = {
@@ -56,15 +59,19 @@ async function guarded(
   // Importación ya hecha o en curso por otra solicitud: no se consulta al proveedor ni se gasta cuota.
   if (outcome !== 'started') return { status: outcome, requests_used: 0 }
   const meter = metered(deps.store, limit)
+  const settle = (outcome: 'succeeded' | 'failed', errorCode: string | null) =>
+    Promise.resolve(deps.store.settleReservations?.(outcome, errorCode)).catch(() => undefined)
   try {
     const detail = await work(deps.provider(meter.gate))
     await deps.store.finishImport(jobId, 'succeeded', null, meter.used())
+    await settle('succeeded', null)
     return { status: 'ok', requests_used: meter.used(), detail }
   } catch (error) {
     const code = error instanceof ProviderError ? error.code : 'INTERNAL'
     const limited = code === 'RATE_LIMITED' || code === 'QUOTA_EXHAUSTED'
     await deps.store.finishImport(jobId, limited ? 'rate_limited' : 'failed', code, meter.used()).catch(() => undefined)
     await deps.store.recordOutcome(!limited, code === 'RATE_LIMITED').catch(() => undefined)
+    await settle('failed', code)
     if (!(error instanceof ProviderError)) throw error
     // Degradación controlada: el catálogo ya guardado sigue sirviéndose; el cliente recibe el motivo.
     return { status: 'degraded', code, requests_used: meter.used() }
@@ -75,7 +82,8 @@ const SEARCH_FRESH_SECONDS = 24 * 3600
 const SEASON_FRESH_SECONDS = 6 * 3600
 const SYNC_FRESH_SECONDS = 120
 
-export function searchCompetitions(deps: SyncDeps, userId: string, query: string): Promise<OperationResult> {
+// `requestedBy`: ADR-021 — ya no hay usuarios de tenant que invoquen estas operaciones; los procesos de plataforma pasan `null`.
+export function searchCompetitions(deps: SyncDeps, userId: string | null, query: string): Promise<OperationResult> {
   const q = query.trim().toLowerCase().replace(/\s+/g, ' ')
   if (q.length < 3 || q.length > 60) return Promise.resolve({ status: 'degraded', code: 'BAD_REQUEST', requests_used: 0 })
   return guarded(deps, `search:${q}`, userId, SEARCH_FRESH_SECONDS, deps.dailyLimit - deps.syncReserve, async (provider) => {
@@ -85,7 +93,7 @@ export function searchCompetitions(deps: SyncDeps, userId: string, query: string
   })
 }
 
-export function importSeason(deps: SyncDeps, userId: string, competitionExternalId: string, year: number): Promise<OperationResult> {
+export function importSeason(deps: SyncDeps, userId: string | null, competitionExternalId: string, year: number): Promise<OperationResult> {
   if (!/^[0-9]{1,9}$/.test(competitionExternalId) || !Number.isInteger(year) || year < 1990 || year > 2100) {
     return Promise.resolve({ status: 'degraded', code: 'BAD_REQUEST', requests_used: 0 })
   }

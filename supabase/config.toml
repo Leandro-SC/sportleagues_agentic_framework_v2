@@ -384,7 +384,8 @@ deno_version = 2
 [functions.branding-reconciler]
 verify_jwt = false
 
-# ADR-016: autentica por sí misma (JWT de administrador o x-sync-secret programado).
+# ADR-016 / ADR-021 (F-05): autentica por sí misma y SOLO acepta la credencial interna x-sync-secret de un proceso backend de la
+# plataforma (nunca el JWT de un administrador de tenant). NO desplegada ni programada.
 [functions.sports-sync]
 verify_jwt = false
 
