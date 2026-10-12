@@ -3,7 +3,7 @@ import { canManageTenant, humanizeAdminRpcError, humanizeBrandingUploadError, ty
 import { getSupabaseClient } from '../lib/supabase'
 
 export type AdminTenant = { tenant_id: string; role: TenantRole; plan_code: 'free' | 'pro' }
-export type AdminPool = { id: string; tenant_id: string; name: string; status: PoolStatus; lock_offset: string; requires_approval: boolean }
+export type AdminPool = { id: string; tenant_id: string; name: string; status: PoolStatus; lock_offset: string; requires_approval: boolean; ticketing_mode: 'none' | 'tickets' }
 export type AdminParticipant = { id: string; profile_id: string; approval_status: 'pending' | 'approved'; payment_status: PaymentStatus; profiles: { display_name: string } | null }
 export type PoolRule = { exact_points: number; outcome_points: number; tie_breaker: 'exact_predictions' | 'prediction_submitted_at' }
 export type BrandingAssetPreview = { asset_id: string; asset_kind: BrandingAssetKind; signed_url: string }
@@ -53,7 +53,7 @@ export function useAdmin() {
 
   async function loadPools(): Promise<void> {
     if (!selectedTenantId.value) return
-    const { data, error: queryError } = await getSupabaseClient().from('pools').select('id, tenant_id, name, status, lock_offset, requires_approval').eq('tenant_id', selectedTenantId.value).order('created_at', { ascending: false })
+    const { data, error: queryError } = await getSupabaseClient().from('pools').select('id, tenant_id, name, status, lock_offset, requires_approval, ticketing_mode').eq('tenant_id', selectedTenantId.value).order('created_at', { ascending: false })
     if (queryError) { error.value = 'No fue posible cargar las quinielas.'; return }
     pools.value = (data ?? []) as AdminPool[]
     selectedPoolId.value = selectedPoolId.value && pools.value.some((pool) => pool.id === selectedPoolId.value) ? selectedPoolId.value : (pools.value[0]?.id ?? '')

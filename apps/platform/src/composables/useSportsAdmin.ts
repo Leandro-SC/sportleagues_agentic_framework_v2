@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 import { getSupabaseClient } from '../lib/supabase'
 import { humanizeSportsRpcError, type MatchRow, type ResultRow, type RoundRow, type TeamRow, type TournamentRow } from '../lib/sports-admin'
 
-type RpcError = { message: string; code?: string }
+type RpcError = { message: string; code?: string; hint?: string }
 type Query = PromiseLike<{ data: unknown[] | null; error: RpcError | null }> & {
   eq(column: string, value: string): Query
   in(column: string, values: string[]): Query

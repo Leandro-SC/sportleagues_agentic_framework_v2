@@ -20,6 +20,7 @@ type Row = Record<string, unknown>
 // tabla. Solo lectura bajo RLS + RPC `save_prediction` / `pool_leaderboard`; el cliente nunca decide permisos ni cierres.
 export function usePoolPlay(clientFactory: () => SportsAdminClient = () => getSupabaseClient() as unknown as SportsAdminClient) {
   const tenantTimezone = ref('UTC')
+  const ticketMode = ref<'none' | 'tickets'>('none')
   const participation = ref<Participation>('none')
   const fixture = ref<FixtureItem[]>([])
   const leaderboard = ref<LeaderRow[]>([])
@@ -43,7 +44,8 @@ export function usePoolPlay(clientFactory: () => SportsAdminClient = () => getSu
     currentPoolId = poolId; currentProfileId = profileId
     loading.value = true; error.value = ''
     try {
-      const [pool] = await rows('pools', 'id, tenant_id', (q) => q.eq('id', poolId))
+      const [pool] = await rows('pools', 'id, tenant_id, ticketing_mode', (q) => q.eq('id', poolId))
+      ticketMode.value = pool?.ticketing_mode === 'tickets' ? 'tickets' : 'none'
       if (pool) {
         const [tenant] = await rows('tenants', 'timezone', (q) => q.eq('id', pool.tenant_id as string))
         tenantTimezone.value = (tenant?.timezone as string | undefined) ?? 'UTC'
@@ -60,7 +62,7 @@ export function usePoolPlay(clientFactory: () => SportsAdminClient = () => getSu
         teamIds.length ? rows('teams', 'id, name, short_name', (q) => q.in('id', teamIds)) : Promise.resolve([]),
         roundIds.length ? rows('rounds', 'id, name, sort_order', (q) => q.in('id', roundIds)) : Promise.resolve([]),
         matchIds.length ? rows('official_results', 'match_id, home_score, away_score, revision', (q) => q.in('match_id', matchIds)) : Promise.resolve([]),
-        me ? rows('predictions', 'id, pool_match_id, home_score, away_score', (q) => q.eq('pool_id', poolId).eq('participant_id', me.id as string)) : Promise.resolve([]),
+        me ? rows('predictions', 'id, pool_match_id, home_score, away_score, ticket_id', (q) => q.eq('pool_id', poolId).eq('participant_id', me.id as string)).then((list) => list.filter((p) => !p.ticket_id)) : Promise.resolve([]),   // con tickets, los pronósticos viven en el ticket (usePoolTickets)
       ])
       const predictionIds = predictions.map((p) => p.id as string)
       const events = predictionIds.length ? await rows('scoring_events', 'prediction_id, points, result_revision, rule_version', (q) => q.in('prediction_id', predictionIds)) : []
@@ -121,5 +123,5 @@ export function usePoolPlay(clientFactory: () => SportsAdminClient = () => getSu
     }
   }
 
-  return { tenantTimezone, participation, fixture, leaderboard, rounds, loading, error, savingMatchId, myRow, canPredict, load, loadLeaderboard, savePrediction }
+  return { tenantTimezone, ticketMode, participation, fixture, leaderboard, rounds, loading, error, savingMatchId, myRow, canPredict, load, loadLeaderboard, savePrediction }
 }

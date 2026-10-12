@@ -1,6 +1,6 @@
 # ADR-014 — Tickets multi-tenant, pagos manuales y libro financiero append-only
 
-- Estado: Proposed
+- Estado: Accepted (Etapa 1: tickets sin cobros, 2026-10-11) · Etapa comercial: Proposed, condicionada a D13
 - Fecha: 2026-10-11
 - Decisores: Architecture (preparación de tickets). Requiere aprobación del Product Owner (sección «Decisiones pendientes»).
 - Detalle técnico (DDL conceptual, RPC, RLS, pruebas): [`ADR-014-ANNEX-tickets-technical-design.md`](../ADR-014-ANNEX-tickets-technical-design.md)
@@ -158,3 +158,10 @@ Aprobadas con diseño propuesto y detalle abierto: **D6-b** gracia de confirmaci
 ticket válido» · **D11** límites Free por capacidad/coste/modelo (sin números; procedimiento en la revisión) ·
 **D13** retención y baja. Nuevas: **D14** resuelta por ADR-015 · **D15** cadena de hash
 del ledger · **D16** roles de `pool_staff`. Criterios para aceptar el ADR: revisión §7 (A1–A9).
+
+## Aceptación por etapas (2026-10-11, decisión del propietario)
+
+**Aprobadas:** D6-b (gracia 0), D8 (mejor ticket elegible: más puntos → más exactos → envío más temprano → ticket_no), D11 (procedimiento; Free sin pagos, 1 ticket por defecto), D15 (hash del ledger en la fase comercial), D16 (roles de `pool_staff`, ADR-015).
+**Etapa 1 — aceptada e implementada** (`20261016000100_tickets_stage1_free.sql`): `pool_rounds` (jornada vendible por quiniela, máximo configurable 1–20), `tickets` (identificación única, idempotencia por participante), `predictions.ticket_id`, `ticketing_mode` irreversible `none→tickets` solo sin pronósticos previos, intercambio atómico de la unicidad de `predictions` y de `save_prediction` (registros existentes intactos, ticket NULL), RPC `enable_pool_tickets`, `configure_pool_round`, `create_ticket`, `save_ticket_prediction`, `submit_ticket`, `cancel_ticket`, `list_my_tickets`, `pool_ticket_leaderboard`; `pool_leaderboard`/`pool_points_evolution` usan el mejor ticket elegible por participante y jornada. Elegibilidad: se fija al enviar antes del primer bloqueo de la jornada (D5) y queda congelada. Sin precios, pagos, ledger ni pasarelas.
+**Precisión respecto al texto original:** al no haber dinero en la Etapa 1 no existe el sello `seal_round_sales`; un borrador no enviado al primer bloqueo simplemente no compite (no puede enviarse después). El bloqueo de cada pronóstico sigue siendo por partido (ADR-011).
+**Etapa comercial (payments, ledger, sello, ingresos, reembolsos, retención):** sigue `Proposed`; bloqueada por D13 (asesoría legal por jurisdicción) y por sus criterios de seguridad A1/A7/A9. Compatibilidad con ADR-010: no hay rankings agregados entre quinielas.

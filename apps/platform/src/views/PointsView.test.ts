@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import PointsView from './PointsView.vue'
-import MyTicketsView from './MyTicketsView.vue'
 
 const h = vi.hoisted(() => ({ stats: {} as Record<string, unknown> }))
 vi.mock('../composables/useAuth', () => ({ useAuth: () => ({ state: { profile: { id: 'me', display_name: 'Ana' }, user: { id: 'me' } }, isAuthenticated: { value: true } }) }))
@@ -51,13 +50,5 @@ describe('PointsView', () => {
     const { wrapper, router } = await mountView(PointsView, 'points')
     await wrapper.findAll('button').find((b) => b.text().includes('Liga A'))!.trigger('click'); await flushPromises()
     expect(router.currentRoute.value.params.poolId).toBe('p1')
-  })
-})
-
-describe('MyTicketsView', () => {
-  it('no muestra tickets ni cifras de ejemplo: informa que aún no están disponibles', async () => {
-    const { wrapper } = await mountView(MyTicketsView, 'my-tickets')
-    expect(wrapper.text()).toContain('Los tickets aún no están disponibles')
-    expect(wrapper.text()).not.toMatch(/\$|S\/\s?\d/)
   })
 })

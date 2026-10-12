@@ -7,6 +7,7 @@ import BrandingAssetSlot from '../components/BrandingAssetSlot.vue'
 import EmptyState from '../components/EmptyState.vue'
 import ErrorState from '../components/ErrorState.vue'
 import FormField from '../components/FormField.vue'
+import PoolTicketsAdmin from '../components/PoolTicketsAdmin.vue'
 import PrimaryButton from '../components/PrimaryButton.vue'
 import SecondaryButton from '../components/SecondaryButton.vue'
 import StatChip from '../components/StatChip.vue'
@@ -189,6 +190,8 @@ onBeforeUnmount(admin.dispose)
             <label class="mt-3 block text-sm font-medium text-text-muted">Desempate<select v-model="tieBreaker" class="field-surface mt-1.5 w-full px-3 py-3 text-sm"><option value="exact_predictions">Más resultados exactos</option><option value="prediction_submitted_at">Predicción más temprana</option></select></label>
             <PrimaryButton class="mt-3" :loading="admin.saving.value" @click="saveRules">Publicar nueva versión</PrimaryButton>
           </section>
+
+          <PoolTicketsAdmin :pool-id="admin.selectedPool.value.id" :ticketing-mode="admin.selectedPool.value.ticketing_mode ?? 'none'" :archived="admin.selectedPool.value.status === 'archived'" @changed="admin.loadPools()" />
 
           <section class="app-surface p-4">
             <div class="mb-4 flex items-center gap-2"><UsersRound class="h-5 w-5 text-primary" /><h2 class="font-display font-bold text-text">Participantes</h2></div>
