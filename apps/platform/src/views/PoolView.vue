@@ -20,6 +20,7 @@ import { usePoolAccess } from '../composables/usePoolAccess'
 import { usePoolPlay } from '../composables/usePoolPlay'
 import { usePoolStats } from '../composables/usePoolStats'
 import { useAuth } from '../composables/useAuth'
+import type { ScorelineSuggestion } from '../lib/scoreline-suggestion'
 
 type Tab = 'summary' | 'matches' | 'table'
 const router = useRouter()
@@ -34,6 +35,8 @@ const tabs: { value: Tab; label: string }[] = [{ value: 'summary', label: 'Resum
 const now = ref(new Date())
 const roundFilter = ref('')
 const messages = ref<Record<string, string>>({})
+const suggestions = ref<Record<string, ScorelineSuggestion>>({})
+const suggestionMessages = ref<Record<string, string>>({})
 let timer: ReturnType<typeof setInterval> | undefined
 
 const nextMatches = computed(() => play.fixture.value.filter((item) => item.status === 'scheduled' && new Date(item.lockAt).getTime() > now.value.getTime()).slice(0, 3))
@@ -57,6 +60,16 @@ const rosterNotice = computed(() => {
 async function save(matchId: string, home: number, away: number): Promise<void> {
   const message = await play.savePrediction(matchId, home, away)
   messages.value = { ...messages.value, [matchId]: message ?? '' }
+}
+
+async function suggest(poolMatchId: string, matchId: string): Promise<void> {
+  const result = await play.suggestScoreline(poolMatchId)
+  if ('suggestion' in result) {
+    suggestions.value = { ...suggestions.value, [matchId]: result.suggestion }
+    suggestionMessages.value = { ...suggestionMessages.value, [matchId]: '' }
+  } else {
+    suggestionMessages.value = { ...suggestionMessages.value, [matchId]: result.failure }
+  }
 }
 
 watch(
@@ -123,7 +136,8 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
               <EmptyState v-if="!nextMatches.length" title="Sin partidos abiertos" description="Cuando el organizador programe partidos aparecerán aquí." />
               <div v-else class="space-y-3">
                 <PredictionMatchCard v-for="item in nextMatches" :key="item.matchId" :item="item" :now="now" :timezone="play.tenantTimezone.value" :can-predict="play.canPredict.value"
-                  :saving="play.savingMatchId.value === item.matchId" :message="messages[item.matchId]" @save="(h, a) => save(item.matchId, h, a)" />
+                  :saving="play.savingMatchId.value === item.matchId" :message="messages[item.matchId]" @save="(h, a) => save(item.matchId, h, a)"
+                  :suggest-available="play.suggestAvailable.value" :suggesting="play.suggestingPoolMatchId.value === item.poolMatchId" :suggestion="suggestions[item.matchId] ?? null" :suggestion-message="suggestionMessages[item.matchId]" @suggest="suggest(item.poolMatchId, item.matchId)" />
               </div>
             </div>
           </section>
@@ -137,7 +151,8 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
               <h2 class="mb-3 font-display text-base font-bold text-text">{{ group.name }}</h2>
               <div class="space-y-3">
                 <PredictionMatchCard v-for="item in group.items" :key="item.matchId" :item="item" :now="now" :timezone="play.tenantTimezone.value" :can-predict="play.canPredict.value"
-                  :saving="play.savingMatchId.value === item.matchId" :message="messages[item.matchId]" @save="(h, a) => save(item.matchId, h, a)" />
+                  :saving="play.savingMatchId.value === item.matchId" :message="messages[item.matchId]" @save="(h, a) => save(item.matchId, h, a)"
+                  :suggest-available="play.suggestAvailable.value" :suggesting="play.suggestingPoolMatchId.value === item.poolMatchId" :suggestion="suggestions[item.matchId] ?? null" :suggestion-message="suggestionMessages[item.matchId]" @suggest="suggest(item.poolMatchId, item.matchId)" />
               </div>
             </div>
           </section>

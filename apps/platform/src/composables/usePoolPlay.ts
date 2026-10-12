@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import { getSupabaseClient } from '../lib/supabase'
 import { humanizePredictionError } from '../lib/prediction-ux'
+import { describeSuggestionError, parseSuggestion, type ScorelineSuggestion } from '../lib/scoreline-suggestion'
 import { getOfflineCache, privateNamespace } from '../lib/offline-cache'
 import { dedupe } from '../lib/swr'
 import type { SportsAdminClient } from './useSportsAdmin'
@@ -43,6 +44,8 @@ export function usePoolPlay(clientFactory: () => SportsAdminClient = () => getSu
   const loading = ref(false)
   const error = ref('')
   const savingMatchId = ref('')
+  const suggestingPoolMatchId = ref('')
+  const suggestAvailable = ref(true)
   const fromCache = ref(false)
   const offline = ref(false)
   const updatedAt = ref<number | null>(null)
@@ -174,5 +177,28 @@ export function usePoolPlay(clientFactory: () => SportsAdminClient = () => getSu
     }
   }
 
-  return { tenantTimezone, ticketMode, participation, fixture, leaderboard, rounds, loading, error, savingMatchId, myRow, canPredict, fromCache, offline, updatedAt, load, loadLeaderboard, savePrediction }
+  /**
+   * Pide al servidor la sugerencia estadística (Elo + Poisson, ADR-019). Solo lectura: no se guarda en caché ni escribe nada; el cliente
+   * únicamente rellena el formulario y guardar sigue pasando por `save_prediction`. Si el RPC no existe en este entorno se oculta la función.
+   */
+  async function suggestScoreline(poolMatchId: string): Promise<{ suggestion: ScorelineSuggestion } | { failure: string }> {
+    if (!suggestAvailable.value) return { failure: 'La sugerencia estadística aún no está disponible en este entorno.' }
+    suggestingPoolMatchId.value = poolMatchId
+    try {
+      const { data, error: rpcError } = await clientFactory().rpc('suggest_scoreline', { p_pool_match_id: poolMatchId })
+      if (rpcError) {
+        const failure = describeSuggestionError(rpcError as { code?: string; message?: string; hint?: string; details?: string })
+        if (failure.unavailable) suggestAvailable.value = false
+        return { failure: failure.message }
+      }
+      const suggestion = parseSuggestion(data)
+      return suggestion ? { suggestion } : { failure: 'No pudimos calcular la sugerencia. Inténtalo de nuevo.' }
+    } catch {
+      return { failure: 'Sin conexión: la sugerencia necesita conexión con el servidor.' }
+    } finally {
+      suggestingPoolMatchId.value = ''
+    }
+  }
+
+  return { tenantTimezone, ticketMode, participation, fixture, leaderboard, rounds, loading, error, savingMatchId, myRow, canPredict, fromCache, offline, updatedAt, suggestAvailable, suggestingPoolMatchId, load, loadLeaderboard, savePrediction, suggestScoreline }
 }

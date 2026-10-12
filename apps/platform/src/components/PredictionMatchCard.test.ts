@@ -53,4 +53,48 @@ describe('PredictionMatchCard', () => {
   it('muestra el rechazo del servidor sin ocultarlo', () => {
     expect(mountCard({}, { message: 'El pronóstico ya está cerrado o no estás habilitado en esta quiniela.' }).get('[role="alert"]').text()).toMatch(/cerrado/)
   })
+
+  describe('sugerencia estadística', () => {
+    const suggestion = { homeGoals: 2, awayGoals: 1, pHome: 0.5, pDraw: 0.27, pAway: 0.23, rated: true, modelVersion: 'elo-poisson-v1', computedAt: '2026-10-12T10:00:00Z' }
+
+    it('sin suggestAvailable no hay botón (función oculta)', () => {
+      expect(mountCard().find('[data-test="suggest"]').exists()).toBe(false)
+    })
+
+    it('con suggestAvailable muestra el botón y emite suggest; el botón mide al menos 44 px', async () => {
+      const wrapper = mountCard({}, { suggestAvailable: true })
+      const button = wrapper.get('[data-test="suggest"]')
+      expect(button.classes()).toContain('min-h-11')
+      await button.trigger('click')
+      expect(wrapper.emitted('suggest')).toHaveLength(1)
+      expect(wrapper.emitted('save')).toBeUndefined()
+    })
+
+    it('rellena el formulario con la sugerencia pero NO guarda; muestra probabilidades y aviso de no-certeza', async () => {
+      const wrapper = mountCard({}, { suggestAvailable: true })
+      await wrapper.setProps({ suggestion })
+      expect((wrapper.get('#ph-m').element as HTMLInputElement).value).toBe('2')
+      expect((wrapper.get('#pa-m').element as HTMLInputElement).value).toBe('1')
+      expect(wrapper.emitted('save')).toBeUndefined()
+      const box = wrapper.get('[data-test="suggestion"]').text()
+      expect(box).toContain('Local 50%')
+      expect(box).toContain('no está guardada')
+      expect(box).toMatch(/no es una certeza ni una recomendación de apuesta/)
+    })
+
+    it('avisa cuando los equipos no tienen historial (rated=false)', async () => {
+      const wrapper = mountCard({}, { suggestAvailable: true, suggestion: { ...suggestion, rated: false } })
+      expect(wrapper.get('[data-test="suggestion"]').text()).toMatch(/valores por defecto/)
+    })
+
+    it('muestra el error de la sugerencia como alerta', () => {
+      const wrapper = mountCard({}, { suggestAvailable: true, suggestionMessage: 'Este partido ya cerró: no hay sugerencia disponible.' })
+      expect(wrapper.get('[data-test="suggestion-error"]').text()).toMatch(/cerró/)
+    })
+
+    it('tras el cierre del servidor o sin permiso de pronosticar no se ofrece sugerencia', () => {
+      expect(mountCard({ lockAt: '2026-10-12T11:00:00Z' }, { suggestAvailable: true }).find('[data-test="suggest"]').exists()).toBe(false)
+      expect(mountCard({}, { suggestAvailable: true, canPredict: false }).find('[data-test="suggest"]').exists()).toBe(false)
+    })
+  })
 })
