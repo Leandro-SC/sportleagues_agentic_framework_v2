@@ -19,6 +19,9 @@ begin
     (v_t1, v_o1, 'owner'), (v_t1, v_a1, 'admin'), (v_t1, v_m1, 'member'), (v_t1, v_pl1, 'member'), (v_t1, v_pl2, 'member'), (v_t2, v_o2, 'owner');
   insert into public.tournaments(tenant_id, name, season_label) values (v_t1, 'CG liga', '2026') returning id into v_tour1;
   insert into public.tournaments(tenant_id, name, season_label) values (v_t2, 'CG liga t2', '2026') returning id into v_tour2;
+  -- La propagación del proveedor solo opera en modo automático con Premium habilitado (ADR-016 revisión); aquí se habilita explícitamente.
+  update public.platform_feature_flags set enabled = true where key = 'auto_results';
+  update public.tournaments set results_mode = 'automatic' where id in (v_tour1, v_tour2);
 
   -- ---- Privilegios: el catálogo es de solo lectura para clientes; los controles internos no son accesibles --------------------
   perform set_config('request.jwt.claims', '{"role":"service_role"}', false);
