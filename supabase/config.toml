@@ -384,6 +384,10 @@ deno_version = 2
 [functions.branding-reconciler]
 verify_jwt = false
 
+# ADR-016: autentica por sí misma (JWT de administrador o x-sync-secret programado).
+[functions.sports-sync]
+verify_jwt = false
+
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
