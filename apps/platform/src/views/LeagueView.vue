@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { CalendarX2, SearchX } from 'lucide-vue-next'
-import heroBackground from '../assets/backgrounds/fondo_app_tablo.png'
+import heroBackground from '../assets/backgrounds/fondo_app_tablo.jpg'
 import AppShell from '../components/AppShell.vue'
 import CatalogBoundary from '../components/CatalogBoundary.vue'
 import CompetitionEmblem from '../components/CompetitionEmblem.vue'

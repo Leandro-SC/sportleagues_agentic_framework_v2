@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowLeft, ArrowRight, KeyRound, ShieldCheck, Trophy, UsersRound, Zap } from 'lucide-vue-next'
-import coverBackground from '../assets/backgrounds/fondo_app_tablo.png'
+import coverBackground from '../assets/backgrounds/fondo_app_tablo.jpg'
 import coverLogo from '../assets/branding/logo_app_tablo.png'
 import AppShell from '../components/AppShell.vue'
 import HomeDashboard from '../components/HomeDashboard.vue'
