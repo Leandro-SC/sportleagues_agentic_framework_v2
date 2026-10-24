@@ -6,6 +6,8 @@ export type AdminTenant = { tenant_id: string; role: TenantRole; plan_code: 'fre
 export type AdminPool = { id: string; tenant_id: string; name: string; status: PoolStatus; lock_offset: string; requires_approval: boolean; ticketing_mode: 'none' | 'tickets' }
 export type AdminParticipant = { id: string; profile_id: string; approval_status: 'pending' | 'approved'; payment_status: PaymentStatus; profiles: { display_name: string } | null }
 export type PoolRule = { exact_points: number; outcome_points: number; tie_breaker: 'exact_predictions' | 'prediction_submitted_at' }
+/** ADR-023. `null` si el servidor aún no expone `pool_rules_policy`: la UI no bloquea y el servidor sigue siendo la autoridad. */
+export type PoolRulesPolicy = { editable: boolean; customAllowed: boolean }
 export type BrandingColors = { primary: string | null; secondary: string | null }
 export type BrandingAssetPreview= { asset_id: string; asset_kind: BrandingAssetKind; signed_url: string }
 
@@ -27,6 +29,7 @@ export function useAdmin(options: { branding?: boolean } = {}) {
   const pools = ref<AdminPool[]>([])
   const participants = ref<AdminParticipant[]>([])
   const rule = ref<PoolRule | null>(null)
+  const rulesPolicy = ref<PoolRulesPolicy | null>(null)
   const loading = ref(false)
   const saving = ref(false)
   const brandingSaving = ref(false)
@@ -81,7 +84,7 @@ export function useAdmin(options: { branding?: boolean } = {}) {
   function reset(): void {
     stopBrandingPolling()
     brandingGeneration++; colorsGeneration++; loadGeneration++; epoch++
-    tenants.value = []; pools.value = []; participants.value = []; rule.value = null
+    tenants.value = []; pools.value = []; participants.value = []; rule.value = null; rulesPolicy.value = null
     brandingAssets.value = { logo: null, banner: null }
     brandingColors.value = null; brandingColorsStatus.value = 'idle'
     selectedTenantId.value = ''; selectedPoolId.value = ''
@@ -114,7 +117,7 @@ export function useAdmin(options: { branding?: boolean } = {}) {
     pools.value = (data ?? []) as AdminPool[]
     selectedPoolId.value = selectedPoolId.value && pools.value.some((pool) => pool.id === selectedPoolId.value) ? selectedPoolId.value : (pools.value[0]?.id ?? '')
     if (selectedPoolId.value) await loadPoolDetails()
-    else { participants.value = []; rule.value = null }
+    else { participants.value = []; rule.value = null; rulesPolicy.value = null }
   }
 
   async function loadBrandingAssets(): Promise<void> {
@@ -191,14 +194,17 @@ export function useAdmin(options: { branding?: boolean } = {}) {
     if (!selectedPoolId.value) return
     const client = getSupabaseClient()
     const startEpoch = epoch
-    const [{ data: participantData, error: participantError }, { data: ruleData, error: ruleError }] = await Promise.all([
+    const [{ data: participantData, error: participantError }, { data: ruleData, error: ruleError }, { data: policyData, error: policyError }] = await Promise.all([
       client.from('participants').select('id, profile_id, approval_status, payment_status, profiles(display_name)').eq('pool_id', selectedPoolId.value).order('created_at'),
       client.from('pool_rules').select('exact_points, outcome_points, tie_breaker').eq('pool_id', selectedPoolId.value).eq('is_current', true).maybeSingle(),
+      client.rpc('pool_rules_policy', { p_pool_id: selectedPoolId.value }),
     ])
     if (startEpoch !== epoch) return
     if (participantError || ruleError) { error.value = 'No fue posible cargar la configuración.'; return }
     participants.value = (participantData ?? []) as unknown as AdminParticipant[]
     rule.value = ruleData as PoolRule | null
+    const policy = (Array.isArray(policyData) ? policyData[0] : policyData) as { editable: boolean; custom_allowed: boolean } | null | undefined
+    rulesPolicy.value = !policyError && policy ? { editable: policy.editable, customAllowed: policy.custom_allowed } : null
   }
 
   async function createPool(name: string, lockMinutes: number, requiresApproval: boolean): Promise<string | null> {
@@ -274,5 +280,5 @@ export function useAdmin(options: { branding?: boolean } = {}) {
     return message
   }
 
-  return { tenants, pools, participants, rule, loading, saving, brandingSaving, brandingAssets, error, selectedTenantId, selectedPoolId, selectedTenant, selectedPool, isAdmin, activePools, load, loadPools, loadBrandingAssets, loadBrandingColors, brandingColors, brandingColorsStatus, reset, loadPoolDetails, createPool, updatePool, approveParticipant, setPayment, publishRules, createJoinCode, saveBranding, uploadBrandingAsset, removeBrandingAsset, dispose }
+  return { tenants, pools, participants, rule, rulesPolicy,loading, saving, brandingSaving, brandingAssets, error, selectedTenantId, selectedPoolId, selectedTenant, selectedPool, isAdmin, activePools, load, loadPools, loadBrandingAssets, loadBrandingColors, brandingColors, brandingColorsStatus, reset, loadPoolDetails, createPool, updatePool, approveParticipant, setPayment, publishRules, createJoinCode, saveBranding, uploadBrandingAsset, removeBrandingAsset, dispose }
 }

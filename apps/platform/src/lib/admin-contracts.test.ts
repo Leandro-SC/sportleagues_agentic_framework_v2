@@ -13,6 +13,8 @@ describe('admin contracts', () => {
     expect(validatePoolName('Quiniela Copa')).toBeNull()
     expect(validatePoints(3, 1)).toBeNull()
     expect(validatePoints(-1, 1)).toBeTruthy()
+    expect(validatePoints(1, 3)).toContain('exacto')
+    expect(validatePoints(2, 2)).toBeNull()
   })
 
   it('communicates the FREE limit without treating it as enforcement', () => {
@@ -22,6 +24,8 @@ describe('admin contracts', () => {
 
   it('turns the FREE limit RPC error into user-facing language', () => {
     expect(humanizeAdminRpcError('free plan allows one active pool')).toBe('Tu plan FREE permite una sola quiniela activa.')
+    expect(humanizeAdminRpcError('scoring rules are frozen after the first lock')).toContain('fijas')
+    expect(humanizeAdminRpcError('custom scoring requires the pro plan')).toContain('PRO')
     expect(humanizeAdminRpcError('permission denied for relation pools')).toBe('No pudimos completar esta acción. Inténtalo de nuevo.')
   })
 

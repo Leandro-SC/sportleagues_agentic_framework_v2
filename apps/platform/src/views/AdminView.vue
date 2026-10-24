@@ -11,7 +11,7 @@ import PoolTicketsAdmin from '../components/PoolTicketsAdmin.vue'
 import PrimaryButton from '../components/PrimaryButton.vue'
 import SecondaryButton from '../components/SecondaryButton.vue'
 import StatChip from '../components/StatChip.vue'
-import { freeLimitMessage, lockMinutesFromInterval, parseLockMinutesInput, parsePointsInput, validatePoints, validatePoolName } from '../lib/admin-contracts'
+import { PRO_SCORING_MESSAGE, RULES_FROZEN_MESSAGE, STANDARD_SCORING, freeLimitMessage, lockMinutesFromInterval, parseLockMinutesInput, parsePointsInput, validatePoints, validatePoolName } from '../lib/admin-contracts'
 import { BRANDING_COLORS_UNAVAILABLE, useAdmin } from '../composables/useAdmin'
 import { useAuth } from '../composables/useAuth'
 import { useIdentityWatch } from '../composables/useIdentityWatch'
@@ -80,7 +80,13 @@ async function changeStatus(action: 'open' | 'pause' | 'archive'): Promise<void>
   else notice.value = action === 'archive' ? 'Quiniela archivada.' : action === 'pause' ? 'Quiniela pausada.' : 'Quiniela abierta.'
 }
 
+// ADR-023: sin política del servidor (RPC ausente) la UI no bloquea; el servidor decide y se traduce su rechazo.
+const rulesFrozen = computed(() => admin.rulesPolicy.value?.editable === false)
+const customScoringLocked = computed(() => admin.rulesPolicy.value?.customAllowed === false)
+
 async function saveRules(): Promise<void> {
+  if (rulesFrozen.value) { formError.value = RULES_FROZEN_MESSAGE; return }
+  if (customScoringLocked.value) { exactPoints.value = String(STANDARD_SCORING.exactPoints); outcomePoints.value = String(STANDARD_SCORING.outcomePoints) }
   // Puntos en blanco no son 0 (FE-01).
   const exact = parsePointsInput(exactPoints.value, 'Puntos exacto')
   if (!exact.ok) { formError.value = exact.message; return }
@@ -213,9 +219,11 @@ onBeforeUnmount(admin.dispose)
         <template v-if="admin.selectedPool.value">
           <section class="app-surface p-4">
             <div class="mb-4 flex items-center gap-2"><Settings2 class="h-5 w-5 text-primary" /><h2 class="font-display font-bold text-text">Reglas</h2></div>
-            <div class="grid grid-cols-2 gap-3"><FormField id="exact-points" v-model="exactPoints" type="number" label="Puntos exacto" /><FormField id="outcome-points" v-model="outcomePoints" type="number" label="Puntos 1X2" /></div>
-            <label class="mt-3 block text-sm font-medium text-text-muted">Desempate<select v-model="tieBreaker" class="field-surface mt-1.5 w-full px-3 py-3 text-sm"><option value="exact_predictions">Más resultados exactos</option><option value="prediction_submitted_at">Predicción más temprana</option></select></label>
-            <PrimaryButton class="mt-3" :loading="admin.saving.value" @click="saveRules">Publicar nueva versión</PrimaryButton>
+            <div class="grid grid-cols-2 gap-3"><FormField id="exact-points" v-model="exactPoints" type="number" label="Puntos exacto" :disabled="rulesFrozen || customScoringLocked" /><FormField id="outcome-points" v-model="outcomePoints" type="number" label="Puntos 1X2" :disabled="rulesFrozen || customScoringLocked" /></div>
+            <label class="mt-3 block text-sm font-medium text-text-muted">Desempate<select id="tie-breaker" v-model="tieBreaker" :disabled="rulesFrozen" class="field-surface mt-1.5 w-full px-3 py-3 text-sm disabled:opacity-50"><option value="exact_predictions">Más resultados exactos</option><option value="prediction_submitted_at">Predicción más temprana</option></select></label>
+            <p v-if="rulesFrozen" class="mt-3 text-sm text-text-muted" data-testid="rules-frozen">{{ RULES_FROZEN_MESSAGE }}</p>
+            <p v-else-if="customScoringLocked" class="mt-3 text-sm text-text-muted" data-testid="rules-standard">{{ PRO_SCORING_MESSAGE }}</p>
+            <PrimaryButton v-if="!rulesFrozen" class="mt-3" :loading="admin.saving.value" @click="saveRules">Publicar nueva versión</PrimaryButton>
           </section>
 
           <PoolTicketsAdmin :pool-id="admin.selectedPool.value.id" :ticketing-mode="admin.selectedPool.value.ticketing_mode ?? 'none'" :archived="admin.selectedPool.value.status === 'archived'" @changed="admin.loadPools()" />

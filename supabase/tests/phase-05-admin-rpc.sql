@@ -34,6 +34,9 @@ update public.tenant_memberships x set role = f.role, is_active = true
 insert into public.pools(id,tenant_id,name,status,lock_offset) values
 ('aaaaaaaa-0000-0000-0000-000000000001','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','Phase 05 Admin Pool A','open',interval '15 minutes'),('bbbbbbbb-0000-0000-0000-000000000001','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','Phase 05 Admin Pool B','open',interval '15 minutes')
 on conflict (id) do update set tenant_id = excluded.tenant_id, name = excluded.name, status = excluded.status, lock_offset = excluded.lock_offset;
+-- ADR-023: los IDs fijos de arriba existen persistidos en QA con un partido ya bloqueado (reglas congeladas). El versionado de reglas
+-- se prueba en una quiniela propia de la transacción, sin partidos.
+insert into public.pools(id,tenant_id,name,status,lock_offset) values ('aaaaaaaa-0000-0000-0000-0000000000a2','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','Phase 05 Admin Rules Pool','draft',interval '15 minutes');
 insert into public.participants(id,tenant_id,pool_id,profile_id,approval_status,payment_status) values
 ('aaaaaaaa-0000-0000-0000-000000000052','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','aaaaaaaa-0000-0000-0000-000000000001','33333333-3333-3333-3333-333333333333','approved','pending'),('aaaaaaaa-0000-0000-0000-000000000053','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','aaaaaaaa-0000-0000-0000-000000000001','77777777-7777-7777-7777-777777777777','pending','invited'),('bbbbbbbb-0000-0000-0000-000000000052','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','bbbbbbbb-0000-0000-0000-000000000001','55555555-5555-5555-5555-555555555555','approved','pending')
 on conflict (id) do update set tenant_id = excluded.tenant_id, pool_id = excluded.pool_id, profile_id = excluded.profile_id, approval_status = excluded.approval_status, payment_status = excluded.payment_status;
@@ -64,24 +67,27 @@ end $$;
 select set_config('request.jwt.claim.sub','33333333-3333-3333-3333-333333333333',true);
 do $$ begin begin perform public.set_participant_payment_status('aaaaaaaa-0000-0000-0000-000000000052','pending'); raise exception 'member changed payment status'; exception when others then if sqlerrm <> 'not authorized' then raise; end if; end; end $$;
 
--- 6. Owner A can publish an initial rule version for Pool A.
+-- 6. Owner A can publish an initial rule version for Pool A (Tenant A is FREE: standard 3/1 scoring, ADR-023).
 select set_config('request.jwt.claim.sub','11111111-1111-1111-1111-111111111111',true);
 do $$ declare v_version integer; begin
-  select version into v_version from public.publish_pool_rules('aaaaaaaa-0000-0000-0000-000000000001', 10, 5, 'exact_predictions'::public.tie_breaker_kind);
+  select version into v_version from public.publish_pool_rules('aaaaaaaa-0000-0000-0000-0000000000a2', 3, 1, 'exact_predictions'::public.tie_breaker_kind);
   if v_version <> 1 then raise exception 'first published rule version should be 1, got %', v_version; end if;
 end $$;
 
+-- 6b. A FREE tenant cannot publish custom points (ADR-023).
+do $$ begin begin perform public.publish_pool_rules('aaaaaaaa-0000-0000-0000-0000000000a2', 10, 5, 'exact_predictions'::public.tie_breaker_kind); raise exception 'free tenant published custom points'; exception when others then if sqlerrm <> 'custom scoring requires the pro plan' then raise; end if; end; end $$;
+
 -- 7. Publishing again supersedes the previous version atomically (exactly one current row).
 do $$ declare v_version integer; v_current_count integer; begin
-  select version into v_version from public.publish_pool_rules('aaaaaaaa-0000-0000-0000-000000000001', 12, 6, 'prediction_submitted_at'::public.tie_breaker_kind);
+  select version into v_version from public.publish_pool_rules('aaaaaaaa-0000-0000-0000-0000000000a2', 3, 1, 'prediction_submitted_at'::public.tie_breaker_kind);
   if v_version <> 2 then raise exception 'second published rule version should be 2, got %', v_version; end if;
-  select count(*) into v_current_count from public.pool_rules where pool_id = 'aaaaaaaa-0000-0000-0000-000000000001' and is_current;
+  select count(*) into v_current_count from public.pool_rules where pool_id = 'aaaaaaaa-0000-0000-0000-0000000000a2' and is_current;
   if v_current_count <> 1 then raise exception 'expected exactly one current rule version, found %', v_current_count; end if;
 end $$;
 
 -- 8. Member A cannot publish pool rules.
 select set_config('request.jwt.claim.sub','33333333-3333-3333-3333-333333333333',true);
-do $$ begin begin perform public.publish_pool_rules('aaaaaaaa-0000-0000-0000-000000000001', 1, 1, 'exact_predictions'::public.tie_breaker_kind); raise exception 'member published pool rules'; exception when others then if sqlerrm <> 'not authorized' then raise; end if; end; end $$;
+do $$ begin begin perform public.publish_pool_rules('aaaaaaaa-0000-0000-0000-0000000000a2', 1, 1, 'exact_predictions'::public.tie_breaker_kind); raise exception 'member published pool rules'; exception when others then if sqlerrm <> 'not authorized' then raise; end if; end; end $$;
 
 -- 9. Admin A cannot publish rules for a Tenant B pool.
 select set_config('request.jwt.claim.sub','22222222-2222-2222-2222-222222222222',true);

@@ -19,7 +19,7 @@ function setup(overrides: Record<string, unknown> = {}) {
     tenants, selectedTenantId, pools, selectedPoolId,
     selectedTenant: computed(() => tenants.value.find((tenant) => tenant.tenant_id === selectedTenantId.value) ?? null),
     selectedPool: computed(() => pools.value.find((pool) => pool.id === selectedPoolId.value) ?? null),
-    participants: ref([]), rule: ref({ exact_points: 3, outcome_points: 1, tie_breaker: 'exact_predictions' }), activePools: computed(() => 1),
+    participants: ref([]), rule: ref({ exact_points: 3, outcome_points: 1, tie_breaker: 'exact_predictions' }), rulesPolicy: ref(null), activePools: computed(() => 1),
     loading: ref(false), saving: ref(false), brandingSaving: ref(false), error: ref(''), brandingAssets: ref({ logo: null, banner: null }),
     brandingColors: ref({ primary: '#112233', secondary: '#445566' }), brandingColorsStatus: ref('ready'),
     load: vi.fn().mockResolvedValue(undefined), loadPools: vi.fn().mockResolvedValue(undefined), loadBrandingAssets: vi.fn().mockResolvedValue(undefined),
@@ -203,5 +203,34 @@ describe('AdminView - cambio de identidad con la vista montada (FE-05)', () => {
     await flushPromises()
     expect(admin().reset).not.toHaveBeenCalled()
     expect(admin().load).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('AdminView - reglas congeladas y puntuación estándar (ADR-023)', () => {
+  it('tras el primer lock muestra las reglas como fijas y no ofrece publicar', async () => {
+    setup({ rulesPolicy: ref({ editable: false, customAllowed: true }) })
+    const { wrapper } = await mountView()
+    expect(wrapper.get('[data-testid="rules-frozen"]').text()).toContain('fijas')
+    expect(wrapper.findAll('button').some((button) => button.text() === 'Publicar nueva versión')).toBe(false)
+    expect((wrapper.get('#exact-points').element as HTMLInputElement).disabled).toBe(true)
+  })
+
+  it('en FREE los puntos son los estándar y solo se elige el desempate', async () => {
+    setup({ rulesPolicy: ref({ editable: true, customAllowed: false }) })
+    const { wrapper } = await mountView()
+    expect(wrapper.get('[data-testid="rules-standard"]').text()).toContain('PRO')
+    expect((wrapper.get('#outcome-points').element as HTMLInputElement).disabled).toBe(true)
+    await wrapper.get('#tie-breaker').setValue('prediction_submitted_at')
+    await buttonByText(wrapper, 'Publicar nueva versión').trigger('click')
+    await flushPromises()
+    expect(admin().publishRules).toHaveBeenCalledWith(3, 1, 'prediction_submitted_at')
+  })
+
+  it('el marcador exacto no puede valer menos que el resultado', async () => {
+    const { wrapper } = await mountView()
+    await wrapper.get('#exact-points').setValue('1'); await wrapper.get('#outcome-points').setValue('2')
+    await buttonByText(wrapper, 'Publicar nueva versión').trigger('click')
+    await flushPromises()
+    expect(admin().publishRules).not.toHaveBeenCalled()
   })
 })

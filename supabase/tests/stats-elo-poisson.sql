@@ -208,7 +208,7 @@ begin
   -- ===========================================================================================================
   -- ESTADO: reconstrucción determinista (rebuild_team_ratings)
   -- ===========================================================================================================
-  select count(*) into v_cnt1 from public.team_ratings;
+  select count(*) into v_cnt1 from public.team_ratings where tenant_id in (v_t1, v_t2);   -- solo los tenants de la suite: QA puede tener ratings reales
   perform pg_temp.rec('R00 sin reconstrucción no hay ratings (estado vacío por defecto)', v_cnt1 = 0, v_cnt1::text);
 
   v_res := pg_temp.as_user(v_o, $q$select public.rebuild_team_ratings('football')$q$);

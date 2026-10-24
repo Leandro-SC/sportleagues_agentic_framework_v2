@@ -20,10 +20,16 @@ export function validatePoolName(value: string): string | null {
 }
 
 export function validatePoints(exactPoints: number, outcomePoints: number): string | null {
-  return Number.isInteger(exactPoints) && Number.isInteger(outcomePoints) && exactPoints >= 0 && outcomePoints >= 0
-    ? null
-    : 'Los puntos deben ser números enteros iguales o mayores que cero.'
+  if (!(Number.isInteger(exactPoints) && Number.isInteger(outcomePoints) && exactPoints >= 0 && outcomePoints >= 0)) {
+    return 'Los puntos deben ser números enteros iguales o mayores que cero.'
+  }
+  return exactPoints >= outcomePoints ? null : 'El marcador exacto no puede valer menos que acertar el resultado.'
 }
+
+// ADR-023: FREE usa la puntuación estándar; los puntos personalizados son PRO. El desempate es elegible en ambos planes.
+export const STANDARD_SCORING = { exactPoints: 3, outcomePoints: 1 } as const
+export const RULES_FROZEN_MESSAGE = 'Las reglas quedaron fijas al cerrar el primer partido: cambiarlas ahora alteraría la tabla.'
+export const PRO_SCORING_MESSAGE = 'La puntuación personalizada está disponible en el plan PRO. En FREE se usa la estándar: 3 puntos por marcador exacto y 1 por acertar el resultado.'
 
 export const MAX_POINTS = 1000
 export const MAX_LOCK_MINUTES = 1440
@@ -49,6 +55,9 @@ export function humanizeAdminRpcError(message: string | null | undefined): strin
   if (/free plan allows one active pool/i.test(message ?? '')) {
     return freeLimitMessage('free', 1) ?? 'Tu plan FREE permite una sola quiniela activa.'
   }
+  if (/scoring rules are frozen/i.test(message ?? '')) return RULES_FROZEN_MESSAGE
+  if (/custom scoring requires the pro plan/i.test(message ?? '')) return PRO_SCORING_MESSAGE
+  if (/exact points cannot be lower than outcome points/i.test(message ?? '')) return 'El marcador exacto no puede valer menos que acertar el resultado.'
 
   return 'No pudimos completar esta acción. Inténtalo de nuevo.'
 }

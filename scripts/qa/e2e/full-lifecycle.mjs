@@ -257,7 +257,10 @@ await section(5, 'configuración de la quiniela (organizador) y del organizador 
   Object.assign(S, { tour, round, m1, m2, m3, m4, manual })
 
   const pool = must(await rq.client.rpc('manage_pool', { p_action: 'create', p_pool_id: null, p_tenant_id: S.tenant, p_name: `${tag} Quiniela`, p_lock_offset_minutes: 15, p_requires_approval: true }), 'quiniela')
-  must(await rq.client.rpc('publish_pool_rules', { p_pool_id: pool.id, p_exact_points: 5, p_outcome_points: 2, p_tie_breaker: 'exact_predictions' }), 'reglas')
+  // ADR-023: el tenant nuevo es FREE -> puntuación estándar 3/1; los puntos personalizados son PRO.
+  const custom = await rq.client.rpc('publish_pool_rules', { p_pool_id: pool.id, p_exact_points: 5, p_outcome_points: 2, p_tie_breaker: 'exact_predictions' })
+  expectErr('5.8', custom, '42501', 'PRO_SCORING_REQUIRED', 'plan Free: puntos personalizados se rechazan:')
+  must(await rq.client.rpc('publish_pool_rules', { p_pool_id: pool.id, p_exact_points: 3, p_outcome_points: 1, p_tie_breaker: 'exact_predictions' }), 'reglas')
   must(await rq.client.rpc('manage_pool', { p_action: 'open', p_pool_id: pool.id, p_tenant_id: null, p_name: null, p_lock_offset_minutes: null, p_requires_approval: null }), 'abrir')
   for (const m of [m1, m2, m3, m4]) must(await rq.client.rpc('set_pool_match', { p_pool_id: pool.id, p_match_id: m.id, p_included: true }), 'pool match')
   const joinCode = must(await rq.client.rpc('create_pool_join_code', { p_pool_id: pool.id }), 'código').code
@@ -283,7 +286,9 @@ await section(5, 'configuración de la quiniela (organizador) y del organizador 
   const roundB = must(await ab.client.rpc('upsert_round', { p_tournament_id: tourB.id, p_round_id: null, p_name: 'Fecha 1', p_sort_order: 1 }), 'jornada B')
   const mB = must(await ab.client.rpc('upsert_match', { p_tournament_id: tourB.id, p_match_id: null, p_round_id: roundB.id, p_home_team_id: tb[0], p_away_team_id: tb[1], p_starts_at: new Date(Date.now() + 120 * 60_000).toISOString() }), 'partido B')
   const poolB = must(await ab.client.rpc('manage_pool', { p_action: 'create', p_pool_id: null, p_tenant_id: S.tenantB, p_name: `${tag} Quiniela B`, p_lock_offset_minutes: 15, p_requires_approval: false }), 'quiniela B')
-  must(await ab.client.rpc('publish_pool_rules', { p_pool_id: poolB.id, p_exact_points: 5, p_outcome_points: 2, p_tie_breaker: 'exact_predictions' }), 'reglas B')
+  const planB = must(await svc.from('tenant_entitlements').select('plan_code').eq('tenant_id', S.tenantB), 'plan B')[0]?.plan_code
+  const [eB, oB] = planB === 'pro' ? [5, 2] : [3, 1]
+  must(await ab.client.rpc('publish_pool_rules', { p_pool_id: poolB.id, p_exact_points: eB, p_outcome_points: oB, p_tie_breaker: 'exact_predictions' }), 'reglas B')
   must(await ab.client.rpc('manage_pool', { p_action: 'open', p_pool_id: poolB.id, p_tenant_id: null, p_name: null, p_lock_offset_minutes: null, p_requires_approval: null }), 'abrir B')
   must(await ab.client.rpc('set_pool_match', { p_pool_id: poolB.id, p_match_id: mB.id, p_included: true }), 'pool match B')
   S.poolB = poolB
@@ -471,21 +476,24 @@ const rebuild = async () => {
 await section(10, 'resultado oficial, puntos, ranking y corrección', async () => {
   const [m1, m3] = [S.m1, S.m3]
   const pool = S.pool.id
+  // Puntos esperados según la regla vigente de la quiniela (FREE 3/1 en un entorno nuevo; datos anteriores a ADR-023 usan 5/2).
+  const rule = must(await svc.from('pool_rules').select('exact_points, outcome_points').eq('pool_id', pool).eq('is_current', true), 'regla vigente')[0]
+  const E = rule.exact_points, O = rule.outcome_points
   const player = await u1.client.rpc('publish_official_result', { p_match_id: m1.id, p_home_score: 2, p_away_score: 1, p_expected_revision: 0 })
   expectErr('10.1', player, '42501', null, 'un participante no publica resultados:')
   const pub = await rq.client.rpc('publish_official_result', { p_match_id: m1.id, p_home_score: 2, p_away_score: 1, p_expected_revision: 0 })
   rec('10.2', !pub.error && pub.data.revision === 1 && pub.data.source === 'manual', `el organizador publica 2-1 -> revisión=${pub.data?.revision}, fuente=${pub.data?.source} ${pub.error ? errTxt(pub) : ''}`)
   let sc = await scoringFor(m1.id)
   const pts1 = sc.ev.filter((e) => e.result_revision === 1).map((e) => e.points).sort((a, b) => a - b).join()
-  rec('10.3', sc.ev.length === 3 && pts1 === '0,2,5', `puntos revisión 1 (A exacto 5, B signo 2, C 0): eventos=${sc.ev.length}, puntos=[${pts1}]`)
+  rec('10.3', sc.ev.length === 3 && pts1 === [0, O, E].sort((x, y) => x - y).join(), `puntos revisión 1 (A exacto ${E}, B signo ${O}, C 0): eventos=${sc.ev.length}, puntos=[${pts1}]`)
   const lb = must(await u1.client.rpc('pool_leaderboard', { p_pool_id: pool }), 'ranking')
   const names1 = lb.map((r) => r.display_name).sort().join()
-  rec('10.4', lb.length === 2 && lb[0].display_name === 'qa-user1' && lb[0].rank === 1 && Number(lb[0].points) === 5 && lb[0].exact_hits === 1 && lb[0].is_me === true && Number(lb[1].points) === 0 && names1 === 'qa-user1,qa-user2', `ranking general: ${JSON.stringify(lb.map((r) => [r.rank, r.display_name, Number(r.points)]))}; el organizador no figura`)
+  rec('10.4', lb.length === 2 && lb[0].display_name === 'qa-user1' && lb[0].rank === 1 && Number(lb[0].points) === E && lb[0].exact_hits === 1 && lb[0].is_me === true && Number(lb[1].points) === 0 && names1 === 'qa-user1,qa-user2', `ranking general: ${JSON.stringify(lb.map((r) => [r.rank, r.display_name, Number(r.points)]))}; el organizador no figura`)
   const lbR = must(await u1.client.rpc('pool_leaderboard', { p_pool_id: pool, p_round_id: S.round.id }), 'ranking por jornada')
-  rec('10.5', lbR.length === 2 && Number(lbR[0].points) === 5 && lbR[0].display_name === 'qa-user1', `ranking por jornada coincide: ${JSON.stringify(lbR.map((r) => [r.rank, r.display_name, Number(r.points)]))}`)
+  rec('10.5', lbR.length === 2 && Number(lbR[0].points) === E && lbR[0].display_name === 'qa-user1', `ranking por jornada coincide: ${JSON.stringify(lbR.map((r) => [r.rank, r.display_name, Number(r.points)]))}`)
   const tb = must(await u2.client.rpc('pool_ticket_leaderboard', { p_pool_id: pool, p_round_id: S.round.id }), 'ranking de tickets')
   const best1 = tb.filter((r) => r.is_best)
-  rec('10.6', tb.length === 3 && Number(tb[0].points) === 5 && tb[0].display_name === 'qa-user1' && best1.length === 2 && Number(tb.find((r) => r.display_name === 'qa-user1' && !r.is_best)?.points) === 2, `ranking por ticket: ${JSON.stringify(tb.map((r) => [r.rank, r.display_name, r.display_no, Number(r.points), r.is_best]))}`)
+  rec('10.6', tb.length === 3 && Number(tb[0].points) === E && tb[0].display_name === 'qa-user1' && best1.length === 2 && Number(tb.find((r) => r.display_name === 'qa-user1' && !r.is_best)?.points) === O, `ranking por ticket: ${JSON.stringify(tb.map((r) => [r.rank, r.display_name, r.display_no, Number(r.points), r.is_best]))}`)
   const lbOut = await out.client.rpc('pool_leaderboard', { p_pool_id: pool })
   const tbOut = await out.client.rpc('pool_ticket_leaderboard', { p_pool_id: pool, p_round_id: S.round.id })
   rec('10.7', errIs(lbOut, '42501') && errIs(tbOut, '42501'), `usuario ajeno: leaderboard=${errTxt(lbOut)}, ticket_leaderboard=${errTxt(tbOut)}`)
@@ -494,7 +502,7 @@ await section(10, 'resultado oficial, puntos, ranking y corrección', async () =
   const s1 = await u1.client.rpc('my_pool_stats', { p_pool_id: pool })
   const sm1 = must(await u1.client.rpc('my_points_summary'), 'resumen u1').find((r) => r.pool_id === pool)
   const ev1 = must(await u1.client.rpc('pool_points_evolution', { p_pool_id: pool }), 'evolución u1')
-  rec('11.1', !s1.error && s1.data.length === 1 && s1.data[0].rank === 1 && Number(s1.data[0].points) === 5 && s1.data[0].exact_hits === 1 && s1.data[0].results_count === 1 && sm1 && sm1.rank === 1 && Number(sm1.points) === 5 && ev1.length === 1 && Number(ev1[0].my_points) === 5 && Number(ev1[0].my_cumulative) === 5 && Number(ev1[0].avg_points) === 2.5, `qa-user1 (rev. 1): stats=${JSON.stringify(s1.data?.[0] && { rank: s1.data[0].rank, pts: Number(s1.data[0].points), exact: s1.data[0].exact_hits })}, resumen rango=${sm1?.rank}, evolución=${JSON.stringify(ev1.map((e) => [Number(e.my_points), Number(e.avg_points)]))}`)
+  rec('11.1', !s1.error && s1.data.length === 1 && s1.data[0].rank === 1 && Number(s1.data[0].points) === E && s1.data[0].exact_hits === 1 && s1.data[0].results_count === 1 && sm1 && sm1.rank === 1 && Number(sm1.points) === E && ev1.length === 1 && Number(ev1[0].my_points) === E && Number(ev1[0].my_cumulative) === E && Number(ev1[0].avg_points) === E / 2, `qa-user1 (rev. 1): stats=${JSON.stringify(s1.data?.[0] && { rank: s1.data[0].rank, pts: Number(s1.data[0].points), exact: s1.data[0].exact_hits })}, resumen rango=${sm1?.rank}, evolución=${JSON.stringify(ev1.map((e) => [Number(e.my_points), Number(e.avg_points)]))}`)
 
   // Idempotencia
   const rep = await rq.client.rpc('publish_official_result', { p_match_id: m1.id, p_home_score: 2, p_away_score: 1, p_expected_revision: 1 })
@@ -524,16 +532,16 @@ await section(10, 'resultado oficial, puntos, ranking y corrección', async () =
   sc = await scoringFor(m1.id)
   const rev2 = sc.ev.filter((e) => e.result_revision === 2).map((e) => e.points).sort((a, b) => a - b).join()
   const dup = sc.ev.length - new Set(sc.ev.map((e) => `${e.prediction_id}|${e.result_revision}`)).size
-  rec('10.9', !fix.error && fix.data.revision === 2 && sc.ev.length === 6 && rev2 === '0,0,5' && dup === 0, `corrección a 0-0: revisión=${fix.data?.revision}, eventos totales=${sc.ev.length} (3 de rev.1 conservados + 3 de rev.2), puntos rev.2=[${rev2}], duplicados=${dup}`)
+  rec('10.9', !fix.error && fix.data.revision === 2 && sc.ev.length === 6 && rev2 === `0,0,${E}` && dup === 0, `corrección a 0-0: revisión=${fix.data?.revision}, eventos totales=${sc.ev.length} (3 de rev.1 conservados + 3 de rev.2), puntos rev.2=[${rev2}], duplicados=${dup}`)
   const stale = await rq.client.rpc('publish_official_result', { p_match_id: m1.id, p_home_score: 1, p_away_score: 1, p_expected_revision: 1 })
   expectErr('10.10', stale, 'PT409', null, 'revisión obsoleta:')
   const fixAgain = await rq.client.rpc('publish_official_result', { p_match_id: m1.id, p_home_score: 0, p_away_score: 0, p_expected_revision: 2 })
   sc = await scoringFor(m1.id)
   rec('10.11', !fixAgain.error && fixAgain.data.revision === 2 && sc.ev.length === 6, `repetir la corrección: revisión=${fixAgain.data?.revision}, eventos=${sc.ev.length} (sin duplicar)`)
   const lb2 = must(await u1.client.rpc('pool_leaderboard', { p_pool_id: pool }), 'ranking final')
-  rec('10.12', lb2.length === 2 && lb2[0].display_name === 'qa-user2' && lb2[0].rank === 1 && Number(lb2[0].points) === 5 && lb2[1].display_name === 'qa-user1' && Number(lb2[1].points) === 0 && lb2[1].is_me === true, `ranking tras corregir: ${JSON.stringify(lb2.map((r) => [r.rank, r.display_name, Number(r.points)]))}`)
+  rec('10.12', lb2.length === 2 && lb2[0].display_name === 'qa-user2' && lb2[0].rank === 1 && Number(lb2[0].points) === E && lb2[1].display_name === 'qa-user1' && Number(lb2[1].points) === 0 && lb2[1].is_me === true, `ranking tras corregir: ${JSON.stringify(lb2.map((r) => [r.rank, r.display_name, Number(r.points)]))}`)
   const tb2 = must(await u1.client.rpc('pool_ticket_leaderboard', { p_pool_id: pool, p_round_id: S.round.id }), 'tickets final')
-  rec('10.13', tb2.length === 3 && tb2[0].display_name === 'qa-user2' && Number(tb2[0].points) === 5 && tb2.slice(1).every((r) => Number(r.points) === 0), `ranking por ticket tras corregir: ${JSON.stringify(tb2.map((r) => [r.rank, r.display_name, r.display_no, Number(r.points), r.is_best]))}`)
+  rec('10.13', tb2.length === 3 && tb2[0].display_name === 'qa-user2' && Number(tb2[0].points) === E && tb2.slice(1).every((r) => Number(r.points) === 0), `ranking por ticket tras corregir: ${JSON.stringify(tb2.map((r) => [r.rank, r.display_name, r.display_no, Number(r.points), r.is_best]))}`)
 
   // 7 (c) bis: recalcular ratings tras la corrección
   const r2 = await rebuild()
@@ -557,13 +565,13 @@ await section(10, 'resultado oficial, puntos, ranking y corrección', async () =
     const s = st.data?.[0]
     const ok = !st.error && st.data.length === 1 && s.rank === exp.rank && Number(s.points) === exp.points && s.exact_hits === exp.exact && s.results_count === 1 && s.participants === 2
       && sm && sm.rank === exp.rank && Number(sm.points) === exp.points && sm.participants === 2
-      && evo.length === 1 && Number(evo[0].my_points) === exp.points && Number(evo[0].my_cumulative) === exp.points && Number(evo[0].avg_points) === 2.5 && Number(evo[0].best_points) === 5
+      && evo.length === 1 && Number(evo[0].my_points) === exp.points && Number(evo[0].my_cumulative) === exp.points && Number(evo[0].avg_points) === E / 2 && Number(evo[0].best_points) === E
       && hist.length === exp.tickets && hist.filter((t) => t.is_best).length === 1 && hist.every((t) => t.results_count === 1)
     return { ok, text: `rango=${s?.rank}/${s?.participants}, puntos=${Number(s?.points)}, exactos=${s?.exact_hits}, resumen=${sm?.rank}, evolución=${JSON.stringify(evo.map((e) => [Number(e.my_points), Number(e.my_cumulative), Number(e.avg_points)]))}, tickets=${hist.length} (mejor=${hist.filter((t) => t.is_best).length}, puntos=[${hist.map((t) => Number(t.points))}])` }
   }
   const f1 = await fin(u1, { rank: 2, points: 0, exact: 0, tickets: 2 })
   rec('11.2', f1.ok, `qa-user1 final: ${f1.text}`)
-  const f2 = await fin(u2, { rank: 1, points: 5, exact: 1, tickets: 2 })
+  const f2 = await fin(u2, { rank: 1, points: E, exact: 1, tickets: 2 })
   rec('11.3', f2.ok, `qa-user2 final: ${f2.text}`)
   const orgStats = must(await rq.client.rpc('my_pool_stats', { p_pool_id: pool }), 'stats organizador')
   const orgSum = must(await rq.client.rpc('my_points_summary'), 'resumen organizador')
