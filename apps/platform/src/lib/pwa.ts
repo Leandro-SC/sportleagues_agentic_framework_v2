@@ -116,9 +116,18 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
   }
 }
 
-// --- Deep links nativos (Capacitor App Links). Solo lógica; el cableado en main/router queda pendiente de
-// la decisión de dominio final (ver mobile/README.md). No concede ningún permiso: solo traduce una URL
+// --- Deep links nativos (Capacitor App Links), cableados en main.ts. No conceden ningún permiso: solo traducen una URL
 // https de un host permitido a una ruta interna conocida; la autorización sigue siendo server-side (join_pool/RLS).
+// Los hosts deben coincidir con los intent-filter de AndroidManifest.xml y servir /.well-known/assetlinks.json.
+const DEFAULT_APP_LINK_HOSTS = ['sportleagues-qa.vercel.app'] as const
+const HOSTNAME = /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/
+
+/** Hosts de App Links desde `VITE_APP_LINK_HOSTS` (separados por comas); sin ningún valor válido, el host de QA. */
+export function appLinkHosts(raw: string | undefined = import.meta.env.VITE_APP_LINK_HOSTS): string[] {
+  const hosts = (raw ?? '').split(',').map((host) => host.trim().toLowerCase()).filter((host) => HOSTNAME.test(host))
+  return hosts.length ? hosts : [...DEFAULT_APP_LINK_HOSTS]
+}
+
 const DEEP_LINK_PATH = /^\/(?:j\/[A-Za-z0-9]{6}|p\/[A-Za-z0-9_-]{1,64})\/?$/
 
 /** Devuelve la ruta interna (`/j/:code` o `/p/:poolId`) o null. Descarta query/hash para no arrastrar tokens. */

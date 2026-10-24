@@ -40,15 +40,20 @@ Salida: `mobile/android/app/build/outputs/apk/debug/app-debug.apk` (ignorada por
 
 Cambio de seguridad en el manifest generado: `android:allowBackup="false"` (el valor por defecto de Capacitor es `true`; con él, el almacenamiento de la WebView —incluida la sesión de Supabase— entraría en las copias de seguridad de Android). `usesCleartextTraffic` no se habilita. Permisos declarados: solo `INTERNET` (más el permiso propio, de firma, `<appId>.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` que añade AndroidX).
 
-## Deep links (BLOCKED_DECISION: dominio y huella)
+## Deep links (activos en QA; producción pendiente de dominio y firma de release)
 
 Rutas canónicas (contrato Fase 02): `/j/:code` (código de 6 caracteres alfanuméricos) y `/p/:poolId`. Las demás rutas (`/auth/*`, `/admin`, etc.) **no** se exponen como deep link.
 
-1. Elegir host de producción (dominio propio; no usar el de QA).
-2. Pegar `deep-links/android-intent-filters.template.xml` en la `MainActivity` de `android/app/src/main/AndroidManifest.xml` (**no aplicado**: el `AndroidManifest.xml` generado solo tiene el filtro MAIN/LAUNCHER, sin host inventado) sustituyendo `REPLACE_WITH_APP_LINK_HOST` (`autoVerify="true"`, https, sin comodines).
-3. Publicar `https://<host>/.well-known/assetlinks.json` (ubicación: `apps/platform/public/.well-known/assetlinks.json`; archivos estáticos prevalecen sobre el rewrite de Vercel) a partir de `deep-links/assetlinks.template.json` con el `package_name` final y la huella SHA-256 del certificado de firma **que aporta el propietario**. Nunca inventar ni reutilizar huellas de debug en producción.
-4. En la web, llamar a `registerNativeDeepLinks(router.push, [host])` (en `lib/pwa.ts`) al arrancar. `deepLinkToRoute` solo acepta https, host permitido y rutas `/j/:code` o `/p/:poolId`, y descarta query/hash. Sin sesión, `/j/:code` conserva el código como intención local no confiable y tras autenticarse se llama `join_pool` (la autorización sigue en servidor).
-5. iOS (futuro): Universal Links con `apple-app-site-association` y Associated Domains.
+Estado (2026-10-24):
+
+1. `android/app/src/main/AndroidManifest.xml` declara el intent-filter `autoVerify="true"` para `https://sportleagues-qa.vercel.app` con los prefijos `/j/` y `/p/` (sin comodines).
+2. `apps/platform/public/.well-known/assetlinks.json` declara `com.sportleagues.app` con la huella SHA-256 del **certificado debug** de este equipo (`A4:54:16:00:…:E6:63`). Sirve para el APK debug contra QA, nunca para producción.
+3. `main.ts` llama a `registerNativeDeepLinks(router.push, appLinkHosts())`. `VITE_APP_LINK_HOSTS` (separado por comas) fija los hosts; si no se define, se usa el de QA. `deepLinkToRoute` solo acepta https, un host permitido y las rutas `/j/:code` o `/p/:poolId`, y descarta query y hash. Sin sesión, `/j/:code` conserva el código como intención local no confiable; tras autenticarse se llama a `join_pool` (la autorización sigue en el servidor).
+4. Un test (`lib/pwa.test.ts`) comprueba que el manifest, `assetlinks.json`, `capacitor.config.json` y los hosts por defecto son coherentes.
+
+Para producción: elegir el dominio propio, añadirlo al intent-filter y a `VITE_APP_LINK_HOSTS`, y publicar su `assetlinks.json` con la huella del keystore de release **que aporta el propietario** (plantillas en `deep-links/`). iOS (futuro): Universal Links con `apple-app-site-association` y Associated Domains.
+
+Acceso dentro del wrapper: Google bloquea OAuth en WebViews (`disallowed_useragent`), así que el botón de Google se oculta en nativo y el acceso es con correo y contraseña hasta aceptar ADR-022. La confirmación de correo y la recuperación de contraseña se completan en el navegador; luego se inicia sesión en la app.
 
 ## Notificaciones push
 

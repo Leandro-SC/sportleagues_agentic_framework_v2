@@ -61,7 +61,7 @@ Recomendación de cabeceras en Vercel (PENDING, fuera de la zona de esta fase; `
 | Offline / conexión lenta o perdida | Shell + `offline.html` + caché IndexedDB de lectura (`offline-cache.ts`, aviso `useOnlineStatus`). Navegación network-first **sin timeout**: con red muy lenta/colgada el navegador espera. Mejora propuesta (no hecha): timeout de 4 s con fallback al shell. Sin escritura offline (decisión consciente). | PENDING (modo avión y 3G simulada) |
 | Rendimiento de carga inicial | Build actual: `index` 173 kB (55 kB gzip) + `EmptyState` 323 kB (96 kB gzip, modulepreload) + CSS 58 kB. **Hallazgo (atendido 2026-10-12):** los dos PNG pesados se optimizaron: `fondo_app_tablo` pasó de 1,41 MB (PNG) a 75 KB (JPEG, opaco) y `logo_app_tablo` de 1,17 MB a 393 KB (PNG con alfa a 576 px). El chunk `EmptyState` es código compartido (supabase-js/Vue), no el componente. Lighthouse no ejecutado. | PENDING (medición) |
 | Safe areas / viewport | `viewport-fit=cover` presente; `styles.css`, `HomeView` y `TeamView` usan `env(safe-area-inset-*)`. `apple-mobile-web-app-status-bar-style=black` (no `black-translucent`) para no solapar el contenido con la barra de estado en iOS standalone. No verificado visualmente. | PENDING |
-| Deep links | Esquema definido, sin dominio final. Ver `mobile/README.md`. | BLOCKED_DECISION |
+| Deep links | App Links `/j/` y `/p/` cableados para `sportleagues-qa.vercel.app` (intent-filter, `assetlinks.json` con la huella debug y `registerNativeDeepLinks` en `main.ts`, 2026-10-24). Producción: dominio y huella de release pendientes. Ver `mobile/README.md`. | DONE_PENDING_UAT (QA) |
 
 ## 4. Pruebas manuales en dispositivo (todas PENDING)
 
@@ -120,7 +120,7 @@ Chrome DevTools -> Lighthouse, modo móvil, en la URL QA (no se ha ejecutado):
 | Firma de release (keystore) y Play Console | BLOCKED_EXTERNAL + BLOCKED_DECISION | Cuenta de desarrollador, keystore y política de Play del propietario. |
 | appId definitivo (`com.sportleagues.app` es provisional) | BLOCKED_DECISION | Una vez publicado en Play no puede cambiarse. |
 | Dominio final y `assetlinks.json` (App Links) | BLOCKED_DECISION | Requiere dominio y huella SHA-256 de firma del propietario; plantillas en `mobile/deep-links/`. |
-| Cableado de deep links nativos (`registerNativeDeepLinks`) en router/main | PENDING | Lógica y tests listos en `pwa.ts`; falta dominio y tocar `main.ts`/router (otro agente). |
+| Cableado de deep links nativos (`registerNativeDeepLinks`) en router/main | HECHO (2026-10-24) para el host de QA; pendiente de prueba en dispositivo | Lógica y tests listos en `pwa.ts`; falta dominio y tocar `main.ts`/router (otro agente). |
 | OAuth Google dentro del wrapper | BLOCKED_DECISION | Google bloquea OAuth en WebViews embebidos; ruta recomendada en §8 y ADR-022 (Proposed, por aceptar el propietario). Correo/contraseña funciona sin cambios. |
 | Notificaciones push | Fuera de alcance / BLOCKED_DECISION | Proveedor sin decidir (FCM, etc.); añadiría SDK y datos personales (token) -> ADR. Hoy solo avisos dentro de la app. |
 | iOS nativo | Fuera del primer release | Arquitectura preparada; añadir `@capacitor/ios` requiere macOS/Xcode. |

@@ -7,6 +7,7 @@ import { useAuth } from '../composables/useAuth'
 import { usePostSignInNavigation } from '../composables/usePostSignInNavigation'
 import { peekJoinIntent } from '../lib/join-intent'
 import { getRememberSession, setRememberSession } from '../lib/session-storage'
+import { isNativePlatform } from '../lib/pwa'
 import { MAX_NAME_LENGTH, validateEmail, validateSignIn, validateSignUp } from '../lib/auth-validation'
 
 export type AuthMode = 'sign-in' | 'sign-up' | 'forgot'
@@ -27,6 +28,8 @@ const notice = ref('')
 const submitting = ref(false)
 const signingGoogle = ref(false)
 const remember = ref(getRememberSession())
+// Google bloquea OAuth dentro de WebViews (disallowed_useragent): en el wrapper nativo solo correo y contraseña hasta ADR-022.
+const googleAvailable = !isNativePlatform()
 
 // Nunca se conservan credenciales al cambiar de modo, y los mensajes se reinician.
 watch(() => props.mode, () => {
@@ -150,7 +153,7 @@ async function google(): Promise<void> {
         </PrimaryButton>
       </form>
 
-      <template v-if="mode !== 'forgot'">
+      <template v-if="mode !== 'forgot' && googleAvailable">
         <div class="my-2.5 flex items-center gap-4 text-sm font-medium text-text-muted">
           <span class="h-px flex-1 bg-border-strong" />o<span class="h-px flex-1 bg-border-strong" />
         </div>

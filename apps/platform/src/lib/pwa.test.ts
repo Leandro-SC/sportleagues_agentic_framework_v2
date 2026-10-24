@@ -4,7 +4,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
 import vm from 'node:vm'
 import { describe, expect, it, vi } from 'vitest'
-import { deepLinkToRoute, disableServiceWorker, isSecureOrigin, registerNativeDeepLinks, shouldRegisterServiceWorker } from './pwa'
+import { appLinkHosts, deepLinkToRoute, disableServiceWorker, isSecureOrigin, registerNativeDeepLinks, shouldRegisterServiceWorker } from './pwa'
 
 const publicDir = (name: string) => resolve(import.meta.dirname, '../../public', name)
 const ORIGIN = 'https://app.sportleagues.test'
@@ -340,5 +340,29 @@ describe('mobile/ (Capacitor)', () => {
     expect(assetlinks).toContain('REPLACE_WITH_OWNER_SHA256_SIGNING_FINGERPRINT')
     expect(assetlinks).not.toMatch(/([0-9A-F]{2}:){31}[0-9A-F]{2}/i)
     expect(readFileSync(mobile('deep-links/android-intent-filters.template.xml'), 'utf8')).toContain('REPLACE_WITH_APP_LINK_HOST')
+  })
+})
+
+describe('App Links: hosts, assetlinks.json y AndroidManifest coherentes', () => {
+  it('appLinkHosts lee la lista del entorno y descarta valores inválidos', () => {
+    expect(appLinkHosts('app.example.com, QA.Example.org ')).toEqual(['app.example.com', 'qa.example.org'])
+    expect(appLinkHosts('https://evil.com/x, *.example.com, ')).toEqual(['sportleagues-qa.vercel.app'])
+    expect(appLinkHosts(undefined)).toEqual(['sportleagues-qa.vercel.app'])
+  })
+  it('assetlinks.json declara el paquete de capacitor.config.json y una huella SHA-256', () => {
+    const links = JSON.parse(readFileSync(publicDir('.well-known/assetlinks.json'), 'utf8'))
+    const config = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../../../mobile/capacitor.config.json'), 'utf8'))
+    expect(links[0].relation).toEqual(['delegate_permission/common.handle_all_urls'])
+    expect(links[0].target.package_name).toBe(config.appId)
+    expect(links[0].target.sha256_cert_fingerprints.every((f: string) => /^([0-9A-F]{2}:){31}[0-9A-F]{2}$/.test(f))).toBe(true)
+  })
+  it('el manifest Android verifica solo /j/ y /p/ de los hosts por defecto', () => {
+    const manifest = readFileSync(resolve(import.meta.dirname, '../../../../mobile/android/app/src/main/AndroidManifest.xml'), 'utf8')
+    expect(manifest).toContain('android:autoVerify="true"')
+    for (const host of appLinkHosts(undefined)) {
+      expect(manifest).toContain(`android:host="${host}" android:pathPrefix="/j/"`)
+      expect(manifest).toContain(`android:host="${host}" android:pathPrefix="/p/"`)
+    }
+    expect(manifest).not.toMatch(/android:host="\*/)
   })
 })

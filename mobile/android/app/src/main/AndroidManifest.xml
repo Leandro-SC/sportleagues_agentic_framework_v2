@@ -22,6 +22,15 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- App Links verificados (https://<host>/.well-known/assetlinks.json). Mismos hosts que VITE_APP_LINK_HOSTS. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="sportleagues-qa.vercel.app" android:pathPrefix="/j/" />
+                <data android:scheme="https" android:host="sportleagues-qa.vercel.app" android:pathPrefix="/p/" />
+            </intent-filter>
+
         </activity>
 
         <provider

@@ -190,3 +190,16 @@ describe('AuthForm — password recovery', () => {
     expect((wrapper.get('#password').element as HTMLInputElement).value).toBe('')
   })
 })
+
+describe('AuthForm — wrapper nativo (ADR-022 pendiente)', () => {
+  it('oculta Google dentro de Capacitor: Google bloquea OAuth en WebViews', async () => {
+    vi.stubGlobal('Capacitor', { isNativePlatform: () => true })
+    try {
+      const wrapper = mountForm('sign-in')
+      expect(wrapper.text()).not.toContain('Continuar con Google')
+      expect(wrapper.text()).toContain('Iniciar sesión')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+})
