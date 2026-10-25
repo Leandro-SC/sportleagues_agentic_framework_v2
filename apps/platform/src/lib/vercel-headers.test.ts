@@ -32,6 +32,19 @@ describe('vercel.json: cabeceras de seguridad', () => {
     expect(csp).not.toMatch(/\*(;|\s|$)(?!\.)/)   // sin comodín total
   })
 
+  it('los reportes CSP van solo al receptor desplegado de Supabase (F-06, runbook §1 paso 6)', () => {
+    const csp = global['Content-Security-Policy-Report-Only']!
+    const reportUris = [...csp.matchAll(/report-uri\s+(\S+)/g)].map((m) => m[1]!.replace(/;$/, ''))
+    expect(reportUris).toHaveLength(1)
+    expect(reportUris[0]).toMatch(/^https:\/\/[a-z0-9]+\.supabase\.co\/functions\/v1\/csp-report$/)
+    expect(csp.trim().endsWith(reportUris[0]!)).toBe(true)
+  })
+
+  it('assetlinks.json se sirve como JSON para la verificación de App Links', () => {
+    const rule = config.headers.find((r) => r.source === '/.well-known/assetlinks.json')!
+    expect(Object.fromEntries(rule.headers.map((h) => [h.key, h.value]))['Content-Type']).toBe('application/json')
+  })
+
   it('el service worker no se cachea en el borde y se conserva el rewrite SPA', () => {
     const sw = config.headers.find((r) => r.source === '/sw.js')!
     expect(sw.headers.find((h) => h.key === 'Cache-Control')!.value).toMatch(/no-cache/)

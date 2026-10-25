@@ -172,6 +172,7 @@ Anotar fecha, URL, quién ejecutó y resultado en el reporte de fase.
 
 ## 6. Estado explícito y autorizaciones pendientes
 
-- **F-06: NO CERRADO.** Hecho en el repositorio: cabeceras y CSP Report-Only en `vercel.json` (probadas), receptor de reportes escrito y probado, esta guía. Falta: despliegue de cabeceras, verificación post-despliegue (sección 5), despliegue de la función, activación de `report-uri`, periodo de observación y decisión sobre política estricta.
-- Requiere autorización humana: (1) desplegar la Edge Function `csp-report` (QA y luego producción), (2) añadir `[functions.csp-report] verify_jwt = false` a `supabase/config.toml`, (3) añadir `report-uri`/`report-to` a `vercel.json`, (4) desplegar `vercel.json` a producción, (5) promover a `Content-Security-Policy` impuesta, (6) cualquier cambio de `img-src`/`connect-src` o autoalojamiento de fuentes.
+- **2026-10-24 (autorización completa del propietario), pasos 1–6 hechos en QA:** `[functions.csp-report] verify_jwt = false` en `config.toml`; función desplegada en QA (`--no-verify-jwt`); comprobación aislada 204/405/400; `report-uri https://juoftaofzepxbrrxbkhx.supabase.co/functions/v1/csp-report` al final de la CSP Report-Only; `vercel-headers.test.ts` lo exige.
+- **F-06: EN OBSERVACIÓN, no cerrado.** Falta: verificar las cabeceras publicadas (sección 5) tras el despliegue de `main` en Vercel, observar los reportes durante el periodo de la sección 3 y decidir sobre la política impuesta.
+- Sigue requiriendo autorización: (1) el mismo despliegue en producción, cuando exista, (2) promover a `Content-Security-Policy` impuesta, (3) cualquier cambio de `img-src`/`connect-src` o autoalojamiento de fuentes.
 - No se añadieron dependencias, proveedores externos, tablas ni migraciones.
