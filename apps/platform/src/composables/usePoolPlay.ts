@@ -167,7 +167,9 @@ export function usePoolPlay(
       if (token !== loadToken || !sameIdentity(profileId)) return
       if (hit) {
         apply(hit.value); painted = true; fromCache.value = true; updatedAt.value = hit.storedAt
-        if (hit.fresh) { offline.value = false; return }
+        // A pending enrolment may be approved while this view is cached. Revalidate it
+        // so prediction access is restored without waiting for the cache TTL.
+        if (hit.fresh && hit.value.participation === 'participant') { offline.value = false; return }
       }
     }
     loading.value = !painted

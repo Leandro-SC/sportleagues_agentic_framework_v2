@@ -16,7 +16,7 @@ const item = { poolMatchId: 'pm1', matchId: 'm1', roundId: 'r1', roundName: 'Fec
 function setup(overrides: Record<string, unknown> = {}, access: Record<string, unknown> = {}) {
   h.auth = reactive({ profile: { id: 'me', display_name: 'Ana' }, user: { id: 'me' } })
   h.playArgs = []
-  h.access = { pool: ref({ id: 'p1', name: 'Quiniela A' }), denied: ref(false), error: ref(''), loading: ref(false), load: vi.fn().mockResolvedValue(undefined), ...access }
+  h.access = { pool: ref({ id: 'p1', name: 'Quiniela A' }), denied: ref(false), error: ref(''), loading: ref(false), offline: ref(false), load: vi.fn().mockResolvedValue(undefined), ...access }
   h.stats = {
     stats: ref({ rank: 1, participants: 3, points: 12, exact_hits: 2, outcome_hits: 1, results_count: 3, played: 3, hit_rate: 1, avg_points: 4, best_round_points: 7, current_streak: 3, best_streak: 3 }),
     evolution: ref([{ round_id: 'r1', round_name: 'R1', sort_order: 1, my_points: 7, my_cumulative: 7, avg_points: 6.33, best_points: 7 }, { round_id: 'r2', round_name: 'R2', sort_order: 2, my_points: 5, my_cumulative: 12, avg_points: 1.67, best_points: 5 }]),

@@ -227,16 +227,16 @@ onBeforeUnmount(admin.dispose)
             <p><span class="font-semibold text-text">{{ freeLimitNotice }}</span> Puedes guardar otra como borrador, pero no abrirla hasta archivar la actual.</p>
           </div>
           <div class="mb-4 flex gap-2 overflow-x-auto pb-1">
-            <button v-for="pool in admin.pools.value" :key="pool.id" type="button" class="shrink-0 rounded-xl border px-3 py-2 text-left text-sm" :class="admin.selectedPoolId.value === pool.id ? 'border-primary/60 bg-primary-100 text-primary' : 'border-border text-text-muted'" @click="choosePool(pool.id)">{{ pool.name }} · {{ pool.status }}</button>
-            <button type="button" class="shrink-0 rounded-xl border border-dashed border-primary/50 px-3 py-2 text-sm font-semibold text-primary" @click="admin.selectedPoolId.value = ''; poolName = ''; lockMinutes = '15'; requiresApproval = false">+ Nueva</button>
+            <button v-for="pool in admin.pools.value" :key="pool.id" type="button" class="min-h-11 shrink-0 rounded-xl border px-3 py-2 text-left text-sm" :class="admin.selectedPoolId.value === pool.id ? 'border-primary/60 bg-primary-100 text-primary' : 'border-border text-text-muted'" @click="choosePool(pool.id)">{{ pool.name }} · {{ pool.status }}</button>
+            <button type="button" class="min-h-11 shrink-0 rounded-xl border border-dashed border-primary/50 px-3 py-2 text-sm font-semibold text-primary" @click="admin.selectedPoolId.value = ''; poolName = ''; lockMinutes = '15'; requiresApproval = false">+ Nueva</button>
           </div>
           <form class="space-y-3" @submit.prevent="savePool">
             <FormField id="admin-pool-name" v-model="poolName" label="Nombre de la quiniela" :maxlength="120" placeholder="Liga de amigos" />
             <FormField id="admin-lock-minutes" v-model="lockMinutes" type="number" label="Bloqueo antes del partido (minutos)" />
-            <label class="flex items-center gap-2 text-sm text-text-muted"><input v-model="requiresApproval" type="checkbox" class="h-4 w-4 rounded accent-primary" /> Aprobar participantes manualmente</label>
+            <label class="flex min-h-11 items-center gap-2 text-sm text-text-muted"><input v-model="requiresApproval" type="checkbox" class="h-5 w-5 rounded accent-primary" /> Aprobar participantes manualmente</label>
             <PrimaryButton type="submit" :loading="admin.saving.value">{{ admin.selectedPool.value ? 'Guardar configuración' : 'Crear quiniela' }}</PrimaryButton>
           </form>
-          <div v-if="admin.selectedPool.value" class="mt-3 grid grid-cols-3 gap-2">
+          <div v-if="admin.selectedPool.value" class="mt-3 grid grid-cols-1 gap-2 min-[420px]:grid-cols-3">
             <SecondaryButton :disabled="admin.selectedPool.value.status === 'open' || admin.selectedPool.value.status === 'archived' || openingIsBlockedByFreeLimit" @click="changeStatus('open')">Abrir</SecondaryButton>
             <SecondaryButton :disabled="admin.selectedPool.value.status !== 'open'" @click="changeStatus('pause')">Pausar</SecondaryButton>
             <SecondaryButton tone="danger" :disabled="admin.selectedPool.value.status === 'archived'" @click="changeStatus('archive')">Archivar</SecondaryButton>
@@ -247,7 +247,7 @@ onBeforeUnmount(admin.dispose)
         <template v-if="admin.selectedPool.value">
           <section class="app-surface p-4">
             <div class="mb-4 flex items-center gap-2"><Settings2 class="h-5 w-5 text-primary" /><h2 class="font-display font-bold text-text">Reglas</h2></div>
-            <div class="grid grid-cols-2 gap-3"><FormField id="exact-points" v-model="exactPoints" type="number" label="Puntos exacto" :disabled="rulesFrozen || customScoringLocked" /><FormField id="outcome-points" v-model="outcomePoints" type="number" label="Puntos 1X2" :disabled="rulesFrozen || customScoringLocked" /></div>
+            <div class="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2"><FormField id="exact-points" v-model="exactPoints" type="number" label="Puntos exacto" :disabled="rulesFrozen || customScoringLocked" /><FormField id="outcome-points" v-model="outcomePoints" type="number" label="Puntos 1X2" :disabled="rulesFrozen || customScoringLocked" /></div>
             <label class="mt-3 block text-sm font-medium text-text-muted">Desempate<select id="tie-breaker" v-model="tieBreaker" :disabled="rulesFrozen" class="field-surface mt-1.5 w-full px-3 py-3 text-sm disabled:opacity-50"><option value="exact_predictions">Más resultados exactos</option><option value="prediction_submitted_at">Predicción más temprana</option></select></label>
             <p v-if="rulesFrozen" class="mt-3 text-sm text-text-muted" data-testid="rules-frozen">{{ RULES_FROZEN_MESSAGE }}</p>
             <p v-else-if="customScoringLocked" class="mt-3 text-sm text-text-muted" data-testid="rules-standard">{{ PRO_SCORING_MESSAGE }}</p>
@@ -262,7 +262,7 @@ onBeforeUnmount(admin.dispose)
             <div v-else class="space-y-3">
               <div v-for="participant in admin.participants.value" :key="participant.id" class="rounded-xl border border-border p-3">
                 <div class="flex items-center justify-between gap-2"><p class="font-semibold text-text">{{ participant.profiles?.display_name ?? 'Participante' }}</p><StatChip :label="participant.approval_status === 'approved' ? 'Aprobado' : 'Pendiente'" :tone="participant.approval_status === 'approved' ? 'success' : 'warn'" /></div>
-                <div class="mt-3 flex gap-2"><SecondaryButton v-if="participant.approval_status === 'pending'" :loading="admin.saving.value" @click="admin.approveParticipant(participant.id).then((result) => { if (result) formError = result })"><Check class="h-4 w-4" />Aprobar</SecondaryButton><select :value="participant.payment_status" class="field-surface min-w-0 flex-1 px-2 text-sm" @change="admin.setPayment(participant.id, ($event.target as HTMLSelectElement).value as 'paid' | 'pending' | 'invited').then((result) => { if (result) formError = result })"><option value="paid">Pagado</option><option value="pending">Pendiente</option><option value="invited">Invitado</option></select></div>
+                <div class="mt-3 flex flex-wrap gap-2"><SecondaryButton v-if="participant.approval_status === 'pending'" :loading="admin.saving.value" @click="admin.approveParticipant(participant.id).then((result) => { if (result) formError = result })"><Check class="h-4 w-4" />Aprobar</SecondaryButton><select :value="participant.payment_status" class="field-surface min-w-0 flex-1 px-2 text-sm" @change="admin.setPayment(participant.id, ($event.target as HTMLSelectElement).value as 'paid' | 'pending' | 'invited').then((result) => { if (result) formError = result })"><option value="paid">Pagado</option><option value="pending">Pendiente</option><option value="invited">Invitado</option></select></div>
               </div>
             </div>
           </section>

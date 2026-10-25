@@ -70,8 +70,11 @@ export function usePoolTickets(clientFactory: () => SportsAdminClient = () => ge
     busy.value = label
     try {
       const { error: rpcError } = await call()
-      await load(poolId, profileId)   // también tras un rechazo: suele significar que el estado real cambió (cupo, cierre)
-      return rpcError ? humanizeTicketError(rpcError.code, rpcError.message, rpcError.hint) : null
+      // A rejected write already has a safe message. Avoid a second read which, while
+      // offline, would replace the ticket panel with an error and hide the retry.
+      if (rpcError) return humanizeTicketError(rpcError.code, rpcError.message, rpcError.hint)
+      await load(poolId, profileId)
+      return null
     } catch {
       return humanizeTicketError(null, null)
     } finally {

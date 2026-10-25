@@ -48,7 +48,7 @@ function submit(): void {
       <p class="truncate text-right text-sm font-semibold text-text">{{ item.homeName }}</p>
       <p class="font-display text-lg font-bold text-text">
         <span v-if="item.result">{{ item.result.home }} - {{ item.result.away }}</span>
-        <span v-else class="text-text-faint">vs</span>
+        <span v-else class="text-text-muted">vs</span>
       </p>
       <p class="truncate text-sm font-semibold text-text">{{ item.awayName }}</p>
     </div>
@@ -57,7 +57,7 @@ function submit(): void {
       <div class="flex items-center justify-center gap-3">
         <label class="sr-only" :for="`ph-${item.matchId}`">Goles de {{ item.homeName }}</label>
         <input :id="`ph-${item.matchId}`" v-model="home" inputmode="numeric" maxlength="2" class="field-surface h-12 w-16 text-center text-lg font-bold" placeholder="–" />
-        <span class="text-text-faint" aria-hidden="true">-</span>
+        <span class="text-text-muted" aria-hidden="true">-</span>
         <label class="sr-only" :for="`pa-${item.matchId}`">Goles de {{ item.awayName }}</label>
         <input :id="`pa-${item.matchId}`" v-model="away" inputmode="numeric" maxlength="2" class="field-surface h-12 w-16 text-center text-lg font-bold" placeholder="–" />
       </div>

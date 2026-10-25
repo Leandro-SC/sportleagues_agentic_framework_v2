@@ -104,7 +104,7 @@ watch(() => props.poolId, () => { void t.load(props.poolId, props.profileId) })
         <template v-else>
           <div v-if="ticketsOf(round.id).length" class="flex gap-2 overflow-x-auto pb-1" role="tablist" :aria-label="`Tus tickets de ${round.name}`">
             <button v-for="ticket in ticketsOf(round.id)" :key="ticket.ticket_id" type="button" role="tab" :aria-selected="active[round.id] === ticket.ticket_id"
-              class="shrink-0 rounded-xl border px-3 py-2 text-left text-sm" :class="active[round.id] === ticket.ticket_id ? 'border-primary/60 bg-primary-100 text-primary' : 'border-border text-text-muted'"
+              class="min-h-11 shrink-0 rounded-xl border px-3 py-2 text-left text-sm" :class="active[round.id] === ticket.ticket_id ? 'border-primary/60 bg-primary-100 text-primary' : 'border-border text-text-muted'"
               @click="active = { ...active, [round.id]: ticket.ticket_id }">
               Ticket {{ ticket.display_no }}<span v-if="ticket.is_best" class="ml-1 text-[11px] font-bold">★ mejor</span>
               <span class="block text-[11px]">{{ ticketStatusLabel(ticket.status, ticket.eligibility).label }}</span>

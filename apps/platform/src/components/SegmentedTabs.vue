@@ -35,13 +35,13 @@ function move(event: KeyboardEvent, index: number): void {
       :tabindex="model === option.value ? 0 : -1"
       class="press-scale font-semibold transition-colors"
       :class="{
-        'flex-1 whitespace-nowrap rounded-pill border px-2 py-2 text-[13px]': variant === 'pill',
+        'flex min-h-11 flex-1 items-center justify-center whitespace-nowrap rounded-pill border px-2 py-2 text-[13px]': variant === 'pill',
         'border-primary bg-primary text-canvas shadow-glow-primary': variant === 'pill' && model === option.value,
         'border-border-strong bg-surface-2/70 text-text-muted hover:text-text': variant === 'pill' && model !== option.value,
-        'min-w-0 flex-1 rounded-lg px-1.5 py-2 text-[13px] min-[360px]:text-sm': variant === 'chip',
+        'min-h-11 min-w-0 flex-1 rounded-lg px-1.5 py-2 text-[13px] min-[360px]:text-sm': variant === 'chip',
         'bg-primary text-canvas': variant === 'chip' && model === option.value,
         'text-text-muted hover:text-text': variant !== 'pill' && model !== option.value,
-        'relative flex-1 pb-3 pt-1 text-sm': variant === 'underline',
+        'relative flex min-h-11 flex-1 items-center justify-center pb-3 pt-1 text-sm': variant === 'underline',
         'text-primary after:absolute after:inset-x-3 after:-bottom-px after:h-[3px] after:rounded-pill after:bg-primary': variant === 'underline' && model === option.value,
       }"
       @click="model = option.value"

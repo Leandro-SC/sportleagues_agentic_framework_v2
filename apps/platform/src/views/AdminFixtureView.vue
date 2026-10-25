@@ -229,7 +229,7 @@ onBeforeUnmount(admin.dispose)
             <ul v-else class="divide-y divide-border">
               <li v-for="team in sports.teams.value" :key="team.id" class="flex items-center justify-between gap-3 py-2.5">
                 <span class="flex items-center gap-2 text-sm font-semibold text-text"><TeamBadge :name="team.name" :kind="team.kind" :country-code="team.country_code" :short-name="team.short_name ?? undefined" size="xs" />{{ team.name }}<span v-if="team.short_name" class="ml-1 text-text-muted">{{ team.short_name }}</span></span>
-                <label class="flex items-center gap-2 text-sm text-text-muted"><input type="checkbox" class="h-4 w-4 rounded accent-primary" :checked="sports.enrolledTeamIds.value.includes(team.id)" @change="toggleEnrolled(team.id)" />En el torneo</label>
+                <label class="flex min-h-11 items-center gap-2 text-sm text-text-muted"><input type="checkbox" class="h-5 w-5 rounded accent-primary" :checked="sports.enrolledTeamIds.value.includes(team.id)" @change="toggleEnrolled(team.id)" />En el torneo</label>
               </li>
             </ul>
           </section>
@@ -245,8 +245,8 @@ onBeforeUnmount(admin.dispose)
               <li v-for="(round, index) in sports.rounds.value" :key="round.id" class="flex items-center justify-between gap-3 py-2.5">
                 <span class="text-sm font-semibold text-text">{{ round.name }}</span>
                 <span class="flex gap-1">
-                  <button type="button" class="rounded-lg p-2 text-text-muted disabled:opacity-30" :disabled="index === 0" :aria-label="`Subir ${round.name}`" @click="moveRound(index, -1)"><ChevronUp class="h-4 w-4" /></button>
-                  <button type="button" class="rounded-lg p-2 text-text-muted disabled:opacity-30" :disabled="index === sports.rounds.value.length - 1" :aria-label="`Bajar ${round.name}`" @click="moveRound(index, 1)"><ChevronDown class="h-4 w-4" /></button>
+                  <button type="button" class="flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-text-muted disabled:opacity-30" :disabled="index === 0" :aria-label="`Subir ${round.name}`" @click="moveRound(index, -1)"><ChevronUp class="h-4 w-4" /></button>
+                  <button type="button" class="flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-text-muted disabled:opacity-30" :disabled="index === sports.rounds.value.length - 1" :aria-label="`Bajar ${round.name}`" @click="moveRound(index, 1)"><ChevronDown class="h-4 w-4" /></button>
                 </span>
               </li>
             </ul>
@@ -259,7 +259,7 @@ onBeforeUnmount(admin.dispose)
             <EmptyState v-if="sports.enrolledTeams.value.length < 2 || !sports.rounds.value.length" title="Faltan datos" description="Necesitas al menos dos equipos inscritos y una jornada." />
             <form v-else class="space-y-3" @submit.prevent="saveMatch">
               <label class="block text-sm font-medium text-text-muted">Jornada<select v-model="matchRound" class="field-surface mt-1.5 w-full px-3 py-3 text-sm"><option value="" disabled>Elige…</option><option v-for="round in sports.rounds.value" :key="round.id" :value="round.id">{{ round.name }}</option></select></label>
-              <div class="grid grid-cols-2 gap-3">
+              <div class="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2">
                 <label class="block text-sm font-medium text-text-muted">Local<select v-model="matchHome" class="field-surface mt-1.5 w-full px-3 py-3 text-sm"><option value="" disabled>Elige…</option><option v-for="team in sports.enrolledTeams.value" :key="team.id" :value="team.id">{{ team.name }}</option></select></label>
                 <label class="block text-sm font-medium text-text-muted">Visita<select v-model="matchAway" class="field-surface mt-1.5 w-full px-3 py-3 text-sm"><option value="" disabled>Elige…</option><option v-for="team in sports.enrolledTeams.value" :key="team.id" :value="team.id">{{ team.name }}</option></select></label>
               </div>
@@ -276,14 +276,14 @@ onBeforeUnmount(admin.dispose)
                   <div>
                     <p class="text-sm font-semibold text-text">{{ sports.teamName(match.home_team_id) }} vs {{ sports.teamName(match.away_team_id) }}</p>
                     <p class="text-xs text-text-muted">{{ roundName_(match.round_id) }} · {{ formatKickoff(match.starts_at) }}</p>
-                    <p v-if="lockOffsetMinutes !== null && match.status === 'scheduled'" class="text-xs text-text-faint">Cierre estimado: {{ formatKickoff(lockAtPreview(match.starts_at, lockOffsetMinutes).toISOString()) }} (lo confirma el servidor)</p>
+                    <p v-if="lockOffsetMinutes !== null && match.status === 'scheduled'" class="text-xs text-text-muted">Cierre estimado: {{ formatKickoff(lockAtPreview(match.starts_at, lockOffsetMinutes).toISOString()) }} (lo confirma el servidor)</p>
                   </div>
                   <StatChip :label="match.status === 'final' ? 'Final' : match.status === 'live' ? 'En juego' : 'Programado'" :tone="match.status === 'final' ? 'success' : match.status === 'live' ? 'warn' : 'neutral'" />
                 </div>
                 <div class="mt-3 flex flex-wrap items-center gap-2">
                   <SecondaryButton v-if="match.status === 'scheduled'" :full-width="false" @click="editMatch(match)">Editar</SecondaryButton>
-                  <label v-if="admin.selectedPool.value && match.status === 'scheduled'" class="flex items-center gap-2 text-sm text-text-muted"><input type="checkbox" class="h-4 w-4 rounded accent-primary" :checked="sports.poolMatchIds.value.includes(match.id)" @change="togglePool(match.id)" />En la quiniela</label>
-                  <button v-if="match.status === 'scheduled' && !sports.poolMatchIds.value.includes(match.id)" type="button" class="ml-auto rounded-lg p-2 text-danger" :aria-label="`Eliminar partido ${sports.teamName(match.home_team_id)} vs ${sports.teamName(match.away_team_id)}`" @click="deleteMatch(match.id)"><Trash2 class="h-4 w-4" /></button>
+                  <label v-if="admin.selectedPool.value && match.status === 'scheduled'" class="flex min-h-11 items-center gap-2 text-sm text-text-muted"><input type="checkbox" class="h-5 w-5 rounded accent-primary" :checked="sports.poolMatchIds.value.includes(match.id)" @change="togglePool(match.id)" />En la quiniela</label>
+                  <button v-if="match.status === 'scheduled' && !sports.poolMatchIds.value.includes(match.id)" type="button" class="ml-auto flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-danger" :aria-label="`Eliminar partido ${sports.teamName(match.home_team_id)} vs ${sports.teamName(match.away_team_id)}`" @click="deleteMatch(match.id)"><Trash2 class="h-4 w-4" /></button>
                 </div>
               </li>
             </ul>
@@ -300,7 +300,7 @@ onBeforeUnmount(admin.dispose)
                   <p class="text-sm font-semibold text-text">{{ sports.teamName(match.home_team_id) }} vs {{ sports.teamName(match.away_team_id) }}</p>
                   <StatChip v-if="sports.results.value[match.id]" :label="`Rev. ${sports.results.value[match.id]!.revision}${sports.results.value[match.id]!.source === 'provider' ? ' · proveedor' : ''}`" tone="success" />
                 </div>
-                <div class="mt-3 flex items-end gap-2">
+                <div class="mt-3 flex flex-wrap items-end gap-2">
                   <FormField :id="`score-h-${match.id}`" :model-value="scoreDraft[match.id]?.home ?? ''" type="number" label="Local" @update:model-value="scoreDraft[match.id] = { home: $event, away: scoreDraft[match.id]?.away ?? '' }" />
                   <FormField :id="`score-a-${match.id}`" :model-value="scoreDraft[match.id]?.away ?? ''" type="number" label="Visita" @update:model-value="scoreDraft[match.id] = { home: scoreDraft[match.id]?.home ?? '', away: $event }" />
                   <PrimaryButton :full-width="false" :loading="sports.saving.value" @click="publish(match)">{{ sports.results.value[match.id] ? 'Corregir' : 'Publicar' }}</PrimaryButton>

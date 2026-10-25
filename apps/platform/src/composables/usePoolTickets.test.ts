@@ -94,7 +94,8 @@ describe('usePoolTickets', () => {
     const t = usePoolTickets(() => client)
     await t.load('p1', 'me')
     expect(await t.submitTicket('t1')).toMatch(/cerró/)
-    expect(rpc.mock.calls.filter(([fn]) => fn === 'list_my_tickets').length).toBe(2)
+    expect(rpc.mock.calls.filter(([fn]) => fn === 'list_my_tickets').length).toBe(1)
+    expect(t.error.value).toBe('')
   })
 
   it('error de lectura: mensaje genérico', async () => {

@@ -456,3 +456,7 @@ Rama `feat/api-football-connector` (respaldada en `origin`). Detalle y evidencia
   `20261024000700_legal_acceptance_and_plan_catalog.sql`, `LegalAcceptanceView.vue`, `PlansView.vue`, `usePlanCatalog.ts` y cambios en
   `useAuth.ts`, `AuthForm.vue`, `router.ts`, `navigation-guards.ts`, `usePostSignInNavigation.ts`, `legal-content.ts` y `ProfileView.vue`.
   Quedaron sin commit, sin aplicar y sin tocar; al momento del cierre rompían el typecheck (`acceptLegalDocuments`).
+
+## Correcciones UAT y publicación a main (2026-10-24)
+
+`main` y `origin/main` están en `d21ae18`; las migraciones legales y de participantes de administración quedaron aplicadas en QA. UAT-01 y UAT-03 se corrigieron y cuentan con pruebas focalizadas. UAT-02 a UAT-09 se corrigieron en el siguiente lote pendiente de commit: la participación pendiente se revalida aun con caché fresca; el acceso a una quiniela tiene caché privada offline; los rechazos de tickets mantienen el panel visible; se amplían áreas táctiles, contraste y diseño a 200 %; Inicio prioriza sus imágenes LCP. Evidencia local: typecheck, pruebas focalizadas (29/29), batería Vitest y `verify:bundle` completados sin código de error; queda validación humana de navegador/Vercel QA y revisión de la primera corrida de CI.

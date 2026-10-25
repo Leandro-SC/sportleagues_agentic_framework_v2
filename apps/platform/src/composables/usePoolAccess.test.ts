@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
+import { IDBFactory } from 'fake-indexeddb'
+import { OfflineCache, privateNamespace, setOfflineCacheForTests } from '../lib/offline-cache'
 import { usePoolAccess, type PoolAccessClient } from './usePoolAccess'
 
 function clientReturning(result: { data: { id: string; name: string } | null; error: { message: string } | null }): PoolAccessClient {
@@ -52,5 +54,17 @@ describe('usePoolAccess', () => {
 
     expect(access.loading.value).toBe(false)
     expect(access.error.value).toBe('No fue posible verificar el acceso a la quiniela.')
+  })
+
+  it('uses the private cached access result when the network is unavailable', async () => {
+    const cache = new OfflineCache({ idb: new IDBFactory() })
+    setOfflineCacheForTests(cache)
+    await cache.set(privateNamespace('me'), 'access:pool-a', { pool: { id: 'pool-a', name: 'Pool A' }, denied: false }, { version: 'pool-access-v1', ttlMs: 60_000 })
+    const access = usePoolAccess(() => clientReturning({ data: null, error: { message: 'network error' } }))
+    await access.load('pool-a', 'me')
+    expect(access.pool.value).toEqual({ id: 'pool-a', name: 'Pool A' })
+    expect(access.offline.value).toBe(true)
+    expect(access.error.value).toBe('')
+    setOfflineCacheForTests(null)
   })
 })

@@ -72,6 +72,19 @@ describe('usePoolPlay con caché privada', () => {
     expect(other.participation.value).toBe('none') // el estado real de ESE usuario, no el del anterior
   })
 
+  it('revalida una inscripción pendiente aunque su caché siga fresca', async () => {
+    const source = tables()
+    source.participants[0]!.approval_status = 'pending'
+    const a = fake(source)
+    await usePoolPlay(() => a.client).load('p1', 'me')
+    const before = a.reads()
+    source.participants[0]!.approval_status = 'approved'
+    const refreshed = usePoolPlay(() => a.client)
+    await refreshed.load('p1', 'me')
+    expect(a.reads()).toBeGreaterThan(before)
+    expect(refreshed.participation.value).toBe('participant')
+  })
+
   it('vencida la frescura muestra lo guardado al instante y revalida; sin conexión conserva y avisa', async () => {
     const state = { down: false }
     const a = fake(tables(), state)

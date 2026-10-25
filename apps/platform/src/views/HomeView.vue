@@ -46,10 +46,10 @@ function openAuth(mode: AuthMode): void {
     :user-name="auth.state.profile?.display_name"
   >
     <section v-if="!auth.isAuthenticated.value && !authPanel" class="relative -mx-5 flex w-[calc(100%+2.5rem)] flex-1 flex-col overflow-hidden bg-canvas px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-5 text-center">
-      <img :src="coverBackground" alt="" class="pointer-events-none absolute inset-0 h-full w-full object-cover" />
+      <img :src="coverBackground" alt="" fetchpriority="high" decoding="async" class="pointer-events-none absolute inset-0 h-full w-full object-cover" />
       <div class="pointer-events-none absolute inset-0 bg-linear-to-b from-canvas/30 via-canvas/10 to-canvas/85" />
       <div class="relative flex flex-1 flex-col">
-        <img :src="coverLogo" alt="Tablo" class="mx-auto mt-[5dvh] w-48 drop-shadow-[0_8px_24px_rgba(0,0,0,0.65)]" />
+        <img :src="coverLogo" alt="Tablo" fetchpriority="high" decoding="async" class="mx-auto mt-[5dvh] w-48 drop-shadow-[0_8px_24px_rgba(0,0,0,0.65)]" />
         <p class="mx-auto mt-2 max-w-44 font-display text-base font-bold leading-tight text-text">Tu pasión,<br />en cada partido</p>
         <div class="mt-5 flex items-center justify-center gap-2" aria-label="Deportes disponibles">
           <span v-for="sport in coverSports" :key="sport" class="flex h-8 w-8 items-center justify-center rounded-full border border-text/20 bg-canvas/45 text-text backdrop-blur-sm">

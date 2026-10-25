@@ -77,6 +77,10 @@ Ya registrados en ese archivo el 2026-10-24:
 9. **iOS:** alcance para el primer release.
 10. **`mobile/` npm audit:** 3 moderadas en la CLI de Capacitor (`uuid` vía `xcode`, solo desarrollo e iOS); se aceptan hasta que Capacitor publique una CLI corregida sin degradar.
 
+## Actualización UAT (2026-10-24)
+
+UAT-01 a UAT-09 tienen corrección de código y pruebas automatizadas. Antes de declarar el lote cerrado falta la validación humana de navegador, dispositivo y Vercel QA.
+
 ## 6. Validación humana pendiente
 
 - UAT en dispositivo real con `docs/testing/UAT-MOBILE-AUTHENTICATED.md` y `MOBILE-FIRST-ACCEPTANCE.md`; sin ella, el máximo es `DONE_PENDING_UAT`.

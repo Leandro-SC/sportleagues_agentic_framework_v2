@@ -106,7 +106,7 @@ async function suggest(poolMatchId: string, matchId: string): Promise<void> {
 
 function loadPool(): void {
   const id = typeof route.params.poolId === 'string' ? route.params.poolId : ''
-  void access.load(id).then(() => { if (access.pool.value && auth.state.user) { void play.load(id, auth.state.user.id); void stats.loadPool(id); void tenant.load(id) } })
+  void access.load(id, auth.state.user?.id).then(() => { if (access.pool.value && auth.state.user) { void play.load(id, auth.state.user.id); void stats.loadPool(id); void tenant.load(id) } })
 }
 
 watch(() => route.params.poolId, loadPool, { immediate: true })
@@ -130,6 +130,7 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
       </div>
 
       <template v-else-if="access.pool.value">
+        <p v-if="access.offline.value" class="rounded-xl bg-surface-2 p-3 text-sm text-text-muted" role="status">Sin conexión: mostramos la última versión disponible de esta quiniela.</p>
         <div class="stadium-hero overflow-hidden rounded-3xl border p-1 shadow-md" :style="tenant.branding.value?.accent ? { borderColor: tenant.branding.value.accent } : undefined" :class="tenant.branding.value?.accent ? '' : 'border-secondary/25'">
           <img v-if="tenant.branding.value?.bannerUrl" :src="tenant.branding.value.bannerUrl" alt="" class="mb-1 aspect-8/3 w-full rounded-xl object-cover" data-testid="tenant-banner" />
           <div v-if="tenant.branding.value?.brandName || tenant.branding.value?.logoUrl" class="flex items-center gap-3 px-3 py-2" data-testid="tenant-brand">
