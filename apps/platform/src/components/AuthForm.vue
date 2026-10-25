@@ -175,6 +175,12 @@ async function google(): Promise<void> {
 
       <p v-if="error" class="mt-3 rounded-xl bg-danger-100 p-3 text-sm font-medium text-danger" role="alert">{{ error }}</p>
       <p v-if="notice" class="mt-3 rounded-xl bg-primary-100 p-3 text-sm font-medium text-primary" role="status">{{ notice }}</p>
+      <p v-if="mode === 'sign-up'" class="mt-3 text-center text-xs text-text-muted" data-testid="legal-consent">
+        Al crear tu cuenta aceptas los <a href="/terminos" class="font-semibold text-primary underline">Términos de uso</a> y la <a href="/privacidad" class="font-semibold text-primary underline">Política de privacidad</a>.
+      </p>
+      <p v-else-if="mode === 'sign-in'" class="mt-3 text-center text-xs text-text-muted">
+        <a href="/privacidad" class="underline">Privacidad</a> · <a href="/terminos" class="underline">Términos</a>
+      </p>
     </div>
 
     <div class="flex items-center gap-3 rounded-3xl border border-secondary/20 bg-surface/90 p-2.5 backdrop-blur-sm">

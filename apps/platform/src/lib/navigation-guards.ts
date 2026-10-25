@@ -3,8 +3,9 @@ import { ADMIN_ROUTE_NAMES } from './role-navigation'
 // Clasificación de rutas, FALLA CERRADO (FE-04): una ruta nueva que no figure en ninguna lista exige sesión y perfil.
 // Así olvidarla en esta tabla nunca deja una pantalla sin guard; el test del router obliga además a clasificarla.
 //
-// Públicas (UX): no exigen sesión. `join` pide sesión dentro de la vista y conserva el código; `not-found` redirige a home.
-export const PUBLIC_ROUTE_NAMES: ReadonlySet<string> = new Set(['home', 'auth-callback', 'join', 'not-found'])
+// Públicas (UX): no exigen sesión. `join` pide sesión dentro de la vista y conserva el código; `not-found` redirige a home;
+// `privacy` y `terms` son textos legales que deben poder leerse antes de registrarse (Google OAuth y Play Store).
+export const PUBLIC_ROUTE_NAMES: ReadonlySet<string> = new Set(['home', 'auth-callback', 'join', 'not-found', 'privacy', 'terms'])
 // Con guard asíncrono propio en el router (membresía admin / is_platform_admin): este guard no las decide.
 export const SELF_GUARDED_ROUTE_NAMES: ReadonlySet<string> = new Set([...ADMIN_ROUTE_NAMES, 'superadmin'])
 // Solo sesión (sin perfil): el perfil se crea aquí o la sesión es la de recuperación de contraseña.

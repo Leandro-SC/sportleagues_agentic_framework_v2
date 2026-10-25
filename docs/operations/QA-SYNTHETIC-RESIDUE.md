@@ -50,3 +50,18 @@ D22 (baja/offboarding de tenants y supresión de PII) sigue **pendiente** como r
 | 2 (2026-10-12) | `LIFE-133d7ab8` | 128 PASS, 15 SKIPPED(already organizer), 0 FAIL | 0 tenants/cuentas/solicitudes nuevos (reutiliza ambos tenants; las 2 quinielas de la ejecución 1 quedaron `archived`); 2 torneos, 2 jornadas, 5 partidos, 2 quinielas, 3 participaciones, 4 tickets, 9 pronósticos, 1 resultado, 3 corridas de ratings y 1 fila de `maintenance_runs` |
 
 Totales de esta prueba (verificados con consultas de conteo): 5 cuentas fijas; 2 tenants `LIFE-*`; 4 quinielas, 4 torneos y 10 equipos manuales `LIFE-*` (más 2 selecciones del catálogo vinculadas al tenant del solicitante); 6 participaciones, 8 tickets, 18 pronósticos; `pool_creation_requests` global = 2 aprobadas + 1 rechazada; 5 filas `purge_fixture_sync_log` en `maintenance_runs` (incluye 3 previas). Cada ejecución adicional añade lo de la fila «2» (2 torneos, 5 partidos, 2 quinielas, etc.) y NO añade cuentas ni tenants mientras `qa-requester` y `qa-admin-b` sigan siendo organizadores. Máximo de ejecuciones acordado para esta prueba: 2.
+
+## Eliminación de cuenta (`scripts/qa/e2e/account-deletion.mjs`, ADR-026)
+
+Única excepción a la regla de identidades fijas: probar la baja exige una cuenta que se pueda eliminar. Cada ejecución crea **una** cuenta
+`qa-delete-<marca>@example.test` y la elimina con el flujo real. El usuario de Auth queda borrado en modo suave (correo anonimizado,
+sesiones revocadas) y su perfil queda como «Usuario eliminado» con `deleted_at`. No pertenece a ningún tenant, así que no deja filas en
+`audit_log`.
+
+| Ejecución | Resultado | Residuo nuevo |
+| --- | --- | --- |
+| 1 (2026-10-24) | 8/8 PASS | 1 usuario de Auth borrado en modo suave + 1 perfil «Usuario eliminado» |
+
+Las suites SQL `scoring-rules-integrity`, `tenant-brand-name`, `result-notifications` y `account-deletion` corren en modo rollback (0 filas).
+La migración `20261024000100` añadió en QA, una sola vez, la regla estándar 3/1 a las quinielas abiertas que no tenían reglas, y eventos
+de puntos con la versión vigente en las quinielas con versiones mezcladas (dato derivado, no residuo de prueba).

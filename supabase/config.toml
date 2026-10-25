@@ -389,6 +389,14 @@ verify_jwt = false
 [functions.sports-sync]
 verify_jwt = false
 
+# ADR-026: el gateway exige un JWT válido y la función vuelve a verificarlo; solo borra la cuenta de quien llama.
+[functions.delete-account]
+verify_jwt = true
+
+# F-06: el navegador envía los reportes CSP sin credenciales; la función limita tamaño, tasa y depura PII por sí misma.
+[functions.csp-report]
+verify_jwt = false
+
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 

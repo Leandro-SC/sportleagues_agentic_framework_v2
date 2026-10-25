@@ -37,6 +37,8 @@ export function buildRoutes({ superadminUi, superadminView = loadSuperadminView 
     { path: '/', name: 'home', component: HomeView },
     { path: '/auth/callback', name: 'auth-callback', component: AuthCallbackView },
     { path: '/auth/reset', name: 'reset-password', component: () => import('./views/ResetPasswordView.vue') },
+    { path: '/privacidad', name: 'privacy', component: () => import('./views/LegalView.vue'), props: { doc: 'privacy' } },
+    { path: '/terminos', name: 'terms', component: () => import('./views/LegalView.vue'), props: { doc: 'terms' } },
     { path: '/onboarding', name: 'onboarding', component: () => import('./views/OnboardingView.vue') },
     { path: '/j/:code', name: 'join', component: () => import('./views/JoinView.vue'), props: true },
     { path: '/p/:poolId', name: 'pool', component: () => import('./views/PoolView.vue'), props: true },
