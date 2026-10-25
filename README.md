@@ -12,8 +12,9 @@ Construir una plataforma SaaS multi-tenant para quinielas deportivas con:
 - Panel de organizador y experiencia de participante.
 - Pronósticos, bloqueo por hora, scoring y leaderboard.
 - Motor estadístico Elo + Poisson en PostgreSQL.
-- Flyers HD con Canvas/html2canvas + QR + Web Share API.
-- Freemium y branding PRO.
+- Flyers HD con Canvas nativo, QR local (`uqr`) y Web Share API, con un centro para compartir por WhatsApp (ADR-024).
+- Freemium y branding PRO; nombre de plataforma del organizador en todos los planes.
+- Notificaciones de resultados en la app y tabla en vivo (ADR-025).
 
 ## Principio de ejecución
 
@@ -34,11 +35,13 @@ No ejecutar una fase posterior sin que `PROJECT_STATE.md` indique que la depende
 
 ## Estructura
 
-- `apps/platform/`: aplicación Vue/PWA unificada (participante + organizador).
-- `mobile/`: configuración y empaquetado Capacitor.
-- `packages/domain/`: tipos, reglas y lógica de dominio sin UI.
-- `packages/ui/`: componentes visuales reutilizables.
-- `supabase/`: migraciones, RLS, funciones SQL, seeds y tests de datos.
+- `apps/platform/`: aplicación Vue/PWA unificada (participante + organizador). La lógica de dominio del cliente vive en
+  `apps/platform/src/lib/` y los componentes en `apps/platform/src/components/`; las reglas autoritativas (locks, scoring, Elo,
+  entitlements) están en SQL. `packages/` no se usa por ahora (no hay un segundo consumidor que justifique extraer paquetes).
+- `mobile/`: configuración y empaquetado Capacitor (Android).
+- `supabase/`: migraciones (`migrations/`), reversiones (`proposed/down/`), Edge Functions, seeds y suites SQL (`tests/`).
+- `scripts/qa/`: ejecutores de suites SQL en rollback, E2E y UAT contra QA, y herramientas de operador.
+- `.github/workflows/ci.yml`: gates automáticos (audit, typecheck, tests, build con `verify:bundle`, `git diff --check`).
 - `docs/`: requisitos, arquitectura, seguridad, agentes, testing y operación.
 - `prompts/`: instrucciones ejecutables por fase.
 - `reports/`: evidencia y conclusiones de cada fase.

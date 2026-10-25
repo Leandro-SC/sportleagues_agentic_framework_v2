@@ -26,3 +26,17 @@ ADR-013 usa Google OAuth con flujo **implícito** y redirección web a `/auth/ca
 - **BLOCKED_DECISION del propietario:** dominio de producción, huella SHA-256 del certificado de firma, appId definitivo.
 - Cambio de dependencias de `mobile/` (`@capacitor/browser`) y de `lib/supabase.ts`/callback (pruebas de regresión del flujo de auth antes de aplicar).
 - Cierra la pregunta pendiente «estrategia OAuth nativa» del tablero.
+
+## Nota (2026-10-24)
+
+Se implementó el punto 5 de la decisión propuesta: dentro del wrapper (`isNativePlatform()`) el botón de Google se oculta y el acceso es
+con correo y contraseña; la confirmación de correo y la recuperación se completan en el navegador. Los App Links `/j/` y `/p/` ya están
+cableados para el host de QA (`registerNativeDeepLinks` en `main.ts`, intent-filter y `assetlinks.json`).
+
+El ADR **sigue Proposed**. Pasar todo el OAuth a PKCE cambia la recuperación de contraseña: el enlace del correo solo funciona en el mismo
+navegador que lo pidió, porque guarda el `code_verifier`. Eso rompe el caso habitual de pedirlo en el teléfono y abrir el correo en otro
+dispositivo. Además requiere el cliente OAuth Android y la huella de release en Google Cloud, que son del propietario. Decisiones
+pendientes:
+
+1. Aceptar el cambio de comportamiento de la recuperación o mantener el flujo implícito solo para la recuperación.
+2. Aportar el keystore de release, su huella y el dominio definitivo para el App Link `/auth/callback`.

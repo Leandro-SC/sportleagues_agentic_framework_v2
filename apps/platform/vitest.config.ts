@@ -8,6 +8,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     include: ['src/**/*.test.ts'],
+    setupFiles: ['src/test-support/no-network.ts'],
     pool: 'forks',
     maxWorkers: 1,
   },

@@ -65,3 +65,7 @@ sesiones revocadas) y su perfil queda como «Usuario eliminado» con `deleted_at
 Las suites SQL `scoring-rules-integrity`, `tenant-brand-name`, `result-notifications` y `account-deletion` corren en modo rollback (0 filas).
 La migración `20261024000100` añadió en QA, una sola vez, la regla estándar 3/1 a las quinielas abiertas que no tenían reglas, y eventos
 de puntos con la versión vigente en las quinielas con versiones mezcladas (dato derivado, no residuo de prueba).
+
+2026-10-24 (regresión tras `20261024000100`–`000600`): +1 `mvp-flow.mjs` (tenants `E2E-bb947e69` y `-B`, 5 usuarios `e2e-*@example.test`,
+32/32) y +1 `tickets-flow.mjs` (tenant `TKE-52cc8447`, 6 usuarios `tke-*@example.test`, 24/24). Nuevo residuo derivado: 12 filas de
+`notifications` generadas por el trigger (4 en `E2E-bb947e69`, 8 en `TKE-52cc8447`). Totales: mvp-flow 9, tickets-flow 4.
