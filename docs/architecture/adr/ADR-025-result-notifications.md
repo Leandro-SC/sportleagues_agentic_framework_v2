@@ -29,3 +29,11 @@ El propietario pidió avisar a los usuarios cuando cambie un resultado. No habí
 ## Evidencia
 
 `result-notifications.sql` 19/19 en rollback. Regresión de 12 suites relacionadas con resultados (870 casos) en verde con la migración. Pruebas unitarias del composable (carga, tiempo real sin duplicados, marcar como leído con reversión ante error, cierre de sesión).
+
+## Ampliación (2026-10-24): tabla en vivo y ratings al día
+
+- **Tabla en vivo** (pedido del propietario): `20261024000600_realtime_results.sql` publica `official_results` y `matches` en Realtime. Realtime aplica las políticas SELECT existentes, así que solo reciben cambios los miembros del tenant; no se publica ninguna tabla con pronósticos.
+  - `usePoolLiveUpdates` recarga en segundo plano (sin estado de carga) la parrilla, la tabla, la jornada elegida y las estadísticas de la quiniela abierta.
+  - Agrupa varias señales seguidas en una sola recarga. Como respaldo, sondea cada 60 s solo mientras queden partidos sin resultado final y la pestaña esté visible.
+- **Ratings Elo al día**: `20261024000500_stats_rebuild_schedule.sql` instala `pg_cron` y programa `scheduled_rebuild_team_ratings()` cada 30 minutos. Solo recalcula si hubo resultados publicados o corregidos después de la última corrida (`stats-rebuild-schedule.sql` 5/5).
+  - Reconstrucción inicial en QA el 2026-10-24 con `scripts/qa/rebuild-ratings.mjs`: 19 tenants, 29 partidos, 46 equipos.

@@ -152,7 +152,8 @@ export function usePoolPlay(
     currentPoolId = ''; currentProfileId = ''
   }
 
-  async function load(poolId: string, profileId: string, options: { force?: boolean } = {}): Promise<void> {
+  /** `background` (actualización en vivo): fuerza la red pero no muestra el estado de carga si ya hay datos en pantalla. */
+  async function load(poolId: string, profileId: string, options: { force?: boolean; background?: boolean } = {}): Promise<void> {
     currentPoolId = poolId; currentProfileId = profileId
     const token = ++loadToken
     error.value = ''
@@ -160,8 +161,8 @@ export function usePoolPlay(
     const cacheGeneration = cache.privateGeneration // FE-10: una purga (cierre de sesión) durante la lectura invalida la escritura
     const ns = privateNamespace(profileId)
     const key = `pool:${poolId}`
-    let painted = false
-    if (!options.force) {
+    let painted = Boolean(options.background) && fixture.value.length > 0
+    if (!options.force && !options.background) {
       const hit = await cache.get<PoolSnapshot>(ns, key, POOL_CACHE_VERSION)
       if (token !== loadToken || !sameIdentity(profileId)) return
       if (hit) {

@@ -21,6 +21,7 @@ import { usePoolPlay } from '../composables/usePoolPlay'
 import { usePoolStats } from '../composables/usePoolStats'
 import { useAuth } from '../composables/useAuth'
 import { useIdentityWatch } from '../composables/useIdentityWatch'
+import { usePoolLiveUpdates } from '../composables/usePoolLiveUpdates'
 import { useTenantBranding } from '../composables/useTenantBranding'
 import { appLinkHosts } from '../lib/pwa'
 import type { ScorelineSuggestion } from '../lib/scoreline-suggestion'
@@ -45,6 +46,21 @@ const roundFilter = ref('')
 const messages = ref<Record<string, string>>({})
 const suggestions = ref<Record<string, ScorelineSuggestion>>({})
 const suggestionMessages = ref<Record<string, string>>({})
+
+// Tabla en vivo: al publicarse o corregirse un resultado (o cambiar el estado de un partido) se recargan parrilla, tabla y estadísticas
+// sin mostrar el estado de carga. Se conserva la jornada elegida en la tabla.
+async function refreshLive(): Promise<void> {
+  const poolId = access.pool.value?.id
+  const userId = auth.state.user?.id
+  if (!poolId || !userId) return
+  await Promise.all([play.load(poolId, userId, { background: true }), stats.loadPool(poolId)])
+  if (roundFilter.value) await play.loadLeaderboard(roundFilter.value)
+}
+usePoolLiveUpdates({
+  tenantId: () => tenant.branding.value?.tenantId ?? null,
+  active: () => play.fixture.value.some((item) => item.status !== 'final'),
+  onChange: () => { void refreshLive() },
+})
 let timer: ReturnType<typeof setInterval> | undefined
 
 const nextMatches = computed(() => play.fixture.value.filter((item) => item.status === 'scheduled' && new Date(item.lockAt).getTime() > now.value.getTime()).slice(0, 3))
@@ -194,6 +210,9 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
               <RankingRow v-for="row in play.leaderboard.value" :key="row.participant_id" :position="row.rank" :name="row.display_name" :points="row.points" :is-current-user="row.is_me"
                 :detail="`${row.exact_hits} exactos · racha ${row.current_streak}`" />
             </div>
+            <p v-if="play.leaderboard.value.length" class="flex items-center justify-center gap-1.5 text-xs text-text-muted" data-testid="live-table-note">
+              <span class="h-2 w-2 rounded-full bg-primary" aria-hidden="true" />En vivo: se actualiza sola al publicarse cada resultado{{ play.updatedAt.value ? ` · ${new Date(play.updatedAt.value).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}` : '' }}
+            </p>
           </section>
         </template>
       </template>
