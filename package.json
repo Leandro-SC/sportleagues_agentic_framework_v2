@@ -9,6 +9,8 @@
   "scripts": {
     "dev": "vite --config apps/platform/vite.config.ts",
     "build": "vue-tsc --project apps/platform/tsconfig.app.json --noEmit && vite build --config apps/platform/vite.config.ts",
+    "build:superadmin": "vue-tsc --project apps/superadmin/tsconfig.json --noEmit && vite build --config apps/superadmin/vite.config.ts",
+    "dev:superadmin": "vite --config apps/superadmin/vite.config.ts",
     "typecheck": "vue-tsc --project apps/platform/tsconfig.app.json --noEmit",
     "test": "vitest run --config apps/platform/vitest.config.ts",
     "verify:bundle": "npm run build && node scripts/verify-preview-bundle.mjs"
