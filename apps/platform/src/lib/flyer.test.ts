@@ -37,7 +37,7 @@ describe('buildFlyerLayout', () => {
 
 describe('paintFlyer', () => {
   it('pinta cada operación en el contexto', () => {
-    const ctx = { fillRect: vi.fn(), fillText: vi.fn(), beginPath: vi.fn(), roundRect: vi.fn(), fill: vi.fn(), stroke: vi.fn(), fillStyle: '', strokeStyle: '', lineWidth: 0, font: '', textAlign: '' }
+    const ctx = { fillRect: vi.fn(), fillText: vi.fn(), beginPath: vi.fn(), roundRect: vi.fn(), fill: vi.fn(), stroke: vi.fn(), save: vi.fn(), restore: vi.fn(), translate: vi.fn(), rotate: vi.fn(), drawImage: vi.fn(), fillStyle: '', strokeStyle: '', lineWidth: 0, font: '', textAlign: '', globalAlpha: 1 }
     const ops = buildFlyerLayout(ranking)
     paintFlyer(ctx as never, ops)
     expect(ctx.fillText).toHaveBeenCalledTimes(ops.filter((o) => o.op === 'text').length)

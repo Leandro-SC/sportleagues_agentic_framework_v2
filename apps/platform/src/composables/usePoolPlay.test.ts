@@ -116,4 +116,50 @@ describe('usePoolPlay', () => {
     expect(play.error.value).toBe('No fue posible cargar la quiniela.')
     expect(play.loading.value).toBe(false)
   })
+
+  describe('suggestScoreline (ADR-019)', () => {
+    const okData = { home_goals: 2, away_goals: 0, p_home: 0.6, p_draw: 0.25, p_away: 0.15, rated: true, model_version: 'elo-poisson-v1', computed_at: '2026-10-12T10:00:00Z' }
+
+    it('llama al RPC con el id de pool_match (nunca tenant ni rol) y devuelve la sugerencia validada', async () => {
+      const { client, rpc } = fake(tables(), (fn) => (fn === 'suggest_scoreline' ? { data: okData } : {}))
+      const play = usePoolPlay(() => client)
+      const result = await play.suggestScoreline('pm2')
+      expect(rpc).toHaveBeenCalledWith('suggest_scoreline', { p_pool_match_id: 'pm2' })
+      expect(result).toMatchObject({ suggestion: { homeGoals: 2, awayGoals: 0, rated: true } })
+      expect(play.suggestingPoolMatchId.value).toBe('')
+    })
+
+    it('no escribe ni guarda pronósticos', async () => {
+      const { client, rpc } = fake(tables(), () => ({ data: okData }))
+      await usePoolPlay(() => client).suggestScoreline('pm2')
+      expect(rpc.mock.calls.map((c) => c[0])).toEqual(['suggest_scoreline'])
+    })
+
+    it('traduce el rechazo del servidor (cierre) sin ocultar la función', async () => {
+      const { client } = fake(tables(), () => ({ error: { message: 'locked', code: '42501', hint: 'STATS_LOCKED' } as never }))
+      const play = usePoolPlay(() => client)
+      expect(await play.suggestScoreline('pm2')).toEqual({ failure: 'Este partido ya cerró: no hay sugerencia disponible.' })
+      expect(play.suggestAvailable.value).toBe(true)
+    })
+
+    it('si el RPC no existe en este entorno oculta la función y no reintenta', async () => {
+      const { client, rpc } = fake(tables(), () => ({ error: { message: 'Could not find the function', code: 'PGRST202' } }))
+      const play = usePoolPlay(() => client)
+      expect('failure' in (await play.suggestScoreline('pm2'))).toBe(true)
+      expect(play.suggestAvailable.value).toBe(false)
+      await play.suggestScoreline('pm2')
+      expect(rpc).toHaveBeenCalledTimes(1)
+    })
+
+    it('una respuesta con forma inválida no produce sugerencia', async () => {
+      const { client } = fake(tables(), () => ({ data: { home_goals: -3 } }))
+      expect('failure' in (await usePoolPlay(() => client).suggestScoreline('pm2'))).toBe(true)
+    })
+
+    it('sin conexión devuelve un aviso en vez de lanzar', async () => {
+      const client = { from: () => ({}), rpc: async () => { throw new Error('network') } } as unknown as SportsAdminClient
+      const result = await usePoolPlay(() => client).suggestScoreline('pm2')
+      expect(result).toEqual({ failure: 'Sin conexión: la sugerencia necesita conexión con el servidor.' })
+    })
+  })
 })

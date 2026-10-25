@@ -1,24 +1,34 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import AdminFixtureView from './AdminFixtureView.vue'
 
-const h = vi.hoisted(() => ({ sports: {} as Record<string, unknown>, admin: {} as Record<string, unknown> }))
+const h = vi.hoisted(() => ({ sports: {} as Record<string, unknown>, admin: {} as Record<string, unknown>, catalog: {} as Record<string, unknown>, auth: {} as Record<string, unknown> }))
 
 vi.mock('../composables/useAuth', () => ({
-  useAuth: () => ({ state: { profile: { id: 'p', display_name: 'Ana Pérez' }, user: { id: 'p' } }, isAuthenticated: { value: true } }),
+  useAuth: () => ({ state: h.auth, isAuthenticated: { value: true } }),
 }))
 vi.mock('../composables/useAdmin', () => ({ useAdmin: () => h.admin }))
 vi.mock('../composables/useSportsAdmin', () => ({ useSportsAdmin: () => h.sports }))
+vi.mock('../composables/useCatalog', () => ({ useCatalog: () => h.catalog }))
 
+const nt = (id: string, name: string, kind: 'club' | 'national', country: string) => ({ id, name, official_name: null, kind, country_code: country, search_name: name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''), updated_at: 'x' })
 const started = new Date(Date.now() - 3600_000).toISOString()
 const future = new Date(Date.now() + 86_400_000).toISOString()
 
 function setup(overrides: Record<string, unknown> = {}) {
+  h.auth = reactive({ profile: { id: 'p', display_name: 'Ana Pérez' }, user: { id: 'p' } })
+  const snapshot = ref({
+    teams: [nt('t1', 'Sporting Cristal', 'club', 'PE'), nt('t2', 'Alianza Lima', 'club', 'PE'), nt('t3', 'Peru', 'national', 'PE')],
+    competitions: [], seasons: [], memberships: [], cursors: { teams: '', competitions: '', seasons: '', countries: '' },
+    countries: [{ code: 'PE', name_en: 'Peru', name_es: 'Perú', confederation: 'CONMEBOL', updated_at: 'x' }],
+  })
+  const status = ref('ready')
+  h.catalog = { snapshot, status, freshness: ref('fresh'), updatedAt: ref(Date.now()), loading: computed(() => false), failed: computed(() => false), offline: computed(() => false), ensureLoaded: vi.fn().mockResolvedValue(undefined), reload: vi.fn() }
   h.admin = {
     tenants: ref([{ tenant_id: 'tenant-1234', role: 'admin', plan_code: 'free' }]), selectedTenantId: ref('tenant-1234'), selectedPoolId: ref('pool-1'),
-    selectedPool: ref({ id: 'pool-1', name: 'Quiniela A', lock_offset: '00:15:00' }), loading: ref(false), error: ref(''), load: vi.fn(),
+    selectedPool: ref({ id: 'pool-1', name: 'Quiniela A', lock_offset: '00:15:00' }), loading: ref(false), error: ref(''), load: vi.fn(), reset: vi.fn(), dispose: vi.fn(),
   }
   h.sports = {
     timezone: ref('America/Lima'), tournaments: ref([{ id: 'to-1', name: 'Liga', season_label: '2026' }]), selectedTournamentId: ref('to-1'),
@@ -33,7 +43,8 @@ function setup(overrides: Record<string, unknown> = {}) {
     loadCatalog: vi.fn(), loadTournament: vi.fn(), loadPoolMatches: vi.fn(), saveTournament: vi.fn().mockResolvedValue(null), addTeamsInBulk: vi.fn().mockResolvedValue(null),
     setEnrolled: vi.fn().mockResolvedValue(null), saveRound: vi.fn().mockResolvedValue(null), reorderRounds: vi.fn().mockResolvedValue(null),
     saveMatch: vi.fn().mockResolvedValue(null), removeMatch: vi.fn().mockResolvedValue(null), setPoolMatch: vi.fn().mockResolvedValue(null),
-    publishResult: vi.fn().mockResolvedValue(null), ...overrides,
+    publishResult: vi.fn().mockResolvedValue(null), resultsMode: ref('manual'), autoResultsAvailable: ref(false),
+    importCatalogTeams: vi.fn().mockResolvedValue({ message: null, enrolled: 1, alreadyEnrolled: 0 }), setResultsMode: vi.fn().mockResolvedValue(null), ...overrides,
   }
 }
 
@@ -42,7 +53,7 @@ async function mountView() {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
-      { path: '/admin/parrilla', name: 'admin-fixture', component: AdminFixtureView }, { path: '/admin', name: 'admin', component: Blank }, { path: '/', name: 'home', component: Blank },
+      { path: '/admin/parrilla', name: 'admin-fixture', component: AdminFixtureView }, { path: '/admin', name: 'admin', component: Blank }, { path: '/organizador', name: 'organizer-dashboard', component: Blank }, { path: '/admin/ingresos', name: 'admin-income', component: Blank }, { path: '/', name: 'home', component: Blank },
       { path: '/partidos', name: 'matches', component: Blank }, { path: '/ligas', name: 'leagues', component: Blank }, { path: '/mis-puntos', name: 'points', component: Blank }, { path: '/perfil', name: 'profile', component: Blank },
     ],
   })
@@ -123,6 +134,93 @@ describe('AdminFixtureView', () => {
     await wrapper.findAll('button').find((button) => button.text().startsWith('Añadir e inscribir'))!.trigger('click')
     await flushPromises()
     expect(sports().addTeamsInBulk).toHaveBeenCalledWith([{ name: 'Melgar', shortName: 'MEL' }])
+  })
+
+  it('el organizador busca en el catálogo compartido, selecciona e incorpora equipos al torneo', async () => {
+    const wrapper = await mountView()
+    await wrapper.findAll('[role="tab"]').find((t) => t.text() === 'Equipos')!.trigger('click')
+    await wrapper.get('#catalog-search').setValue('peru')
+    const rows = wrapper.get('[data-test="catalog-results"]').findAll('li')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.text()).toContain('Selección')
+    expect(rows[0]!.find('img').attributes('src')).toBe('/flags/pe.svg')
+    await rows[0]!.get('input[type="checkbox"]').setValue(true)
+    await wrapper.findAll('button').find((button) => button.text().startsWith('Incorporar'))!.trigger('click')
+    await flushPromises()
+    expect(sports().importCatalogTeams).toHaveBeenCalledWith(['t3'])
+    expect(wrapper.text()).toContain('1 equipo(s) incorporados al torneo')
+  })
+
+  it('en el catálogo los equipos ya inscritos no se pueden volver a elegir', async () => {
+    setup({ enrolledTeams: ref([{ id: 'a', name: 'Alianza Lima' }]) })
+    const wrapper = await mountView()
+    await wrapper.findAll('[role="tab"]').find((t) => t.text() === 'Equipos')!.trigger('click')
+    await wrapper.get('#catalog-search').setValue('alianza')
+    const input = wrapper.get('[data-test="catalog-results"]').get('input[type="checkbox"]')
+    expect(input.attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('En tu torneo')
+  })
+
+  it('el modo automático figura como Premium próximamente y no se puede elegir; el manual sí', async () => {
+    const wrapper = await mountView()
+    await wrapper.findAll('[role="tab"]').find((t) => t.text() === 'Resultados')!.trigger('click')
+    const panel = wrapper.get('[data-test="results-mode"]')
+    expect(panel.text()).toContain('Premium · próximamente')
+    const radios = panel.findAll('input[type="radio"]')
+    expect(radios[1]!.attributes('disabled')).toBeDefined()
+    await radios[0]!.trigger('change')
+    expect(sports().setResultsMode).toHaveBeenCalledWith('manual')
+  })
+
+  it('con Premium disponible el modo automático se puede elegir y se solicita al servidor', async () => {
+    setup({ autoResultsAvailable: ref(true) })
+    const wrapper = await mountView()
+    await wrapper.findAll('[role="tab"]').find((t) => t.text() === 'Resultados')!.trigger('click')
+    const radios = wrapper.get('[data-test="results-mode"]').findAll('input[type="radio"]')
+    expect(radios[1]!.attributes('disabled')).toBeUndefined()
+    await radios[1]!.trigger('change')
+    expect(sports().setResultsMode).toHaveBeenCalledWith('automatic')
+  })
+
+  it('FE-01: un marcador en blanco NO se publica como 0 (ni local, ni visita, ni ambos)', async () => {
+    const wrapper = await mountView()
+    await wrapper.findAll('[role="tab"]').find((t) => t.text() === 'Resultados')!.trigger('click')
+    const publish = () => wrapper.findAll('button').find((button) => button.text() === 'Publicar')!
+
+    await wrapper.get('#score-h-m1').setValue('2') // visita en blanco
+    await publish().trigger('click'); await flushPromises()
+    expect(sports().publishResult).not.toHaveBeenCalled()
+    expect(wrapper.get('[role="alert"]').text()).toContain('visita')
+
+    await wrapper.get('#score-h-m1').setValue('') // local en blanco, visita con valor
+    await wrapper.get('#score-a-m1').setValue('1')
+    await publish().trigger('click'); await flushPromises()
+    expect(sports().publishResult).not.toHaveBeenCalled()
+    expect(wrapper.get('[role="alert"]').text()).toContain('local')
+
+    await wrapper.get('#score-a-m1').setValue('')
+    await publish().trigger('click'); await flushPromises()
+    expect(sports().publishResult).not.toHaveBeenCalled()
+
+    await wrapper.get('#score-h-m1').setValue('0'); await wrapper.get('#score-a-m1').setValue('0') // 0 escrito a propósito sí es válido
+    await publish().trigger('click'); await flushPromises()
+    expect(sports().publishResult).toHaveBeenCalledWith('m1', 0, 0)
+  })
+
+  it('FE-03: al desmontar detiene el polling de branding (dispose)', async () => {
+    const wrapper = await mountView()
+    const dispose = (h.admin as { dispose: ReturnType<typeof vi.fn> }).dispose
+    expect(dispose).not.toHaveBeenCalled()
+    wrapper.unmount()
+    expect(dispose).toHaveBeenCalledTimes(1)
+  })
+
+  it('FE-05: si cambia la identidad con la vista montada descarta el estado y vuelve a Inicio', async () => {
+    const wrapper = await mountView()
+    ;(h.auth as { user: { id: string } | null }).user = { id: 'otro-usuario' }
+    await flushPromises()
+    expect((h.admin as { reset: ReturnType<typeof vi.fn> }).reset).toHaveBeenCalledTimes(1)
+    expect(wrapper.html()).not.toContain('Parrilla deportiva</h1>')
   })
 
   it('muestra el estado sin acceso cuando el usuario no administra ningún tenant', async () => {

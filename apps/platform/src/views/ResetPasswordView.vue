@@ -18,9 +18,10 @@ const errors = ref<Record<string, string | undefined>>({})
 const error = ref('')
 const saving = ref(false)
 
-function cancel(): void {
-  auth.clearRecovery()
-  void router.replace({ name: 'home' })
+// Cancelar cierra la sesión de recuperación (local): el enlace del correo abre una sesión completa que no debe quedar abierta (FE-09).
+async function cancel(): Promise<void> {
+  await auth.cancelRecovery()
+  await router.replace({ name: 'home' })
 }
 
 async function submit(): Promise<void> {

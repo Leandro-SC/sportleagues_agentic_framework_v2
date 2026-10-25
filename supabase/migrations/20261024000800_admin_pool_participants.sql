@@ -1,0 +1,29 @@
+-- UAT-01: listado administrativo sin depender de una relación PostgREST inexistente entre participants y profiles.
+-- Devuelve solo nombre visible y estados operativos a administradores autorizados de la quiniela.
+set local lock_timeout = '5s';
+set local statement_timeout = '60s';
+
+create function public.admin_pool_participants(p_pool_id uuid)
+returns table (id uuid, profile_id uuid, display_name text, approval_status public.participant_approval_status,
+               payment_status public.participant_payment_status, withdrawn_at timestamptz, created_at timestamptz)
+language plpgsql stable security definer set search_path = ''
+as $$
+declare v_uid uuid := auth.uid(); v_tenant uuid;
+begin
+  if v_uid is null then raise exception 'authentication required' using errcode = '28000'; end if;
+  select po.tenant_id into v_tenant from public.pools po where po.id = p_pool_id;
+  if v_tenant is null or not (
+       public.is_tenant_admin(v_tenant)
+       or public._has_pool_capability(p_pool_id, 'participants', v_uid)
+       or public._has_pool_capability(p_pool_id, 'finance', v_uid)) then
+    raise exception 'not authorized' using errcode = '42501';
+  end if;
+  return query
+    select pa.id, pa.profile_id, pr.display_name, pa.approval_status, pa.payment_status, pa.withdrawn_at, pa.created_at
+      from public.participants pa
+      join public.profiles pr on pr.id = pa.profile_id
+     where pa.pool_id = p_pool_id and pa.tenant_id = v_tenant
+     order by pa.created_at, pa.id;
+end $$;
+revoke all on function public.admin_pool_participants(uuid) from public, anon;
+grant execute on function public.admin_pool_participants(uuid) to authenticated;

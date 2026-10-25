@@ -11,6 +11,10 @@ describe('protected route guard', () => {
     expect(protectedRouteRedirect('pool', true, true)).toBeNull()
   })
 
+  it('UAT-03: no manda a onboarding cuando el perfil no pudo consultarse por falta de red', () => {
+    expect(protectedRouteRedirect('pool', true, false, true)).toBeNull()
+  })
+
   it.each(['matches', 'leagues', 'points', 'league-join', 'league', 'team'])('protects the redesigned %s route like the other app routes', (route) => {
     expect(protectedRouteRedirect(route, false, false)).toBe('home')
     expect(protectedRouteRedirect(route, true, false)).toBe('onboarding')

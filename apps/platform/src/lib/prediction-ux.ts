@@ -4,6 +4,7 @@
 // (`now() < starts_at - lock_offset`, ver docs/architecture/phase-02-contracts.md y ADR-003/005).
 // El reloj del dispositivo puede estar adelantado o atrasado, así que estas funciones solo sirven
 // para mostrar una cuenta atrás y deshabilitar controles; el servidor siempre tiene la última palabra.
+import { parseNonNegativeInteger } from './number-input'
 import type { Match, MatchStatus } from './sports-catalog'
 
 export type PredictionLockState = 'open' | 'locked' | 'live' | 'final'
@@ -59,12 +60,11 @@ export type ScoreInput = { ok: true; value: number } | { ok: false; message: str
 // Validación de UX del marcador. La restricción real es `check (home_score >= 0)` en la base; el
 // tope de 99 evita errores de tecleo y no forma parte del contrato.
 export function parseScoreInput(raw: string): ScoreInput {
-  const text = raw.trim()
-  if (text === '') return { ok: false, message: 'Ingresa un marcador.' }
-  if (!/^\d+$/.test(text)) return { ok: false, message: 'Usa solo números enteros, sin signos.' }
-  const value = Number(text)
-  if (value > 99) return { ok: false, message: 'El marcador máximo es 99.' }
-  return { ok: true, value }
+  const parsed = parseNonNegativeInteger(raw, 99)
+  if (parsed.ok) return parsed
+  if (parsed.reason === 'empty') return { ok: false, message: 'Ingresa un marcador.' }
+  if (parsed.reason === 'format') return { ok: false, message: 'Usa solo números enteros, sin signos.' }
+  return { ok: false, message: 'El marcador máximo es 99.' }
 }
 
 // Estado visual a partir del `lock_at` que el SERVIDOR persiste en `pool_matches` (ADR-011/015). Es una ayuda de presentación: el

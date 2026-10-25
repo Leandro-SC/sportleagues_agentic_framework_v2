@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { CalendarClock, Check, CircleAlert, Copy, KeyRound, LoaderCircle, Palette, Settings2, UsersRound, Wallet } from 'lucide-vue-next'
+import { BadgeCheck, CalendarClock, Check, CircleAlert, Copy, KeyRound, LoaderCircle, Palette, Settings2, UsersRound, Wallet } from 'lucide-vue-next'
 import AppShell from '../components/AppShell.vue'
 import BrandingAssetSlot from '../components/BrandingAssetSlot.vue'
 import EmptyState from '../components/EmptyState.vue'
@@ -10,10 +10,15 @@ import FormField from '../components/FormField.vue'
 import PoolTicketsAdmin from '../components/PoolTicketsAdmin.vue'
 import PrimaryButton from '../components/PrimaryButton.vue'
 import SecondaryButton from '../components/SecondaryButton.vue'
+import ShareStudio from '../components/ShareStudio.vue'
 import StatChip from '../components/StatChip.vue'
-import { freeLimitMessage, lockMinutesFromInterval, validatePoints, validatePoolName } from '../lib/admin-contracts'
-import { useAdmin } from '../composables/useAdmin'
+import { publicAppUrl, safeAccent } from '../lib/branding'
+import { appLinkHosts } from '../lib/pwa'
+import type { TenantBranding } from '../composables/useTenantBranding'
+import { PRO_SCORING_MESSAGE, RULES_FROZEN_MESSAGE, STANDARD_SCORING, freeLimitMessage, lockMinutesFromInterval, parseLockMinutesInput, parsePointsInput, validatePoints, validatePoolName } from '../lib/admin-contracts'
+import { BRANDING_COLORS_UNAVAILABLE, useAdmin } from '../composables/useAdmin'
 import { useAuth } from '../composables/useAuth'
+import { useIdentityWatch } from '../composables/useIdentityWatch'
 
 const router = useRouter()
 const auth = useAuth()
@@ -24,12 +29,36 @@ const requiresApproval = ref(false)
 const exactPoints = ref('3')
 const outcomePoints = ref('1')
 const tieBreaker = ref<'exact_predictions' | 'prediction_submitted_at'>('exact_predictions')
-const primaryColor = ref('#2C48C7')
-const secondaryColor = ref('#05070D')
+// Parten vacíos y se rellenan con los colores GUARDADOS del tenant (FE-02), nunca con valores de ejemplo.
+const primaryColor = ref('')
+const secondaryColor = ref('')
 const notice = ref('')
 const formError = ref('')
 const joinCode = ref('')
 const brandingError = ref('')
+const brandNameInput = ref('')
+
+// Invitación compartible por WhatsApp con la marca del organizador (nombre en todos los planes; logo y color en PRO).
+const inviteBranding = computed<TenantBranding | null>(() => {
+  const tenant = admin.selectedTenant.value
+  if (!tenant) return null
+  return {
+    tenantId: tenant.tenant_id, plan: tenant.plan_code, brandName: admin.brandName.value,
+    accent: tenant.plan_code === 'pro' ? safeAccent(admin.brandingColors.value?.primary) : null,
+    logoUrl: admin.brandingAssets.value.logo?.signed_url ?? null, bannerUrl: admin.brandingAssets.value.banner?.signed_url ?? null, joinCode: joinCode.value || null,
+  }
+})
+const inviteLink = computed(() => (joinCode.value ? publicAppUrl(appLinkHosts()[0]!, `/j/${joinCode.value}`) : null))
+const inviteTemplates = computed(() => (joinCode.value && admin.selectedPool.value && inviteLink.value ? [{
+  id: 'invite', label: 'Invitación', filename: 'invitacion', qrUrl: inviteLink.value, qrLabel: 'Escanea para unirte',
+  input: { kind: 'invite' as const, poolName: admin.selectedPool.value.name, code: joinCode.value },
+}] : []))
+
+async function saveBrandName(): Promise<void> {
+  const result = await admin.saveBrandName(brandNameInput.value)
+  if (result) formError.value = result
+  else { formError.value = ''; notice.value = admin.brandName.value ? `Tus jugadores verán «${admin.brandName.value}».` : 'Nombre de plataforma quitado.' }
+}
 
 const planLabel = computed(() => admin.selectedTenant.value?.plan_code === 'pro' ? 'PRO' : 'FREE')
 const freeLimitNotice = computed(() => {
@@ -41,17 +70,25 @@ const openingIsBlockedByFreeLimit = computed(() => (
 ))
 
 async function refreshTenant(): Promise<void> {
-  await Promise.all([admin.loadPools(), admin.loadBrandingAssets()])
+  await Promise.all([admin.loadPools(), admin.loadBrandingAssets(), admin.loadBrandingColors()])
+}
+
+function resetForms(): void {
+  poolName.value = ''; lockMinutes.value = '15'; requiresApproval.value = false
+  exactPoints.value = '3'; outcomePoints.value = '1'; tieBreaker.value = 'exact_predictions'
+  primaryColor.value = ''; secondaryColor.value = ''
+  notice.value = ''; formError.value = ''; joinCode.value = ''; brandingError.value = ''
 }
 
 async function savePool(): Promise<void> {
   formError.value = validatePoolName(poolName.value) ?? ''
-  const minutes = Number(lockMinutes.value)
-  if (!formError.value && (!Number.isInteger(minutes) || minutes < 0 || minutes > 1440)) formError.value = 'El bloqueo debe estar entre 0 y 1440 minutos.'
   if (formError.value) return
+  // Un bloqueo en blanco no es 0 minutos (FE-01).
+  const minutes = parseLockMinutesInput(lockMinutes.value)
+  if (!minutes.ok) { formError.value = minutes.message; return }
   const result = admin.selectedPool.value
-    ? await admin.updatePool('update', poolName.value, minutes, requiresApproval.value)
-    : await admin.createPool(poolName.value, minutes, requiresApproval.value)
+    ? await admin.updatePool('update', poolName.value, minutes.value, requiresApproval.value)
+    : await admin.createPool(poolName.value, minutes.value, requiresApproval.value)
   if (result) { formError.value = result; return }
   notice.value = admin.selectedPool.value ? 'Configuración guardada.' : 'Quiniela creada.'
   if (!admin.selectedPool.value && admin.pools.value[0]) choosePool(admin.pools.value[0].id)
@@ -70,11 +107,21 @@ async function changeStatus(action: 'open' | 'pause' | 'archive'): Promise<void>
   else notice.value = action === 'archive' ? 'Quiniela archivada.' : action === 'pause' ? 'Quiniela pausada.' : 'Quiniela abierta.'
 }
 
+// ADR-023: sin política del servidor (RPC ausente) la UI no bloquea; el servidor decide y se traduce su rechazo.
+const rulesFrozen = computed(() => admin.rulesPolicy.value?.editable === false)
+const customScoringLocked = computed(() => admin.rulesPolicy.value?.customAllowed === false)
+
 async function saveRules(): Promise<void> {
-  const exact = Number(exactPoints.value); const outcome = Number(outcomePoints.value)
-  formError.value = validatePoints(exact, outcome) ?? ''
+  if (rulesFrozen.value) { formError.value = RULES_FROZEN_MESSAGE; return }
+  if (customScoringLocked.value) { exactPoints.value = String(STANDARD_SCORING.exactPoints); outcomePoints.value = String(STANDARD_SCORING.outcomePoints) }
+  // Puntos en blanco no son 0 (FE-01).
+  const exact = parsePointsInput(exactPoints.value, 'Puntos exacto')
+  if (!exact.ok) { formError.value = exact.message; return }
+  const outcome = parsePointsInput(outcomePoints.value, 'Puntos 1X2')
+  if (!outcome.ok) { formError.value = outcome.message; return }
+  formError.value = validatePoints(exact.value, outcome.value) ?? ''
   if (formError.value) return
-  const result = await admin.publishRules(exact, outcome, tieBreaker.value)
+  const result = await admin.publishRules(exact.value, outcome.value, tieBreaker.value)
   if (result) formError.value = result; else notice.value = 'Nueva versión de reglas publicada.'
 }
 
@@ -91,7 +138,10 @@ async function copyJoinCode(): Promise<void> {
 }
 
 async function saveBranding(): Promise<void> {
-  if (!/^#[0-9A-Fa-f]{6}$/.test(primaryColor.value) || !/^#[0-9A-Fa-f]{6}$/.test(secondaryColor.value)) { formError.value = 'Usa colores hexadecimales de seis dígitos.'; return }
+  // Sin los colores actuales del tenant no se guarda nada: se pisarían a ciegas (FE-02).
+  if (admin.brandingColorsStatus.value !== 'ready') { formError.value = BRANDING_COLORS_UNAVAILABLE; return }
+  const valid = (value: string): boolean => value.trim() === '' || /^#[0-9A-Fa-f]{6}$/.test(value.trim())
+  if (!valid(primaryColor.value) || !valid(secondaryColor.value)) { formError.value = 'Usa colores hexadecimales de seis dígitos.'; return }
   const result = await admin.saveBranding(primaryColor.value, secondaryColor.value)
   if (result) formError.value = result; else notice.value = 'Branding guardado.'
 }
@@ -120,13 +170,24 @@ watch(() => admin.rule.value, (rule) => {
   if (!rule) return
   exactPoints.value = String(rule.exact_points); outcomePoints.value = String(rule.outcome_points); tieBreaker.value = rule.tie_breaker
 })
-watch(() => admin.selectedTenantId.value, () => { void refreshTenant() })
+watch(() => admin.brandingColors.value, (colors) => {
+  primaryColor.value = colors?.primary ?? ''
+  secondaryColor.value = colors?.secondary ?? ''
+}, { immediate: true })
+watch(() => admin.brandName?.value, (name) => { brandNameInput.value = name ?? '' }, { immediate: true })
+// Solo el cambio de organización por el selector recarga: `load()` ya trae pools/branding/colores
+// del tenant inicial y no debe duplicarse al fijar `selectedTenantId` (FE-03).
+watch(() => admin.selectedTenantId.value, () => { if (!admin.loading.value) void refreshTenant() })
+useIdentityWatch(auth, {
+  onChange: (userId) => { admin.reset(); resetForms(); void admin.load(userId) },
+  onSignedOut: () => { admin.reset(); resetForms(); void router.replace({ name: 'home' }) },
+})
 onMounted(async () => { if (auth.state.user) await admin.load(auth.state.user.id) })
 onBeforeUnmount(admin.dispose)
 </script>
 
 <template>
-  <AppShell variant="app" active="home" title="Administración" :user-name="auth.state.profile?.display_name">
+  <AppShell variant="app" active="pools" title="Administración" :user-name="auth.state.profile?.display_name">
     <section class="space-y-6 pt-2">
       <div class="flex items-start justify-between gap-3">
         <div>
@@ -143,9 +204,9 @@ onBeforeUnmount(admin.dispose)
       </EmptyState>
 
       <template v-else>
-        <label class="block text-sm font-medium text-text-muted">Tenant administrado
+        <label class="block text-sm font-medium text-text-muted">Organización administrada
           <select v-model="admin.selectedTenantId.value" class="field-surface mt-1.5 w-full px-3 py-3 text-sm">
-            <option v-for="tenant in admin.tenants.value" :key="tenant.tenant_id" :value="tenant.tenant_id">Tenant {{ tenant.tenant_id.slice(0, 8) }} · {{ tenant.role }}</option>
+            <option v-for="tenant in admin.tenants.value" :key="tenant.tenant_id" :value="tenant.tenant_id">Organización {{ tenant.tenant_id.slice(0, 8) }} · {{ tenant.role === 'owner' ? 'Propietario' : 'Administrador' }}</option>
           </select>
         </label>
 
@@ -155,8 +216,8 @@ onBeforeUnmount(admin.dispose)
         </button>
 
         <button type="button" class="app-surface flex w-full items-center justify-between gap-3 p-4 text-left" @click="router.push({ name: 'admin-income' })">
-          <span class="flex items-center gap-2 font-display font-bold text-text"><Wallet class="h-5 w-5 text-primary" />Ingresos y tickets</span>
-          <span class="text-xs text-text-muted">Próximamente →</span>
+          <span class="flex items-center gap-2 font-display font-bold text-text"><Wallet class="h-5 w-5 text-primary" />Mis finanzas</span>
+          <span class="text-xs text-text-muted">Estado de pagos manuales →</span>
         </button>
 
         <section class="app-surface p-4">
@@ -186,9 +247,11 @@ onBeforeUnmount(admin.dispose)
         <template v-if="admin.selectedPool.value">
           <section class="app-surface p-4">
             <div class="mb-4 flex items-center gap-2"><Settings2 class="h-5 w-5 text-primary" /><h2 class="font-display font-bold text-text">Reglas</h2></div>
-            <div class="grid grid-cols-2 gap-3"><FormField id="exact-points" v-model="exactPoints" type="number" label="Puntos exacto" /><FormField id="outcome-points" v-model="outcomePoints" type="number" label="Puntos 1X2" /></div>
-            <label class="mt-3 block text-sm font-medium text-text-muted">Desempate<select v-model="tieBreaker" class="field-surface mt-1.5 w-full px-3 py-3 text-sm"><option value="exact_predictions">Más resultados exactos</option><option value="prediction_submitted_at">Predicción más temprana</option></select></label>
-            <PrimaryButton class="mt-3" :loading="admin.saving.value" @click="saveRules">Publicar nueva versión</PrimaryButton>
+            <div class="grid grid-cols-2 gap-3"><FormField id="exact-points" v-model="exactPoints" type="number" label="Puntos exacto" :disabled="rulesFrozen || customScoringLocked" /><FormField id="outcome-points" v-model="outcomePoints" type="number" label="Puntos 1X2" :disabled="rulesFrozen || customScoringLocked" /></div>
+            <label class="mt-3 block text-sm font-medium text-text-muted">Desempate<select id="tie-breaker" v-model="tieBreaker" :disabled="rulesFrozen" class="field-surface mt-1.5 w-full px-3 py-3 text-sm disabled:opacity-50"><option value="exact_predictions">Más resultados exactos</option><option value="prediction_submitted_at">Predicción más temprana</option></select></label>
+            <p v-if="rulesFrozen" class="mt-3 text-sm text-text-muted" data-testid="rules-frozen">{{ RULES_FROZEN_MESSAGE }}</p>
+            <p v-else-if="customScoringLocked" class="mt-3 text-sm text-text-muted" data-testid="rules-standard">{{ PRO_SCORING_MESSAGE }}</p>
+            <PrimaryButton v-if="!rulesFrozen" class="mt-3" :loading="admin.saving.value" @click="saveRules">Publicar nueva versión</PrimaryButton>
           </section>
 
           <PoolTicketsAdmin :pool-id="admin.selectedPool.value.id" :ticketing-mode="admin.selectedPool.value.ticketing_mode ?? 'none'" :archived="admin.selectedPool.value.status === 'archived'" @changed="admin.loadPools()" />
@@ -204,14 +267,22 @@ onBeforeUnmount(admin.dispose)
             </div>
           </section>
 
-          <section class="app-surface p-4"><div class="mb-3 flex items-center gap-2"><KeyRound class="h-5 w-5 text-primary" /><h2 class="font-display font-bold text-text">Código de unión</h2></div><p v-if="joinCode" class="mb-3 rounded-xl bg-surface-2 p-3 text-center font-display text-xl font-bold tracking-[0.3em] text-text">{{ joinCode }}</p><div class="flex gap-2"><PrimaryButton :loading="admin.saving.value" @click="makeJoinCode">Generar código</PrimaryButton><SecondaryButton v-if="joinCode" :full-width="false" @click="copyJoinCode"><Copy class="h-4 w-4" />Copiar</SecondaryButton></div></section>
+          <section class="app-surface p-4"><div class="mb-3 flex items-center gap-2"><KeyRound class="h-5 w-5 text-primary" /><h2 class="font-display font-bold text-text">Código de unión</h2></div><p v-if="joinCode" class="mb-3 rounded-xl bg-surface-2 p-3 text-center font-display text-xl font-bold tracking-[0.3em] text-text">{{ joinCode }}</p><div class="flex gap-2"><PrimaryButton :loading="admin.saving.value" @click="makeJoinCode">Generar código</PrimaryButton><SecondaryButton v-if="joinCode" :full-width="false" @click="copyJoinCode"><Copy class="h-4 w-4" />Copiar</SecondaryButton></div><div v-if="inviteTemplates.length" class="mt-3"><ShareStudio :templates="inviteTemplates" :branding="inviteBranding" :link="inviteLink" button-label="Compartir invitación por WhatsApp" /></div></section>
         </template>
+
+        <section class="app-surface p-4" data-testid="brand-name-section">
+          <div class="mb-3 flex items-center gap-2"><BadgeCheck class="h-5 w-5 text-primary" /><h2 class="font-display font-bold text-text">Tu plataforma</h2></div>
+          <FormField id="brand-name" v-model="brandNameInput" label="Nombre de tu plataforma" placeholder="Ej.: Quinielas Silva" :maxlength="60"
+            hint="Tus jugadores lo verán en tus quinielas y en las imágenes que compartas por WhatsApp." :disabled="admin.brandingColorsStatus.value === 'loading'" />
+          <PrimaryButton class="mt-3" :loading="admin.saving.value" data-testid="save-brand-name" @click="saveBrandName">Guardar nombre</PrimaryButton>
+        </section>
 
         <section class="app-surface p-4">
           <div class="mb-3 flex items-center gap-2"><Palette class="h-5 w-5 text-primary" /><h2 class="font-display font-bold text-text">Branding</h2></div>
           <p class="mb-3 text-sm text-text-muted">{{ planLabel === 'PRO' ? 'Personaliza los colores y la identidad visual de tu quiniela.' : 'El branding personalizado requiere PRO.' }}</p>
-          <div class="grid grid-cols-2 gap-3"><FormField id="primary-color" v-model="primaryColor" label="Color primario" :disabled="planLabel === 'FREE'" /><FormField id="secondary-color" v-model="secondaryColor" label="Color secundario" :disabled="planLabel === 'FREE'" /></div>
-          <PrimaryButton class="mt-3" :disabled="planLabel === 'FREE'" :loading="admin.saving.value" @click="saveBranding">Guardar branding</PrimaryButton>
+          <p v-if="planLabel === 'PRO' && admin.brandingColorsStatus.value === 'error'" class="mb-3 text-sm text-warn" role="status">{{ BRANDING_COLORS_UNAVAILABLE }}</p>
+          <div class="grid grid-cols-2 gap-3"><FormField id="primary-color" v-model="primaryColor" label="Color primario" placeholder="#2C48C7" :disabled="planLabel === 'FREE'" /><FormField id="secondary-color" v-model="secondaryColor" label="Color secundario" placeholder="#05070D" :disabled="planLabel === 'FREE'" /></div>
+          <PrimaryButton class="mt-3" :disabled="planLabel === 'FREE' || admin.brandingColorsStatus.value !== 'ready'" :loading="admin.saving.value" @click="saveBranding">Guardar branding</PrimaryButton>
 
           <div class="mt-6 border-t border-border pt-5">
             <div class="mb-4"><h3 class="font-display text-base font-bold text-text">Identidad visual</h3><p class="mt-1 text-sm text-text-muted">Las imágenes se optimizan y se guardan de forma privada.</p></div>

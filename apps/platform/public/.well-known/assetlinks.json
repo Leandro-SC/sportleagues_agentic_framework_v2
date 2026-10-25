@@ -1,0 +1,10 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.sportleagues.app",
+      "sha256_cert_fingerprints": ["A4:54:16:00:F1:B4:09:D3:1B:6B:2A:39:4E:97:90:48:88:6C:69:66:E6:17:EC:3C:3C:7C:8D:E8:D6:01:E6:63"]
+    }
+  }
+]

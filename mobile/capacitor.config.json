@@ -1,0 +1,12 @@
+{
+  "appId": "com.sportleagues.app",
+  "appName": "SportLeagues",
+  "webDir": "../apps/platform/dist",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

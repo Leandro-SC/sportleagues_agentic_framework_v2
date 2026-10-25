@@ -1,0 +1,121 @@
+{
+ "captured_at": "2026-10-12T03:26:38.490Z",
+ "note": "Definiciones de catálogo de QA (funciones, políticas, triggers, privilegios) ANTES de aplicar 20261022000100. Solo metadatos; sin datos ni PII. Recuperación: supabase/proposed/down/20261022000100_security_followups.down.sql (probado en rollback) o reaplicar estas definiciones.",
+ "rows": [
+  {
+   "definition": "SELECT",
+   "kind": "colgrant",
+   "name": "authenticated catalog_seasons.competition_id"
+  },
+  {
+   "definition": "SELECT",
+   "kind": "colgrant",
+   "name": "authenticated catalog_seasons.created_at"
+  },
+  {
+   "definition": "SELECT",
+   "kind": "colgrant",
+   "name": "authenticated catalog_seasons.ends_on"
+  },
+  {
+   "definition": "SELECT",
+   "kind": "colgrant",
+   "name": "authenticated catalog_seasons.fixtures_synced_at"
+  },
+  {
+   "definition": "SELECT",
+   "kind": "colgrant",
+   "name": "authenticated catalog_seasons.id"
+  },
+  {
+   "definition": "SELECT",
+   "kind": "colgrant",
+   "name": "authenticated catalog_seasons.is_current"
+  },
+  {
+   "definition": "SELECT",
+   "kind": "colgrant",
+   "name": "authenticated catalog_seasons.starts_on"
+  },
+  {
+   "definition": "SELECT",
+   "kind": "colgrant",
+   "name": "authenticated catalog_seasons.updated_at"
+  },
+  {
+   "definition": "SELECT",
+   "kind": "colgrant",
+   "name": "authenticated catalog_seasons.year"
+  },
+  {
+   "definition": "CREATE OR REPLACE FUNCTION public.approve_participant(p_participant_id uuid)\n RETURNS participants\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'auth'\nAS $function$\ndeclare v_participant public.participants;\nbegin\n  if auth.uid() is null then raise exception 'authentication required' using errcode = '28000'; end if;\n  select * into v_participant from public.participants where id = p_participant_id for update;\n  if not found then raise exception 'participant not found' using errcode = '22023'; end if;\n  if not public.is_tenant_admin(v_participant.tenant_id) then raise exception 'not authorized' using errcode = '42501'; end if;\n  update public.participants set approval_status = 'approved', updated_at = now() where id = p_participant_id returning * into v_participant;\n  return v_participant;\nend $function$\n",
+   "kind": "function",
+   "name": "approve_participant"
+  },
+  {
+   "definition": "CREATE OR REPLACE FUNCTION public.import_catalog_round(p_tournament_id uuid, p_season_id uuid, p_round_label text)\n RETURNS jsonb\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\ndeclare\n  v_tenant uuid; v_provider text; v_round uuid; v_sort integer; v_label text; v_n integer;\n  f record; v_team uuid; v_match uuid; v_teams integer := 0; v_teams_new integer := 0; v_matches integer := 0; v_existing integer := 0; v_tbd integer := 0;\n  v_home uuid; v_away uuid; t record;\nbegin\n  if auth.uid() is null then raise exception 'authentication required' using errcode = '28000'; end if;\n  select tenant_id into v_tenant from public.tournaments where id = p_tournament_id for update;\n  if v_tenant is null then raise exception 'tournament not found' using errcode = '22023'; end if;\n  if not public.is_tenant_admin(v_tenant) then raise exception 'not authorized' using errcode = '42501'; end if;\n  select c.provider into v_provider from public.catalog_seasons s join public.catalog_competitions c on c.id = s.competition_id where s.id = p_season_id;\n  if v_provider is null then raise exception 'season not found' using errcode = '22023'; end if;\n  if not exists (select 1 from public.catalog_fixtures where season_id = p_season_id and round_label = p_round_label) then\n    raise exception 'catalog round has not been imported' using errcode = '22023';\n  end if;\n\n  v_label := coalesce(substring(p_round_label from '^Regular Season - ([0-9]+)$'), null);\n  v_label := case when v_label is not null then 'Jornada ' || v_label else p_round_label end;\n  select id into v_round from public.rounds where tournament_id = p_tournament_id and tenant_id = v_tenant and name = v_label;\n  if v_round is null then\n    v_n := nullif(substring(p_round_label from '([0-9]+)$'), '')::int;\n    if v_n is null or exists (select 1 from public.rounds where tournament_id = p_tournament_id and sort_order = v_n) then\n      select coalesce(max(sort_order), -1) + 1 into v_sort from public.rounds where tournament_id = p_tournament_id;\n    else v_sort := v_n; end if;\n    insert into public.rounds(tenant_id, tournament_id, name, sort_order) values (v_tenant, p_tournament_id, v_label, v_sort) returning id into v_round;\n  end if;\n\n  -- Equipos: vínculo por external_refs; si existe un equipo manual con el mismo nombre se reutiliza (sin duplicar).\n  for t in\n    select distinct ct.id as catalog_id, ct.external_id, ct.name, ct.is_national from public.catalog_fixtures cf\n      join public.catalog_teams ct on ct.id in (cf.home_team_id, cf.away_team_id)\n     where cf.season_id = p_season_id and cf.round_label = p_round_label\n  loop\n    select entity_id into v_team from public.external_refs where tenant_id = v_tenant and provider = v_provider and entity_type = 'team' and external_id = t.external_id;\n    if v_team is null then\n      select id into v_team from public.teams where tenant_id = v_tenant and lower(name) = lower(t.name)\n        and not exists (select 1 from public.external_refs er where er.tenant_id = v_tenant and er.provider = v_provider and er.entity_type = 'team' and er.entity_id = public.teams.id);\n      if v_team is null then\n        insert into public.teams(tenant_id, name) values (v_tenant, t.name) returning id into v_team;\n        v_teams_new := v_teams_new + 1;\n      end if;\n      insert into public.external_refs(tenant_id, provider, entity_type, entity_id, external_id, last_synced_at)\n        values (v_tenant, v_provider, 'team', v_team, t.external_id, clock_timestamp());\n    end if;\n    insert into public.tournament_teams(tenant_id, tournament_id, team_id) values (v_tenant, p_tournament_id, v_team) on conflict do nothing;\n    v_teams := v_teams + 1;\n  end loop;\n\n  for f in\n    select cf.*, h.external_id as h_ext, a.external_id as a_ext from public.catalog_fixtures cf\n      join public.catalog_teams h on h.id = cf.home_team_id join public.catalog_teams a on a.id = cf.away_team_id\n     where cf.season_id = p_season_id and cf.round_label = p_round_label order by cf.starts_at nulls last, cf.external_id\n  loop\n    if exists (select 1 from public.external_refs where tenant_id = v_tenant and provider = v_provider and entity_type = 'match' and external_id = f.external_id) then\n      v_existing := v_existing + 1; continue;\n    end if;\n    if f.starts_at is null then v_tbd := v_tbd + 1; continue; end if;      -- sin fecha confirmada: no se crea partido ficticio\n    select entity_id into v_home from public.external_refs where tenant_id = v_tenant and provider = v_provider and entity_type = 'team' and external_id = f.h_ext;\n    select entity_id into v_away from public.external_refs where tenant_id = v_tenant and provider = v_provider and entity_type = 'team' and external_id = f.a_ext;\n    insert into public.matches(tenant_id, tournament_id, round_id, home_team_id, away_team_id, starts_at, provider_state)\n      values (v_tenant, p_tournament_id, v_round, v_home, v_away, f.starts_at,\n              case when f.state in ('postponed', 'cancelled', 'abandoned') then f.state end)\n      returning id into v_match;\n    insert into public.external_refs(tenant_id, provider, entity_type, entity_id, external_id, last_synced_at)\n      values (v_tenant, v_provider, 'match', v_match, f.external_id, clock_timestamp());\n    v_matches := v_matches + 1;\n  end loop;\n\n  insert into public.audit_log(tenant_id, actor_id, action, entity_type, entity_id, metadata)\n    values (v_tenant, auth.uid(), 'sports.round_imported', 'tournament', p_tournament_id,\n            jsonb_build_object('provider', v_provider, 'season_id', p_season_id, 'round', p_round_label, 'matches_created', v_matches, 'teams_created', v_teams_new));\n  return jsonb_build_object('round_id', v_round, 'matches_created', v_matches, 'matches_existing', v_existing, 'matches_tbd', v_tbd,\n                            'teams_linked', v_teams, 'teams_created', v_teams_new);\nend $function$\n",
+   "kind": "function",
+   "name": "import_catalog_round"
+  },
+  {
+   "definition": "CREATE OR REPLACE FUNCTION public.import_catalog_teams(p_tournament_id uuid, p_team_ids uuid[])\n RETURNS jsonb\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\r\ndeclare v_tenant uuid; ct public.catalog_teams; v_team uuid; v_new integer := 0; v_existing integer := 0; v_before integer;\r\nbegin\r\n  if auth.uid() is null then raise exception 'authentication required' using errcode = '28000'; end if;\r\n  select tenant_id into v_tenant from public.tournaments where id = p_tournament_id for update;\r\n  if v_tenant is null then raise exception 'tournament not found' using errcode = '22023'; end if;\r\n  if not public.is_tenant_admin(v_tenant) then raise exception 'not authorized' using errcode = '42501'; end if;\r\n  if coalesce(array_length(p_team_ids, 1), 0) = 0 then raise exception 'no teams selected' using errcode = '22023'; end if;\r\n  if array_length(p_team_ids, 1) > 60 then raise exception 'at most 60 teams per import' using errcode = '22023'; end if;\r\n  for ct in select * from public.catalog_teams where id = any (p_team_ids) order by name, id loop\r\n    select count(*) into v_before from public.teams where tenant_id = v_tenant;\r\n    v_team := public._link_catalog_team(v_tenant, ct);\r\n    if exists (select 1 from public.tournament_teams where tournament_id = p_tournament_id and team_id = v_team) then v_existing := v_existing + 1;\r\n    else\r\n      insert into public.tournament_teams(tenant_id, tournament_id, team_id) values (v_tenant, p_tournament_id, v_team);\r\n      v_new := v_new + 1;\r\n    end if;\r\n  end loop;\r\n  insert into public.audit_log(tenant_id, actor_id, action, entity_type, entity_id, metadata)\r\n    values (v_tenant, auth.uid(), 'sports.catalog_teams_imported', 'tournament', p_tournament_id, jsonb_build_object('enrolled', v_new, 'already_enrolled', v_existing));\r\n  return jsonb_build_object('enrolled', v_new, 'already_enrolled', v_existing,\r\n                            'requested', array_length(p_team_ids, 1), 'found', (select count(*) from public.catalog_teams where id = any (p_team_ids)));\r\nend $function$\n",
+   "kind": "function",
+   "name": "import_catalog_teams"
+  },
+  {
+   "definition": "CREATE OR REPLACE FUNCTION public.publish_official_result(p_match_id uuid, p_home_score integer, p_away_score integer, p_expected_revision integer)\n RETURNS official_results\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\r\ndeclare v_uid uuid := auth.uid(); m public.matches; r public.official_results;\r\nbegin\r\n  if v_uid is null then raise exception 'authentication required' using errcode = '28000'; end if;\r\n  if p_home_score is null or p_away_score is null or p_home_score < 0 or p_away_score < 0 then\r\n    raise exception 'scores must be non-negative' using errcode = '22023';\r\n  end if;\r\n  if p_expected_revision is null or p_expected_revision < 0 then raise exception 'expected revision is required' using errcode = '22023'; end if;\r\n  select * into m from public.matches where id = p_match_id for update;\r\n  if not found then raise exception 'match not found' using errcode = '22023'; end if;\r\n  if not public.is_tenant_admin(m.tenant_id) then raise exception 'not authorized' using errcode = '42501'; end if;\r\n  select * into r from public.official_results where match_id = m.id for update;\r\n  if not found then\r\n    if p_expected_revision <> 0 then raise exception 'revision conflict' using errcode = 'PT409'; end if;\r\n    if m.starts_at > clock_timestamp() then raise exception 'the match has not started' using errcode = '22023'; end if;\r\n    insert into public.official_results(tenant_id, match_id, home_score, away_score, revision, published_by, source)\r\n      values (m.tenant_id, m.id, p_home_score, p_away_score, 1, v_uid, 'manual') returning * into r;\r\n  else\r\n    if p_expected_revision <> r.revision then raise exception 'revision conflict' using errcode = 'PT409'; end if;\r\n    if (r.home_score, r.away_score) is distinct from (p_home_score, p_away_score) then\r\n      update public.official_results set home_score = p_home_score, away_score = p_away_score, revision = r.revision + 1,\r\n             published_by = v_uid, published_at = clock_timestamp(), source = 'manual'\r\n       where id = r.id returning * into r;\r\n    elsif r.source = 'provider' then\r\n      -- Confirmación explícita de un marcador del proveedor: se fija como manual sin nueva revisión (no cambia puntos).\r\n      update public.official_results set source = 'manual', published_by = v_uid where id = r.id returning * into r;\r\n      insert into public.audit_log(tenant_id, actor_id, action, entity_type, entity_id, metadata)\r\n        values (m.tenant_id, v_uid, 'official_results.confirm_manual', 'official_results', r.id, jsonb_build_object('match_id', m.id, 'revision', r.revision));\r\n    end if;\r\n  end if;\r\n  if m.status <> 'final' then update public.matches set status = 'final', updated_at = now() where id = m.id; end if;\r\n  perform public._recalculate_match_scoring(m.id);\r\n  return r;\r\nend $function$\n",
+   "kind": "function",
+   "name": "publish_official_result"
+  },
+  {
+   "definition": "CREATE OR REPLACE FUNCTION public.set_participant_payment_status(p_participant_id uuid, p_status participant_payment_status)\n RETURNS participants\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'auth'\nAS $function$\ndeclare v_participant public.participants;\nbegin\n  if auth.uid() is null then raise exception 'authentication required' using errcode = '28000'; end if;\n  select * into v_participant from public.participants where id = p_participant_id for update;\n  if not found then raise exception 'participant not found' using errcode = '22023'; end if;\n  if not public.is_tenant_admin(v_participant.tenant_id) then raise exception 'not authorized' using errcode = '42501'; end if;\n  update public.participants set payment_status = p_status, updated_at = now() where id = p_participant_id returning * into v_participant;\n  return v_participant;\nend $function$\n",
+   "kind": "function",
+   "name": "set_participant_payment_status"
+  },
+  {
+   "definition": "CREATE OR REPLACE FUNCTION public.set_tournament_results_mode(p_tournament_id uuid, p_mode text)\n RETURNS text\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\r\ndeclare v_tenant uuid;\r\nbegin\r\n  if auth.uid() is null then raise exception 'authentication required' using errcode = '28000'; end if;\r\n  if p_mode not in ('manual', 'automatic') then raise exception 'invalid results mode' using errcode = '22023'; end if;\r\n  select tenant_id into v_tenant from public.tournaments where id = p_tournament_id for update;\r\n  if v_tenant is null then raise exception 'tournament not found' using errcode = '22023'; end if;\r\n  if not public.is_tenant_admin(v_tenant) then raise exception 'not authorized' using errcode = '42501'; end if;\r\n  if p_mode = 'automatic' and not public._auto_results_allowed(v_tenant) then\r\n    raise exception 'automatic results require a premium plan that is not available yet' using errcode = '42501';\r\n  end if;\r\n  update public.tournaments set results_mode = p_mode, updated_at = now() where id = p_tournament_id;\r\n  return p_mode;\r\nend $function$\n",
+   "kind": "function",
+   "name": "set_tournament_results_mode"
+  },
+  {
+   "definition": "SELECT (col )",
+   "kind": "grant",
+   "name": "anon audit_log"
+  },
+  {
+   "definition": "SELECT (col )",
+   "kind": "grant",
+   "name": "anon participants"
+  },
+  {
+   "definition": "SELECT (col )",
+   "kind": "grant",
+   "name": "authenticated audit_log"
+  },
+  {
+   "definition": "SELECT (col )",
+   "kind": "grant",
+   "name": "authenticated catalog_seasons"
+  },
+  {
+   "definition": "SELECT (col )",
+   "kind": "grant",
+   "name": "authenticated participants"
+  },
+  {
+   "definition": "create policy participants_select_member on public.participants for SELECT to authenticated using (is_tenant_member(tenant_id));",
+   "kind": "policy",
+   "name": "participants_select_member"
+  },
+  {
+   "definition": "CREATE TRIGGER catalog_fixtures_touch BEFORE UPDATE ON public.catalog_fixtures FOR EACH ROW EXECUTE FUNCTION tg_catalog_touch()",
+   "kind": "trigger",
+   "name": "catalog_fixtures_touch"
+  },
+  {
+   "definition": "CREATE TRIGGER catalog_seasons_touch BEFORE UPDATE ON public.catalog_seasons FOR EACH ROW EXECUTE FUNCTION tg_catalog_touch()",
+   "kind": "trigger",
+   "name": "catalog_seasons_touch"
+  }
+ ]
+}

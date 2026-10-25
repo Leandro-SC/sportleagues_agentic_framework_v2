@@ -1,4 +1,6 @@
-export type TenantRole = 'owner' | 'admin' | 'member'
+import { parseNonNegativeInteger } from './number-input'
+
+export type TenantRole ='owner' | 'admin' | 'member'
 export type PaymentStatus = 'paid' | 'pending' | 'invited'
 export type PoolStatus = 'draft' | 'open' | 'paused' | 'archived'
 export type BrandingAssetKind = 'logo' | 'banner'
@@ -18,9 +20,31 @@ export function validatePoolName(value: string): string | null {
 }
 
 export function validatePoints(exactPoints: number, outcomePoints: number): string | null {
-  return Number.isInteger(exactPoints) && Number.isInteger(outcomePoints) && exactPoints >= 0 && outcomePoints >= 0
-    ? null
-    : 'Los puntos deben ser números enteros iguales o mayores que cero.'
+  if (!(Number.isInteger(exactPoints) && Number.isInteger(outcomePoints) && exactPoints >= 0 && outcomePoints >= 0)) {
+    return 'Los puntos deben ser números enteros iguales o mayores que cero.'
+  }
+  return exactPoints >= outcomePoints ? null : 'El marcador exacto no puede valer menos que acertar el resultado.'
+}
+
+// ADR-023: FREE usa la puntuación estándar; los puntos personalizados son PRO. El desempate es elegible en ambos planes.
+export const STANDARD_SCORING = { exactPoints: 3, outcomePoints: 1 } as const
+export const RULES_FROZEN_MESSAGE = 'Las reglas quedaron fijas al cerrar el primer partido: cambiarlas ahora alteraría la tabla.'
+export const PRO_SCORING_MESSAGE = 'La puntuación personalizada está disponible en el plan PRO. En FREE se usa la estándar: 3 puntos por marcador exacto y 1 por acertar el resultado.'
+
+export const MAX_POINTS = 1000
+export const MAX_LOCK_MINUTES = 1440
+
+export type FieldNumber = { ok: true; value: number } | { ok: false; message: string }
+
+// Un campo en blanco NO es 0 (FE-01): se valida la cadena antes de convertir.
+export function parseLockMinutesInput(raw: string): FieldNumber {
+  const parsed = parseNonNegativeInteger(raw, MAX_LOCK_MINUTES)
+  return parsed.ok ? parsed : { ok: false, message: `El bloqueo debe ser un número entero entre 0 y ${MAX_LOCK_MINUTES} minutos.` }
+}
+
+export function parsePointsInput(raw: string, label: string): FieldNumber {
+  const parsed = parseNonNegativeInteger(raw, MAX_POINTS)
+  return parsed.ok ? parsed : { ok: false, message: `${label}: ingresa un número entero entre 0 y ${MAX_POINTS}.` }
 }
 
 export function freeLimitMessage(plan: 'free' | 'pro', activePools: number): string | null {
@@ -31,6 +55,11 @@ export function humanizeAdminRpcError(message: string | null | undefined): strin
   if (/free plan allows one active pool/i.test(message ?? '')) {
     return freeLimitMessage('free', 1) ?? 'Tu plan FREE permite una sola quiniela activa.'
   }
+  if (/brand name must have between 2 and 60/i.test(message ?? '')) return 'El nombre de tu plataforma debe tener entre 2 y 60 caracteres.'
+  if (/brand name cannot contain links/i.test(message ?? '')) return 'El nombre de tu plataforma no puede incluir enlaces ni correos.'
+  if (/scoring rules are frozen/i.test(message ?? '')) return RULES_FROZEN_MESSAGE
+  if (/custom scoring requires the pro plan/i.test(message ?? '')) return PRO_SCORING_MESSAGE
+  if (/exact points cannot be lower than outcome points/i.test(message ?? '')) return 'El marcador exacto no puede valer menos que acertar el resultado.'
 
   return 'No pudimos completar esta acción. Inténtalo de nuevo.'
 }

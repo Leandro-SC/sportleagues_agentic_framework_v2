@@ -10,6 +10,7 @@ import {
   validateNewPassword,
 } from '../lib/auth-validation'
 import { clearJoinIntent } from '../lib/join-intent'
+import { getOfflineCache, purgePrivateCaches } from '../lib/offline-cache'
 import { getSupabaseClient } from '../lib/supabase'
 
 type Profile = { id: string; display_name: string }
@@ -22,9 +23,13 @@ const state = reactive({
   session: null as Session | null,
   user: null as User | null,
   profile: null as Profile | null,
+  // `true` significa que no se pudo comprobar el perfil (p. ej. sin red), no que no exista.
+  // Evita que el router envíe erróneamente a onboarding a una cuenta ya configurada.
+  profileLookupUnavailable: false,
   loading: true,
   error: '',
   recovery: landedAsRecovery,
+  legalAccepted: null as boolean | null,
 })
 let subscribed = false
 // Un solo intento automático de crear el perfil por usuario y carga de página: si falla, el guard
@@ -33,12 +38,15 @@ let ensureAttemptedFor: string | null = null
 let restoreInFlight: Promise<void> | null = null
 
 const PROFILE_ERROR = 'No pudimos guardar tu perfil. Inténtalo de nuevo.'
+const SIGN_OUT_NOTICE = 'Cerramos tu sesión en este dispositivo, pero no pudimos confirmarlo con el servidor. Si usas un equipo compartido, vuelve a intentarlo con conexión.'
+let expiredPurged = false
 
 async function loadProfile(): Promise<void> {
-  if (!state.user) { state.profile = null; return }
+  if (!state.user) { state.profile = null; state.profileLookupUnavailable = false; return }
   const { data, error } = await getSupabaseClient().from('profiles').select('id, display_name').eq('id', state.user.id).maybeSingle()
-  if (error) { state.error = PROFILE_ERROR; return }
+  if (error) { state.profileLookupUnavailable = true; state.error = PROFILE_ERROR; return }
   state.profile = data
+  state.profileLookupUnavailable = false
 }
 
 /**
@@ -48,7 +56,7 @@ async function loadProfile(): Promise<void> {
  * perfil existente ni requiere una policy de UPDATE.
  */
 async function ensureProfile(): Promise<void> {
-  if (!state.user || state.profile || ensureAttemptedFor === state.user.id) return
+  if (!state.user || state.profile || state.profileLookupUnavailable || ensureAttemptedFor === state.user.id) return
   ensureAttemptedFor = state.user.id
   const meta = state.user.user_metadata ?? {}
   const name = sanitizeFullName(meta.full_name) ?? sanitizeFullName(meta.name)
@@ -57,6 +65,9 @@ async function ensureProfile(): Promise<void> {
   if (error) { state.error = PROFILE_ERROR; return }
   await loadProfile()
 }
+
+let cacheOwner: string | null = null
+let onlineRetryInstalled = false
 
 async function syncProfile(): Promise<void> {
   await loadProfile()
@@ -74,16 +85,27 @@ export function useAuth() {
         subscribed = true
         client.auth.onAuthStateChange((event, session) => {
           if (event === 'PASSWORD_RECOVERY') state.recovery = true
+          // Datos privados cacheados: nunca sobreviven a un cierre de sesión ni se muestran a otra identidad.
+          if (event === 'SIGNED_OUT') { cacheOwner = null; void purgePrivateCaches() }
+          else if (session?.user && session.user.id !== cacheOwner) { void purgePrivateCaches(session.user.id); cacheOwner = session.user.id }
           state.session = session
           state.user = session?.user ?? null
+          state.legalAccepted = session?.user ? null : false
           // Sin await dentro del callback: supabase-js documenta que bloquearlo puede interbloquear el cliente.
           void syncProfile()
         })
       }
+      if (!onlineRetryInstalled && typeof window !== 'undefined') {
+        onlineRetryInstalled = true
+        window.addEventListener('online', () => { if (state.user) void syncProfile() })
+      }
+      // FE-10: las entradas vencidas solo se borraban al releerlas; una limpieza por arranque acota la retención real.
+      if (!expiredPurged) { expiredPurged = true; void getOfflineCache().purgeExpired().catch(() => undefined) }
       const { data, error } = await client.auth.getSession()
       if (error) state.error = error.message
       state.session = data.session
       state.user = data.session?.user ?? null
+      state.legalAccepted = data.session?.user ? null : false
       await syncProfile()
       state.loading = false
     })().finally(() => { restoreInFlight = null })
@@ -127,6 +149,9 @@ export function useAuth() {
     const { error } = await client.auth.updateUser({ password })
     if (error) return authErrorMessage(error)
     state.recovery = false
+    // Quien tuviera otra sesión abierta con la contraseña anterior (p. ej. un atacante) la pierde. Es un refuerzo: si falla,
+    // el cambio de contraseña ya se hizo y no se bloquea ni se muestra error.
+    try { await client.auth.signOut({ scope: 'others' }) } catch { /* no bloqueante */ }
     return null
   }
 
@@ -156,10 +181,48 @@ export function useAuth() {
     return null
   }
 
+  /** El servidor decide si ambas versiones legales vigentes fueron aceptadas. */
+  async function ensureLegalAcceptance(): Promise<boolean> {
+    if (!state.user) return false
+    if (state.legalAccepted === true) return true
+    const { data, error } = await client.rpc('legal_acceptance_status')
+    state.legalAccepted = !error && data === true
+    return state.legalAccepted
+  }
+
+  async function acceptLegalDocuments(termsVersion: string, privacyVersion: string): Promise<string | null> {
+    const { data, error } = await client.rpc('accept_legal_documents', { p_terms_version: termsVersion, p_privacy_version: privacyVersion })
+    if (error || data !== true) return 'No pudimos registrar tu aceptación. Revisa tu conexión e inténtalo nuevamente.'
+    state.legalAccepted = true
+    return null
+  }
+
+  /**
+   * Cierra la sesión de ESTE dispositivo (`scope: 'local'`; el valor por defecto `global` revocaría también las sesiones del
+   * ordenador, el móvil, etc.). El estado local, la invitación pendiente y la caché privada se limpian SIEMPRE, aunque el
+   * servidor no responda (auth-js ya borra su copia local aunque falle la revocación). Devuelve un aviso amable si el
+   * servidor no pudo confirmar la revocación; nunca el texto crudo del error.
+   */
   async function signOut(): Promise<string | null> {
-    const { error } = await client.auth.signOut()
-    if (!error) { state.session = null; state.user = null; state.profile = null; state.recovery = false; ensureAttemptedFor = null; clearJoinIntent() }
-    return error?.message ?? null
+    let notice: string | null = null
+    try {
+      const { error } = await client.auth.signOut({ scope: 'local' })
+      if (error) notice = SIGN_OUT_NOTICE
+    } catch {
+      notice = SIGN_OUT_NOTICE
+    } finally {
+      state.session = null; state.user = null; state.profile = null; state.profileLookupUnavailable = false; state.recovery = false; state.legalAccepted = false
+      ensureAttemptedFor = null; cacheOwner = null
+      clearJoinIntent()
+      void purgePrivateCaches()
+    }
+    return notice
+  }
+
+  /** «Cancelar» en la pantalla de nueva contraseña: la sesión de recuperación no debe quedar abierta ni persistida. */
+  async function cancelRecovery(): Promise<void> {
+    state.recovery = false
+    await signOut()
   }
 
   return {
@@ -171,9 +234,12 @@ export function useAuth() {
     requestPasswordReset,
     updatePassword,
     clearRecovery,
+    cancelRecovery,
     signInWithGoogle,
     completeCallback,
     saveProfile,
+    ensureLegalAcceptance,
+    acceptLegalDocuments,
     signOut,
   }
 }

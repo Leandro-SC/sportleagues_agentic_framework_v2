@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 type Row = { id: string; display_name: string } | null
 
-function makeClient(opts: { profile?: Row; user?: Record<string, unknown> | null } = {}) {
+function makeClient(opts: { profile?: Row; user?: Record<string, unknown> | null; profileError?: boolean } = {}) {
   const calls = { upserts: [] as Array<{ row: unknown; options: unknown }> }
   const user = opts.user === undefined ? null : opts.user
   let profile: Row = opts.profile ?? null
@@ -19,7 +19,7 @@ function makeClient(opts: { profile?: Row; user?: Record<string, unknown> | null
   const client = {
     auth,
     from: vi.fn(() => ({
-      select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: profile, error: null }) }) }),
+      select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: profile, error: opts.profileError ? { message: 'offline' } : null }) }) }),
       upsert: async (row: { id: string; display_name: string }, options: unknown) => {
         calls.upserts.push({ row, options })
         profile = row
@@ -175,6 +175,14 @@ describe('useAuth — profile persistence', () => {
 })
 
 describe('useAuth — resilience', () => {
+  it('UAT-03: un fallo de red al consultar perfil no se confunde con perfil inexistente', async () => {
+    const { client } = makeClient({ user: { id: 'u-offline', user_metadata: { full_name: 'Ada' } }, profileError: true })
+    const api = await load(client)
+    await api.restore()
+    expect(api.state.profile).toBeNull()
+    expect(api.state.profileLookupUnavailable).toBe(true)
+    expect(api.state.error).toBe('No pudimos guardar tu perfil. Inténtalo de nuevo.')
+  })
   it('a failed profile creation is attempted once, shows a generic error and does not block the session', async () => {
     const { client, calls } = makeClient({ user: { id: 'u9', user_metadata: { full_name: 'Ada' } } })
     const original = client.from
@@ -220,5 +228,83 @@ describe('useAuth — resilience', () => {
     expect(api.state.user).toBeNull()
     expect(api.state.profile).toBeNull()
     expect(localStorage.getItem('sportleagues.join-code')).toBeNull()
+  })
+})
+
+describe('useAuth — sesión de este dispositivo y recuperación de contraseña (FE-06, FE-09)', () => {
+  const RAW = 'TypeError: Failed to fetch (https://x.supabase.co/auth/v1/logout)'
+
+  it('FE-06: cierra solo la sesión de este dispositivo (scope local), no todas las del usuario', async () => {
+    const { client, auth } = makeClient({ user: { id: 'u1', user_metadata: {} }, profile: { id: 'u1', display_name: 'Ada' } })
+    const api = await load(client)
+    await api.restore()
+    await api.signOut()
+    expect(auth.signOut).toHaveBeenCalledWith({ scope: 'local' })
+  })
+
+  it('FE-06: si el servidor falla limpia igualmente el estado local y la invitación, y devuelve un mensaje amable (nunca el texto crudo)', async () => {
+    localStorage.setItem('sportleagues.join-code', JSON.stringify({ code: 'AB12CD', at: Date.now() }))
+    const { client, auth } = makeClient({ user: { id: 'u1', user_metadata: {} }, profile: { id: 'u1', display_name: 'Ada' } })
+    auth.signOut.mockResolvedValueOnce({ error: { message: RAW } } as never)
+    const api = await load(client)
+    await api.restore()
+    const result = await api.signOut()
+    expect(result).toMatch(/Cerramos tu sesión en este dispositivo/)
+    expect(result).not.toContain('Failed to fetch')
+    expect(api.state.user).toBeNull()
+    expect(api.state.session).toBeNull()
+    expect(api.state.profile).toBeNull()
+    expect(api.state.recovery).toBe(false)
+    expect(localStorage.getItem('sportleagues.join-code')).toBeNull()
+  })
+
+  it('FE-06: si la petición lanza una excepción también limpia todo', async () => {
+    localStorage.setItem('sportleagues.join-code', JSON.stringify({ code: 'AB12CD', at: Date.now() }))
+    const { client, auth } = makeClient({ user: { id: 'u1', user_metadata: {} }, profile: { id: 'u1', display_name: 'Ada' } })
+    auth.signOut.mockRejectedValueOnce(new TypeError(RAW))
+    const api = await load(client)
+    await api.restore()
+    const result = await api.signOut()
+    expect(result).not.toContain('Failed to fetch')
+    expect(api.state.user).toBeNull()
+    expect(localStorage.getItem('sportleagues.join-code')).toBeNull()
+  })
+
+  it('FE-09: «Cancelar» en la recuperación cierra la sesión de recuperación (local) y sale del modo recuperación', async () => {
+    const { client, auth } = makeClient({ user: { id: 'u1', user_metadata: {} }, profile: { id: 'u1', display_name: 'Ada' } })
+    const api = await load(client)
+    await api.restore()
+    api.state.recovery = true
+    await api.cancelRecovery()
+    expect(auth.signOut).toHaveBeenCalledWith({ scope: 'local' })
+    expect(api.state.recovery).toBe(false)
+    expect(api.state.user).toBeNull()
+  })
+
+  it('FE-09: tras cambiar la contraseña cierra las demás sesiones (scope others)', async () => {
+    const { client, auth } = makeClient({ user: { id: 'u1', user_metadata: {} }, profile: { id: 'u1', display_name: 'Ada' } })
+    const api = await load(client)
+    await api.restore()
+    expect(await api.updatePassword('Nueva12345')).toBeNull()
+    expect(auth.signOut).toHaveBeenCalledWith({ scope: 'others' })
+    expect(api.state.user).not.toBeNull() // la sesión actual se conserva
+  })
+
+  it('FE-09: si cerrar las demás sesiones falla, el cambio de contraseña sigue siendo un éxito (no bloqueante)', async () => {
+    const { client, auth } = makeClient({ user: { id: 'u1', user_metadata: {} }, profile: { id: 'u1', display_name: 'Ada' } })
+    auth.signOut.mockRejectedValueOnce(new Error('network'))
+    const api = await load(client)
+    await api.restore()
+    expect(await api.updatePassword('Nueva12345')).toBeNull()
+    expect(api.state.recovery).toBe(false)
+  })
+
+  it('FE-09: si cambiar la contraseña falla NO se cierran otras sesiones', async () => {
+    const { client, auth } = makeClient({ user: { id: 'u1', user_metadata: {} }, profile: { id: 'u1', display_name: 'Ada' } })
+    auth.updateUser.mockResolvedValueOnce({ data: {}, error: { message: 'weak', code: 'weak_password', status: 422 } } as never)
+    const api = await load(client)
+    await api.restore()
+    expect(await api.updatePassword('Nueva12345')).not.toBeNull()
+    expect(auth.signOut).not.toHaveBeenCalled()
   })
 })

@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Award, BadgeCheck, ChevronLeft, History, LayoutDashboard, ChartNoAxesColumnIncreasing, LogOut, Settings, Star, Ticket, UsersRound } from 'lucide-vue-next'
+import { Award, BadgeCheck, ChevronLeft, FileText, History, LayoutDashboard, ChartNoAxesColumnIncreasing, LoaderCircle, LogOut, Settings, ShieldCheck, Star, Ticket, UserX, UsersRound, Crown } from 'lucide-vue-next'
 import ActivityRow from '../components/ActivityRow.vue'
 import AppShell from '../components/AppShell.vue'
 import CatalogBoundary from '../components/CatalogBoundary.vue'
 import BottomSheet from '../components/BottomSheet.vue'
 import EmptyState from '../components/EmptyState.vue'
 import FollowedTeamCard from '../components/FollowedTeamCard.vue'
+import PoolCreationRequestCard from '../components/PoolCreationRequestCard.vue'
 import PreviewBadge from '../components/PreviewBadge.vue'
 import SegmentedTabs from '../components/SegmentedTabs.vue'
+import { DELETE_CONFIRMATION, blockerMessages, useAccountDeletion } from '../composables/useAccountDeletion'
 import { useAuth } from '../composables/useAuth'
 import { useFollowedTeams } from '../composables/useFollowedTeams'
 import { useMyPools } from '../composables/useMyPools'
@@ -39,6 +41,8 @@ const tabOptions: Array<{ value: Tab; label: string }> = [
   { value: 'logros', label: 'Logros' },
 ]
 
+// La solicitud solo se ofrece cuando se pudo comprobar que la cuenta NO administra ninguna organización.
+const canRequestPool = computed(() => Boolean(auth.state.user) && !adminAccess.loading.value && !adminAccess.error.value && !adminAccess.hasTenantAdminAccess.value)
 const initials = computed(() => initialsOf(auth.state.profile?.display_name))
 const previewStats = computed(() => sports.catalog.value.profileStats)
 const followedTeams = computed(() => followed.ids.value.map((id) => sports.team(id)).filter((team) => team !== undefined))
@@ -54,12 +58,32 @@ onMounted(() => {
   if (profileId) void adminAccess.checkAccess(profileId)
 })
 
+const deletion = useAccountDeletion()
+const deletionOpen = ref(false)
+const deleteConfirmation = ref('')
+
+function openDeletion(): void {
+  settingsOpen.value = false
+  deleteConfirmation.value = ''
+  deletion.blockers.value = null
+  deletionOpen.value = true
+  void deletion.loadBlockers()
+}
+
+async function confirmDeletion(): Promise<void> {
+  if (!(await deletion.deleteAccount(deleteConfirmation.value.toUpperCase()))) return
+  deletionOpen.value = false
+  // La sesión del servidor ya fue revocada; se limpia la local y se vuelve a Inicio.
+  await auth.signOut()
+  await router.replace({ name: 'home' })
+}
+
 async function logout(): Promise<void> {
   loggingOut.value = true
   error.value = ''
-  const result = await auth.signOut()
+  // `signOut` limpia siempre el estado local (aunque el servidor falle): se sale a Inicio en cualquier caso (FE-06).
+  await auth.signOut()
   loggingOut.value = false
-  if (result) { error.value = result; return }
   settingsOpen.value = false
   await router.replace({ name: 'home' })
 }
@@ -102,6 +126,8 @@ async function logout(): Promise<void> {
       </dl>
       <p v-if="myPools.error.value" class="text-center text-xs text-danger" role="alert">{{ myPools.error.value }}</p>
 
+      <PoolCreationRequestCard v-if="canRequestPool" />
+
       <SegmentedTabs v-model="tab" :options="tabOptions" label="Secciones del perfil" variant="underline" />
 
       <CatalogBoundary v-if="sports.loading.value || sports.failed.value" :loading="sports.loading.value" :failed="sports.failed.value" :rows="3" row-height="5rem" @retry="sports.retry" />
@@ -136,13 +162,16 @@ async function logout(): Promise<void> {
         <button type="button" class="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-text hover:bg-surface-2" @click="settingsOpen = false; router.push({ name: 'my-tickets' })">
           <Ticket class="h-5 w-5 text-primary" aria-hidden="true" />Mis tickets
         </button>
+        <button type="button" class="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-text hover:bg-surface-2" @click="settingsOpen = false; router.push({ name: 'plans' })">
+          <Crown class="h-5 w-5 text-primary" aria-hidden="true" />Planes y beneficios
+        </button>
         <button
           v-if="adminAccess.hasTenantAdminAccess.value"
           type="button"
           class="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-text hover:bg-surface-2"
-          @click="settingsOpen = false; router.push({ name: 'admin' })"
+          @click="settingsOpen = false; router.push({ name: 'organizer-dashboard' })"
         >
-          <LayoutDashboard class="h-5 w-5 text-secondary" aria-hidden="true" />Panel de administración
+          <LayoutDashboard class="h-5 w-5 text-secondary" aria-hidden="true" />Modo organizador
         </button>
         <button
           type="button"
@@ -153,6 +182,37 @@ async function logout(): Promise<void> {
           <LogOut class="h-5 w-5" aria-hidden="true" />{{ loggingOut ? 'Cerrando sesión…' : 'Cerrar sesión' }}
         </button>
         <p v-if="error" class="px-3 text-sm font-medium text-danger" role="alert">{{ error }}</p>
+        <div class="mt-2 border-t border-border pt-2">
+          <button type="button" class="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-text hover:bg-surface-2" @click="settingsOpen = false; router.push({ name: 'privacy' })">
+            <ShieldCheck class="h-5 w-5 text-text-muted" aria-hidden="true" />Política de privacidad
+          </button>
+          <button type="button" class="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-text hover:bg-surface-2" @click="settingsOpen = false; router.push({ name: 'terms' })">
+            <FileText class="h-5 w-5 text-text-muted" aria-hidden="true" />Términos de uso
+          </button>
+          <button type="button" class="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-danger hover:bg-danger-100" data-testid="open-delete-account" @click="openDeletion">
+            <UserX class="h-5 w-5" aria-hidden="true" />Eliminar mi cuenta
+          </button>
+        </div>
+      </div>
+    </BottomSheet>
+
+    <BottomSheet v-model:open="deletionOpen" title="Eliminar mi cuenta">
+      <div class="space-y-3 text-sm text-text-muted" data-testid="delete-account-sheet">
+        <p>Se borrarán tu correo y tus datos de acceso, y no podrás volver a entrar con esta cuenta. En las quinielas donde participaste tu nombre aparecerá como «Usuario eliminado» para no alterar resultados ya jugados.</p>
+        <p v-if="deletion.blockers.value === null && !deletion.error.value" class="flex items-center gap-2"><LoaderCircle class="h-4 w-4 animate-spin" />Comprobando tu cuenta…</p>
+        <ul v-if="deletion.blockers.value?.length" class="space-y-1 rounded-xl bg-warn-100 p-3 font-medium text-warn" role="status" data-testid="delete-account-blockers">
+          <li v-for="message in blockerMessages(deletion.blockers.value)" :key="message">{{ message }}</li>
+        </ul>
+        <template v-if="deletion.blockers.value && !deletion.blockers.value.length">
+          <label class="block font-medium text-text">Escribe {{ DELETE_CONFIRMATION }} para confirmar
+            <input v-model="deleteConfirmation" class="field-surface mt-1.5 w-full px-4 py-3 text-[15px] uppercase" autocomplete="off" autocapitalize="characters" data-testid="delete-account-confirmation" />
+          </label>
+          <button type="button" class="press-scale flex min-h-12 w-full items-center justify-center gap-2 rounded-pill bg-danger px-5 font-bold text-white disabled:opacity-50"
+            :disabled="deletion.deleting.value || deleteConfirmation.trim().toUpperCase() !== DELETE_CONFIRMATION" data-testid="confirm-delete-account" @click="confirmDeletion">
+            <LoaderCircle v-if="deletion.deleting.value" class="h-4 w-4 animate-spin" />Eliminar mi cuenta definitivamente
+          </button>
+        </template>
+        <p v-if="deletion.error.value" class="font-medium text-danger" role="alert">{{ deletion.error.value }}</p>
       </div>
     </BottomSheet>
   </AppShell>

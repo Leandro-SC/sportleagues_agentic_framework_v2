@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { CalendarClock, ChevronDown, ChevronUp, LoaderCircle, Trash2 } from 'lucide-vue-next'
 import AppShell from '../components/AppShell.vue'
+import CatalogTeamPicker from '../components/CatalogTeamPicker.vue'
+import ResultsModePanel from '../components/ResultsModePanel.vue'
+import TeamBadge from '../components/TeamBadge.vue'
 import EmptyState from '../components/EmptyState.vue'
 import ErrorState from '../components/ErrorState.vue'
 import FormField from '../components/FormField.vue'
@@ -11,18 +14,21 @@ import SecondaryButton from '../components/SecondaryButton.vue'
 import SegmentedTabs from '../components/SegmentedTabs.vue'
 import StatChip from '../components/StatChip.vue'
 import { lockMinutesFromInterval } from '../lib/admin-contracts'
+import { parseScoreInput } from '../lib/prediction-ux'
 import {
   SPORT_OPTIONS, isoToZonedLocal, lockAtPreview, parseTeamLines, validateCountryCode, validateEntityName, validateKickoff,
   validateOptionalColor, validateScore, type MatchRow,
 } from '../lib/sports-admin'
 import { useAdmin } from '../composables/useAdmin'
 import { useAuth } from '../composables/useAuth'
+import { useIdentityWatch } from '../composables/useIdentityWatch'
 import { useSportsAdmin } from '../composables/useSportsAdmin'
 
 type Tab = 'teams' | 'rounds' | 'matches' | 'results'
 const router = useRouter()
 const auth = useAuth()
-const admin = useAdmin()
+// Sin lectura de branding ni polling en la parrilla (FE-03).
+const admin = useAdmin({ branding: false })
 const sports = useSportsAdmin()
 
 const tab = ref<Tab>('matches')
@@ -78,6 +84,17 @@ async function addTeams(): Promise<void> {
   ok(`${teams.length} equipo(s) añadidos${rejected.length ? `; ${rejected.length} línea(s) omitidas por duplicadas o inválidas` : ''}.`)
 }
 
+async function importFromCatalog(ids: string[]): Promise<void> {
+  const outcome = await sports.importCatalogTeams(ids)
+  if (fail(outcome.message)) return
+  ok(`${outcome.enrolled} equipo(s) incorporados al torneo${outcome.alreadyEnrolled ? `; ${outcome.alreadyEnrolled} ya estaban inscritos` : ''}.`)
+}
+
+async function changeResultsMode(mode: 'manual' | 'automatic'): Promise<void> {
+  if (fail(await sports.setResultsMode(mode))) return
+  ok(mode === 'manual' ? 'Modo de resultados: manual.' : 'Modo de resultados: automático.')
+}
+
 async function toggleEnrolled(teamId: string): Promise<void> {
   if (fail(await sports.setEnrolled(teamId, !sports.enrolledTeamIds.value.includes(teamId)))) return
   ok('Inscripción actualizada.')
@@ -128,9 +145,12 @@ async function togglePool(matchId: string): Promise<void> {
 
 async function publish(match: MatchRow): Promise<void> {
   const draft = scoreDraft.value[match.id]
-  const home = Number(draft?.home); const away = Number(draft?.away)
-  if (fail(validateScore(home) ?? validateScore(away))) return
-  if (fail(await sports.publishResult(match.id, home, away))) return
+  // Un campo en blanco no es 0 (FE-01): se valida la cadena con la misma lógica que los pronósticos.
+  const home = parseScoreInput(draft?.home ?? ''); const away = parseScoreInput(draft?.away ?? '')
+  if (!home.ok) { fail(`Revisa el marcador del local. ${home.message}`); return }
+  if (!away.ok) { fail(`Revisa el marcador de la visita. ${away.message}`); return }
+  if (fail(validateScore(home.value) ?? validateScore(away.value))) return
+  if (fail(await sports.publishResult(match.id, home.value, away.value))) return
   ok(sports.results.value[match.id]?.revision && sports.results.value[match.id]!.revision > 1 ? 'Resultado corregido.' : 'Resultado publicado.')
 }
 
@@ -140,11 +160,18 @@ watch(() => admin.selectedPoolId.value, (id) => { void sports.loadPoolMatches(id
 watch(() => sports.results.value, (results) => {
   for (const [id, result] of Object.entries(results)) scoreDraft.value[id] = { home: String(result.home_score), away: String(result.away_score) }
 })
+// Cambio de identidad con la vista montada (FE-05): el borrador de torneo/partidos/resultados pertenece
+// a la sesión anterior; se descarta y se vuelve a Inicio (el guard re-evalúa el acceso al reabrir).
+useIdentityWatch(auth, {
+  onChange: () => { admin.reset(); void router.replace({ name: 'home' }) },
+  onSignedOut: () => { admin.reset(); void router.replace({ name: 'home' }) },
+})
 onMounted(async () => { if (auth.state.user) await admin.load(auth.state.user.id) })
+onBeforeUnmount(admin.dispose)
 </script>
 
 <template>
-  <AppShell variant="app" active="home" title="Parrilla deportiva" :user-name="auth.state.profile?.display_name">
+  <AppShell variant="app" active="fixture" title="Parrilla deportiva" :user-name="auth.state.profile?.display_name">
     <section class="space-y-6 pt-2">
       <div>
         <h1 class="font-display text-xl font-bold text-text">Parrilla deportiva</h1>
@@ -192,6 +219,8 @@ onMounted(async () => { if (auth.state.user) await admin.load(auth.state.user.id
 
           <section v-if="tab === 'teams'" class="app-surface space-y-4 p-4">
             <h2 class="font-display font-bold text-text">Equipos</h2>
+            <CatalogTeamPicker :enrolled-names="sports.enrolledTeams.value.map((team) => team.name)" :importing="sports.saving.value" @import="importFromCatalog" />
+            <h3 class="font-display font-bold text-text">¿Falta un equipo? Añádelo manualmente</h3>
             <label class="block text-sm font-medium text-text-muted">Alta exprés (uno por línea; «Nombre, ABR» opcional)
               <textarea v-model="bulkTeams" rows="5" class="field-surface mt-1.5 w-full px-3 py-3 text-sm" placeholder="Club Norte, CNO&#10;Club Sur, CSU" />
             </label>
@@ -199,7 +228,7 @@ onMounted(async () => { if (auth.state.user) await admin.load(auth.state.user.id
             <EmptyState v-if="!sports.teams.value.length" title="Aún no hay equipos" description="Añádelos arriba; se inscriben en el torneo activo." />
             <ul v-else class="divide-y divide-border">
               <li v-for="team in sports.teams.value" :key="team.id" class="flex items-center justify-between gap-3 py-2.5">
-                <span class="text-sm font-semibold text-text">{{ team.name }}<span v-if="team.short_name" class="ml-2 text-text-muted">{{ team.short_name }}</span></span>
+                <span class="flex items-center gap-2 text-sm font-semibold text-text"><TeamBadge :name="team.name" :kind="team.kind" :country-code="team.country_code" :short-name="team.short_name ?? undefined" size="xs" />{{ team.name }}<span v-if="team.short_name" class="ml-1 text-text-muted">{{ team.short_name }}</span></span>
                 <label class="flex items-center gap-2 text-sm text-text-muted"><input type="checkbox" class="h-4 w-4 rounded accent-primary" :checked="sports.enrolledTeamIds.value.includes(team.id)" @change="toggleEnrolled(team.id)" />En el torneo</label>
               </li>
             </ul>
@@ -262,13 +291,14 @@ onMounted(async () => { if (auth.state.user) await admin.load(auth.state.user.id
 
           <section v-else class="app-surface space-y-4 p-4">
             <h2 class="font-display font-bold text-text">Resultados oficiales</h2>
+            <ResultsModePanel :mode="sports.resultsMode.value" :auto-available="sports.autoResultsAvailable.value" :saving="sports.saving.value" @select="changeResultsMode" />
             <p class="text-sm text-text-muted">Publicar o corregir un resultado recalcula los puntos de forma idempotente. Cada corrección queda auditada.</p>
             <EmptyState v-if="!startedMatches.length" title="Aún no hay partidos iniciados" description="Los resultados se publican cuando el partido empieza." />
             <ul v-else class="space-y-3">
               <li v-for="match in startedMatches" :key="match.id" class="rounded-xl border border-border p-3">
                 <div class="flex items-center justify-between gap-2">
                   <p class="text-sm font-semibold text-text">{{ sports.teamName(match.home_team_id) }} vs {{ sports.teamName(match.away_team_id) }}</p>
-                  <StatChip v-if="sports.results.value[match.id]" :label="`Rev. ${sports.results.value[match.id]!.revision}`" tone="success" />
+                  <StatChip v-if="sports.results.value[match.id]" :label="`Rev. ${sports.results.value[match.id]!.revision}${sports.results.value[match.id]!.source === 'provider' ? ' · proveedor' : ''}`" tone="success" />
                 </div>
                 <div class="mt-3 flex items-end gap-2">
                   <FormField :id="`score-h-${match.id}`" :model-value="scoreDraft[match.id]?.home ?? ''" type="number" label="Local" @update:model-value="scoreDraft[match.id] = { home: $event, away: scoreDraft[match.id]?.away ?? '' }" />

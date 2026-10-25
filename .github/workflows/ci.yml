@@ -1,0 +1,44 @@
+# Gates obligatorios de AGENTS.md §11 en cada push y PR: typecheck, pruebas, build con verificación del bundle y `git diff --check`.
+# No usa secretos ni toca Supabase: las suites SQL y los E2E contra QA siguen siendo ejecuciones autorizadas del operador.
+name: CI
+
+on:
+  push:
+    branches: [main, 'feat/**', 'fix/**', 'integration/**']
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm audit --omit=dev --audit-level=high
+      - run: npm run typecheck
+      - run: npm test
+      - name: Build y verificación del bundle (sin dataset de vista previa ni UI de Superadmin)
+        run: npm run verify:bundle
+      - name: git diff --check
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git diff --check "${{ github.event.pull_request.base.sha }}" HEAD
+          elif [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ] && git cat-file -e "${{ github.event.before }}" 2>/dev/null; then
+            git diff --check "${{ github.event.before }}" HEAD
+          else
+            git diff --check HEAD~1 HEAD
+          fi

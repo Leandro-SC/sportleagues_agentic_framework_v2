@@ -123,7 +123,18 @@ describe('AuthForm — sign-up', () => {
   const fill = async (overrides: Partial<Record<string, string>> = {}) => {
     const values = { 'full-name': 'Ada Lovelace', email: 'ada@example.com', password: 'Secreta123', 'confirm-password': 'Secreta123', ...overrides }
     for (const [id, value] of Object.entries(values)) await type(id, value)
+    await wrapper.get('[data-testid="legal-consent"] input[type="checkbox"]').setValue(true)
   }
+
+  it('requires accepting the legal documents', async () => {
+    wrapper = mountForm('sign-up')
+    const values = { 'full-name': 'Ada Lovelace', email: 'ada@example.com', password: 'Secreta123', 'confirm-password': 'Secreta123' }
+    for (const [id, value] of Object.entries(values)) await type(id, value)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(auth.signUpWithPassword).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Debes aceptar los Términos')
+  })
 
   it('requires the full name', async () => {
     wrapper = mountForm('sign-up')
@@ -188,5 +199,18 @@ describe('AuthForm — password recovery', () => {
     expect(wrapper.text()).toContain('Recupera tu contraseña')
     await wrapper.findAll('button').find((b) => b.text().includes('Volver a iniciar sesión'))!.trigger('click')
     expect((wrapper.get('#password').element as HTMLInputElement).value).toBe('')
+  })
+})
+
+describe('AuthForm — wrapper nativo (ADR-022 pendiente)', () => {
+  it('oculta Google dentro de Capacitor: Google bloquea OAuth en WebViews', async () => {
+    vi.stubGlobal('Capacitor', { isNativePlatform: () => true })
+    try {
+      const wrapper = mountForm('sign-in')
+      expect(wrapper.text()).not.toContain('Continuar con Google')
+      expect(wrapper.text()).toContain('Iniciar sesión')
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 })

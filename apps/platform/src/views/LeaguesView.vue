@@ -98,10 +98,11 @@ async function createLeague(): Promise<void> {
     <BottomSheet v-model:open="organizerSheet" title="Crear una liga">
       <div class="space-y-4">
         <p class="text-sm leading-relaxed text-text-muted">
-          Las ligas las crean los organizadores desde su panel de administración. Si organizas una liga,
-          pide al responsable de tu organización que te asigne como administrador.
+          Las ligas las crean los organizadores. Si quieres organizar la tuya, envía una solicitud desde
+          Mi perfil: un operador autorizado la revisará y no recibirás permisos hasta que se apruebe.
         </p>
         <p v-if="adminAccess.error.value" class="rounded-xl bg-danger-100 p-3 text-sm text-danger" role="alert">{{ adminAccess.error.value }}</p>
+        <PrimaryButton @click="organizerSheet = false; router.push({ name: 'profile' })">Ir a Mi perfil</PrimaryButton>
         <SecondaryButton @click="organizerSheet = false; router.push({ name: 'league-join' })">
           Prefiero unirme a una liga
         </SecondaryButton>

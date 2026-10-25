@@ -164,13 +164,13 @@ describe('permissions with simulated clients', () => {
   it.each([
     [false, false],
     [true, true],
-  ])('Profile settings offer the admin panel only to owner/admin (admin=%s)', async (admin, visible) => {
+  ])('Profile settings offer the organizer mode only to owner/admin (admin=%s)', async (admin, visible) => {
     hasAdminAccess.value = admin
     const { wrapper } = await mountAt('/perfil', ProfileView, '/perfil')
     await flushPromises()
     await wrapper.get('button[aria-label="Ajustes de la cuenta"]').trigger('click')
     await flushPromises()
-    expect(document.body.textContent?.includes('Panel de administración')).toBe(visible)
+    expect(document.body.textContent?.includes('Modo organizador')).toBe(visible)
     expect(document.body.textContent).toContain('Cerrar sesión')
   })
 })
