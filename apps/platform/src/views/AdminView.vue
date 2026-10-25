@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { CalendarClock, Check, CircleAlert, Copy, KeyRound, LoaderCircle, Palette, Settings2, UsersRound, Wallet } from 'lucide-vue-next'
+import { BadgeCheck, CalendarClock, Check, CircleAlert, Copy, KeyRound, LoaderCircle, Palette, Settings2, UsersRound, Wallet } from 'lucide-vue-next'
 import AppShell from '../components/AppShell.vue'
 import BrandingAssetSlot from '../components/BrandingAssetSlot.vue'
 import EmptyState from '../components/EmptyState.vue'
@@ -10,7 +10,11 @@ import FormField from '../components/FormField.vue'
 import PoolTicketsAdmin from '../components/PoolTicketsAdmin.vue'
 import PrimaryButton from '../components/PrimaryButton.vue'
 import SecondaryButton from '../components/SecondaryButton.vue'
+import ShareStudio from '../components/ShareStudio.vue'
 import StatChip from '../components/StatChip.vue'
+import { publicAppUrl, safeAccent } from '../lib/branding'
+import { appLinkHosts } from '../lib/pwa'
+import type { TenantBranding } from '../composables/useTenantBranding'
 import { PRO_SCORING_MESSAGE, RULES_FROZEN_MESSAGE, STANDARD_SCORING, freeLimitMessage, lockMinutesFromInterval, parseLockMinutesInput, parsePointsInput, validatePoints, validatePoolName } from '../lib/admin-contracts'
 import { BRANDING_COLORS_UNAVAILABLE, useAdmin } from '../composables/useAdmin'
 import { useAuth } from '../composables/useAuth'
@@ -32,6 +36,29 @@ const notice = ref('')
 const formError = ref('')
 const joinCode = ref('')
 const brandingError = ref('')
+const brandNameInput = ref('')
+
+// Invitación compartible por WhatsApp con la marca del organizador (nombre en todos los planes; logo y color en PRO).
+const inviteBranding = computed<TenantBranding | null>(() => {
+  const tenant = admin.selectedTenant.value
+  if (!tenant) return null
+  return {
+    tenantId: tenant.tenant_id, plan: tenant.plan_code, brandName: admin.brandName.value,
+    accent: tenant.plan_code === 'pro' ? safeAccent(admin.brandingColors.value?.primary) : null,
+    logoUrl: admin.brandingAssets.value.logo?.signed_url ?? null, bannerUrl: admin.brandingAssets.value.banner?.signed_url ?? null, joinCode: joinCode.value || null,
+  }
+})
+const inviteLink = computed(() => (joinCode.value ? publicAppUrl(appLinkHosts()[0]!, `/j/${joinCode.value}`) : null))
+const inviteTemplates = computed(() => (joinCode.value && admin.selectedPool.value && inviteLink.value ? [{
+  id: 'invite', label: 'Invitación', filename: 'invitacion', qrUrl: inviteLink.value, qrLabel: 'Escanea para unirte',
+  input: { kind: 'invite' as const, poolName: admin.selectedPool.value.name, code: joinCode.value },
+}] : []))
+
+async function saveBrandName(): Promise<void> {
+  const result = await admin.saveBrandName(brandNameInput.value)
+  if (result) formError.value = result
+  else { formError.value = ''; notice.value = admin.brandName.value ? `Tus jugadores verán «${admin.brandName.value}».` : 'Nombre de plataforma quitado.' }
+}
 
 const planLabel = computed(() => admin.selectedTenant.value?.plan_code === 'pro' ? 'PRO' : 'FREE')
 const freeLimitNotice = computed(() => {
@@ -147,6 +174,7 @@ watch(() => admin.brandingColors.value, (colors) => {
   primaryColor.value = colors?.primary ?? ''
   secondaryColor.value = colors?.secondary ?? ''
 }, { immediate: true })
+watch(() => admin.brandName?.value, (name) => { brandNameInput.value = name ?? '' }, { immediate: true })
 // Solo el cambio de organización por el selector recarga: `load()` ya trae pools/branding/colores
 // del tenant inicial y no debe duplicarse al fijar `selectedTenantId` (FE-03).
 watch(() => admin.selectedTenantId.value, () => { if (!admin.loading.value) void refreshTenant() })
@@ -239,8 +267,15 @@ onBeforeUnmount(admin.dispose)
             </div>
           </section>
 
-          <section class="app-surface p-4"><div class="mb-3 flex items-center gap-2"><KeyRound class="h-5 w-5 text-primary" /><h2 class="font-display font-bold text-text">Código de unión</h2></div><p v-if="joinCode" class="mb-3 rounded-xl bg-surface-2 p-3 text-center font-display text-xl font-bold tracking-[0.3em] text-text">{{ joinCode }}</p><div class="flex gap-2"><PrimaryButton :loading="admin.saving.value" @click="makeJoinCode">Generar código</PrimaryButton><SecondaryButton v-if="joinCode" :full-width="false" @click="copyJoinCode"><Copy class="h-4 w-4" />Copiar</SecondaryButton></div></section>
+          <section class="app-surface p-4"><div class="mb-3 flex items-center gap-2"><KeyRound class="h-5 w-5 text-primary" /><h2 class="font-display font-bold text-text">Código de unión</h2></div><p v-if="joinCode" class="mb-3 rounded-xl bg-surface-2 p-3 text-center font-display text-xl font-bold tracking-[0.3em] text-text">{{ joinCode }}</p><div class="flex gap-2"><PrimaryButton :loading="admin.saving.value" @click="makeJoinCode">Generar código</PrimaryButton><SecondaryButton v-if="joinCode" :full-width="false" @click="copyJoinCode"><Copy class="h-4 w-4" />Copiar</SecondaryButton></div><div v-if="inviteTemplates.length" class="mt-3"><ShareStudio :templates="inviteTemplates" :branding="inviteBranding" :link="inviteLink" button-label="Compartir invitación por WhatsApp" /></div></section>
         </template>
+
+        <section class="app-surface p-4" data-testid="brand-name-section">
+          <div class="mb-3 flex items-center gap-2"><BadgeCheck class="h-5 w-5 text-primary" /><h2 class="font-display font-bold text-text">Tu plataforma</h2></div>
+          <FormField id="brand-name" v-model="brandNameInput" label="Nombre de tu plataforma" placeholder="Ej.: Quinielas Silva" :maxlength="60"
+            hint="Tus jugadores lo verán en tus quinielas y en las imágenes que compartas por WhatsApp." :disabled="admin.brandingColorsStatus.value === 'loading'" />
+          <PrimaryButton class="mt-3" :loading="admin.saving.value" data-testid="save-brand-name" @click="saveBrandName">Guardar nombre</PrimaryButton>
+        </section>
 
         <section class="app-surface p-4">
           <div class="mb-3 flex items-center gap-2"><Palette class="h-5 w-5 text-primary" /><h2 class="font-display font-bold text-text">Branding</h2></div>

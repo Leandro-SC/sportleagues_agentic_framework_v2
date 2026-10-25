@@ -55,6 +55,8 @@ export function humanizeAdminRpcError(message: string | null | undefined): strin
   if (/free plan allows one active pool/i.test(message ?? '')) {
     return freeLimitMessage('free', 1) ?? 'Tu plan FREE permite una sola quiniela activa.'
   }
+  if (/brand name must have between 2 and 60/i.test(message ?? '')) return 'El nombre de tu plataforma debe tener entre 2 y 60 caracteres.'
+  if (/brand name cannot contain links/i.test(message ?? '')) return 'El nombre de tu plataforma no puede incluir enlaces ni correos.'
   if (/scoring rules are frozen/i.test(message ?? '')) return RULES_FROZEN_MESSAGE
   if (/custom scoring requires the pro plan/i.test(message ?? '')) return PRO_SCORING_MESSAGE
   if (/exact points cannot be lower than outcome points/i.test(message ?? '')) return 'El marcador exacto no puede valer menos que acertar el resultado.'

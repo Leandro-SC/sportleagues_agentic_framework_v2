@@ -70,7 +70,7 @@ describe('PoolView', () => {
     expect(wrapper.text()).toContain('100%')
     expect(wrapper.text()).toContain('Racha actual 3')
     expect(wrapper.find('svg[role="img"]').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Compartir mi resultado')
+    expect(wrapper.text()).toContain('Compartir por WhatsApp o redes')
   })
 
   it('sin estadísticas (no participa) no muestra bloque de rendimiento ni cifras inventadas', async () => {

@@ -43,6 +43,7 @@ export function useAdmin(options: { branding?: boolean } = {}) {
   const activePools = computed(() => pools.value.filter((pool) => pool.status === 'open' || pool.status === 'paused').length)
   // Colores guardados del tenant (FE-02): el formulario parte de ellos, nunca de valores de ejemplo.
   const brandingColors = ref<BrandingColors | null>(null)
+  const brandName = ref<string | null>(null)
   const brandingColorsStatus = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
   let brandingRefreshTimer: ReturnType<typeof setTimeout> | undefined
   // `dispose` es terminal: tras desmontar la vista ninguna carga en vuelo vuelve a armar el temporizador (FE-03).
@@ -86,7 +87,7 @@ export function useAdmin(options: { branding?: boolean } = {}) {
     brandingGeneration++; colorsGeneration++; loadGeneration++; epoch++
     tenants.value = []; pools.value = []; participants.value = []; rule.value = null; rulesPolicy.value = null
     brandingAssets.value = { logo: null, banner: null }
-    brandingColors.value = null; brandingColorsStatus.value = 'idle'
+    brandingColors.value = null; brandName.value = null; brandingColorsStatus.value = 'idle'
     selectedTenantId.value = ''; selectedPoolId.value = ''
     error.value = ''; loading.value = false; saving.value = false; brandingSaving.value = false
   }
@@ -98,10 +99,11 @@ export function useAdmin(options: { branding?: boolean } = {}) {
     if (!tenantId) { brandingColorsStatus.value = 'idle'; return }
     brandingColorsStatus.value = 'loading'
     try {
-      const { data, error: queryError } = await getSupabaseClient().from('tenant_branding').select('primary_color, secondary_color').eq('tenant_id', tenantId).maybeSingle()
+      const { data, error: queryError } = await getSupabaseClient().from('tenant_branding').select('primary_color, secondary_color, brand_name').eq('tenant_id', tenantId).maybeSingle()
       if (disposed || generation !== colorsGeneration) return
       if (queryError) { brandingColorsStatus.value = 'error'; return }
       brandingColors.value = { primary: (data?.primary_color as string | null | undefined) ?? null, secondary: (data?.secondary_color as string | null | undefined) ?? null }
+      brandName.value = (data?.brand_name as string | null | undefined) ?? null
       brandingColorsStatus.value = 'ready'
     } catch {
       if (generation === colorsGeneration) brandingColorsStatus.value = 'error'
@@ -280,5 +282,16 @@ export function useAdmin(options: { branding?: boolean } = {}) {
     return message
   }
 
-  return { tenants, pools, participants, rule, rulesPolicy,loading, saving, brandingSaving, brandingAssets, error, selectedTenantId, selectedPoolId, selectedTenant, selectedPool, isAdmin, activePools, load, loadPools, loadBrandingAssets, loadBrandingColors, brandingColors, brandingColorsStatus, reset, loadPoolDetails, createPool, updatePool, approveParticipant, setPayment, publishRules, createJoinCode, saveBranding, uploadBrandingAsset, removeBrandingAsset, dispose }
+  /** Nombre de la plataforma del organizador (ADR-024): todos los planes; vacío lo quita. */
+  async function saveBrandName(name: string): Promise<string | null> {
+    if (!selectedTenant.value) return 'Selecciona un tenant administrable.'
+    saving.value = true
+    const { data, error: rpcError } = await getSupabaseClient().rpc('set_tenant_brand_name', { p_tenant_id: selectedTenant.value.tenant_id, p_brand_name: name })
+    saving.value = false
+    const message = errorMessage(rpcError)
+    if (!message) brandName.value = ((data as { brand_name?: string | null } | null)?.brand_name) ?? null
+    return message
+  }
+
+  return { tenants, pools, participants, rule, rulesPolicy, brandName, saveBrandName, loading, saving, brandingSaving, brandingAssets, error, selectedTenantId, selectedPoolId, selectedTenant, selectedPool, isAdmin, activePools, load, loadPools, loadBrandingAssets, loadBrandingColors, brandingColors, brandingColorsStatus, reset, loadPoolDetails, createPool, updatePool, approveParticipant, setPayment, publishRules, createJoinCode, saveBranding, uploadBrandingAsset, removeBrandingAsset, dispose }
 }

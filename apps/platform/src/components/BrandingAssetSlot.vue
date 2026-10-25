@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { ImageIcon, LoaderCircle, Trash2, Upload } from 'lucide-vue-next'
+import { ImageIcon, LoaderCircle, Sparkles, Trash2, Upload } from 'lucide-vue-next'
 import { brandingAssetLimits, brandingControlsAvailable, validateBrandingFile, type BrandingAssetKind } from '../lib/admin-contracts'
+import { fixLogo, type LogoFixResult } from '../lib/logo-fix'
 import type { BrandingAssetPreview } from '../composables/useAdmin'
 import PrimaryButton from './PrimaryButton.vue'
 import SecondaryButton from './SecondaryButton.vue'
@@ -12,6 +13,8 @@ const props = defineProps<{
   asset: BrandingAssetPreview | null
   busy?: boolean
   error?: string
+  /** Ajuste inteligente del logo (inyectable en pruebas). */
+  fixer?: (file: File) => Promise<LogoFixResult>
 }>()
 
 const emit = defineEmits<{ upload: [file: File]; remove: [] }>()
@@ -20,6 +23,10 @@ const localPreview = ref('')
 const localError = ref('')
 const confirmingRemoval = ref(false)
 const pending = ref(false)
+const analyzing = ref(false)
+// Propuesta del ajuste inteligente: el organizador compara y elige; nada se sube hasta que decide.
+type Proposal = { original: File; originalUrl: string; originalError: string | null; fixed: File; fixedUrl: string; notes: string[] }
+const proposal = ref<Proposal | null>(null)
 const isLogo = computed(() => props.kind === 'logo')
 const limits = computed(() => brandingAssetLimits[props.kind])
 const controlsAvailable = computed(() => brandingControlsAvailable(props.plan))
@@ -53,22 +60,46 @@ async function imageDimensions(file: File): Promise<{ width: number; height: num
   }
 }
 
-async function selectFile(event: Event): Promise<void> {
-  const file = (event.target as HTMLInputElement).files?.[0]
-  if (!file) return
-  localError.value = ''
-  const dimensions = await imageDimensions(file)
-  const validationError = validateBrandingFile(props.kind, file, dimensions ?? undefined)
-  if (validationError || !dimensions) {
-    localError.value = validationError ?? 'No pudimos leer las dimensiones de la imagen.'
-    ;(event.target as HTMLInputElement).value = ''
-    return
-  }
+function startUpload(file: File): void {
   revokeLocalPreview()
   localPreview.value = URL.createObjectURL(file)
   pending.value = true
   emit('upload', file)
-  ;(event.target as HTMLInputElement).value = ''
+}
+
+function discardProposal(): void {
+  if (proposal.value) { URL.revokeObjectURL(proposal.value.originalUrl); URL.revokeObjectURL(proposal.value.fixedUrl) }
+  proposal.value = null
+}
+
+function chooseProposal(which: 'fixed' | 'original'): void {
+  const current = proposal.value
+  if (!current || (which === 'original' && current.originalError)) return
+  const file = which === 'fixed' ? current.fixed : current.original
+  discardProposal()
+  startUpload(file)
+}
+
+async function selectFile(event: Event): Promise<void> {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  target.value = ''
+  if (!file) return
+  localError.value = ''
+  discardProposal()
+  const dimensions = await imageDimensions(file)
+  const validationError = dimensions ? validateBrandingFile(props.kind, file, dimensions) : validateBrandingFile(props.kind, file) ?? 'No pudimos leer las dimensiones de la imagen.'
+  if (isLogo.value) {
+    analyzing.value = true
+    const fixed = await (props.fixer ?? fixLogo)(file).catch((): LogoFixResult => ({ ok: false, message: '' }))
+    analyzing.value = false
+    if (fixed.ok) {
+      proposal.value = { original: file, originalUrl: URL.createObjectURL(file), originalError: validationError, fixed: fixed.file, fixedUrl: URL.createObjectURL(fixed.file), notes: fixed.notes }
+      return
+    }
+  }
+  if (validationError) { localError.value = validationError; return }
+  startUpload(file)
 }
 
 function requestRemoval(): void {
@@ -86,7 +117,7 @@ watch(() => props.asset?.asset_id, () => {
 watch(() => props.error, (error) => {
   if (error) revokeLocalPreview()
 })
-onBeforeUnmount(revokeLocalPreview)
+onBeforeUnmount(() => { revokeLocalPreview(); discardProposal() })
 </script>
 
 <template>
@@ -120,6 +151,21 @@ onBeforeUnmount(revokeLocalPreview)
       <div class="mt-3 flex flex-wrap gap-2">
         <PrimaryButton :full-width="false" :disabled="busy" @click="openPicker"><Upload class="h-4 w-4" />{{ asset ? 'Reemplazar' : `Subir ${heading.toLowerCase()}` }}</PrimaryButton>
         <SecondaryButton v-if="asset" :full-width="false" tone="danger" :disabled="busy" @click="requestRemoval"><Trash2 class="h-4 w-4" />Eliminar</SecondaryButton>
+      </div>
+      <p v-if="analyzing" class="mt-3 flex items-center gap-2 text-sm text-text-muted" role="status"><LoaderCircle class="h-4 w-4 animate-spin text-primary" />Ajustando tu logo…</p>
+      <div v-if="proposal" class="mt-3 space-y-3 rounded-xl border border-primary/40 bg-surface-2 p-3" data-testid="logo-fix-proposal">
+        <p class="flex items-center gap-2 text-sm font-semibold text-text"><Sparkles class="h-4 w-4 text-primary" aria-hidden="true" />Ajuste automático de tu logo</p>
+        <div class="grid grid-cols-2 gap-3 text-center text-xs text-text-muted">
+          <figure><div class="aspect-square overflow-hidden rounded-lg border border-border bg-[repeating-conic-gradient(#0a2434_0_25%,#071b29_0_50%)] bg-size-[16px_16px]"><img :src="proposal.originalUrl" alt="Logo original" class="h-full w-full object-contain" /></div><figcaption class="mt-1">Original</figcaption></figure>
+          <figure><div class="aspect-square overflow-hidden rounded-lg border border-primary/60 bg-[repeating-conic-gradient(#0a2434_0_25%,#071b29_0_50%)] bg-size-[16px_16px]"><img :src="proposal.fixedUrl" alt="Logo ajustado" class="h-full w-full object-contain" /></div><figcaption class="mt-1 font-semibold text-primary">Ajustado</figcaption></figure>
+        </div>
+        <ul v-if="proposal.notes.length" class="list-disc space-y-0.5 pl-5 text-xs text-text-muted"><li v-for="note in proposal.notes" :key="note">{{ note }}</li></ul>
+        <div class="grid gap-2">
+          <PrimaryButton data-testid="logo-fix-use-fixed" @click="chooseProposal('fixed')">Usar versión ajustada</PrimaryButton>
+          <SecondaryButton :disabled="Boolean(proposal.originalError)" data-testid="logo-fix-use-original" @click="chooseProposal('original')">Usar original</SecondaryButton>
+          <p v-if="proposal.originalError" class="text-xs text-text-muted">El original no se puede subir tal cual: {{ proposal.originalError }}</p>
+          <button type="button" class="min-h-11 text-sm text-text-muted" @click="discardProposal">Cancelar</button>
+        </div>
       </div>
       <div v-if="confirmingRemoval" class="mt-3 flex items-center justify-between gap-3 rounded-xl border border-border bg-surface-2 p-3 text-sm">
         <p class="font-medium text-text">¿Eliminar el {{ heading.toLowerCase() }}?</p>

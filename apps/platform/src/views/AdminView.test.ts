@@ -234,3 +234,25 @@ describe('AdminView - reglas congeladas y puntuación estándar (ADR-023)', () =
     expect(admin().publishRules).not.toHaveBeenCalled()
   })
 })
+
+describe('AdminView - nombre de la plataforma (ADR-024)', () => {
+  it('carga el nombre guardado y lo guarda en todos los planes', async () => {
+    setup({ brandName: ref('Quinielas Silva'), saveBrandName: vi.fn().mockResolvedValue(null), tenants: ref([{ tenant_id: 'tenant-1234', role: 'owner', plan_code: 'free' }]) })
+    const { wrapper } = await mountView()
+    const input = wrapper.get('#brand-name')
+    expect((input.element as HTMLInputElement).value).toBe('Quinielas Silva')
+    await input.setValue('Liga Silva')
+    await wrapper.get('[data-testid="save-brand-name"]').trigger('click')
+    await flushPromises()
+    expect(admin().saveBrandName).toHaveBeenCalledWith('Liga Silva')
+  })
+
+  it('muestra el rechazo del servidor', async () => {
+    setup({ brandName: ref(null), saveBrandName: vi.fn().mockResolvedValue('El nombre de tu plataforma debe tener entre 2 y 60 caracteres.') })
+    const { wrapper } = await mountView()
+    await wrapper.get('#brand-name').setValue('X')
+    await wrapper.get('[data-testid="save-brand-name"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[role="alert"]').text()).toContain('entre 2 y 60')
+  })
+})

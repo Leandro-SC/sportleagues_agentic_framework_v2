@@ -14,14 +14,17 @@ import RankingRow from '../components/RankingRow.vue'
 import ScreenHeader from '../components/ScreenHeader.vue'
 import SecondaryButton from '../components/SecondaryButton.vue'
 import SegmentedTabs from '../components/SegmentedTabs.vue'
-import ShareFlyerButton from '../components/ShareFlyerButton.vue'
+import ShareStudio from '../components/ShareStudio.vue'
 import StatChip from '../components/StatChip.vue'
 import { usePoolAccess } from '../composables/usePoolAccess'
 import { usePoolPlay } from '../composables/usePoolPlay'
 import { usePoolStats } from '../composables/usePoolStats'
 import { useAuth } from '../composables/useAuth'
 import { useIdentityWatch } from '../composables/useIdentityWatch'
+import { useTenantBranding } from '../composables/useTenantBranding'
+import { appLinkHosts } from '../lib/pwa'
 import type { ScorelineSuggestion } from '../lib/scoreline-suggestion'
+import { buildPoolShareTemplates, poolShareLink } from '../lib/share-templates'
 
 type Tab = 'summary' | 'matches' | 'table'
 const router = useRouter()
@@ -31,6 +34,9 @@ const access = usePoolAccess()
 // El getter de identidad evita pintar o cachear lecturas hechas con el JWT de otro usuario (FE-05).
 const play = usePoolPlay(undefined, () => auth.state.user?.id ?? null)
 const stats = usePoolStats()
+// Marca del organizador (nombre de plataforma en todos los planes; logo, banner y color en PRO) visible para sus jugadores.
+const tenant = useTenantBranding()
+const host = appLinkHosts()[0]!
 
 const tab = ref<Tab>('summary')
 const tabs: { value: Tab; label: string }[] = [{ value: 'summary', label: 'Resumen' }, { value: 'matches', label: 'Partidos' }, { value: 'table', label: 'Tabla' }]
@@ -53,6 +59,14 @@ const grouped = computed(() => {
 const closingClassic = computed(() => play.ticketMode.value === 'tickets' || !play.canPredict.value ? [] : play.fixture.value
   .filter((item) => item.status === 'scheduled' && !item.mine)
   .map((item) => ({ key: item.matchId, label: `${item.homeName} vs ${item.awayName} sin pronóstico`, closesAt: item.lockAt })))
+const shareContext = computed(() => ({
+  poolId: access.pool.value?.id ?? '', poolName: access.pool.value?.name ?? 'Quiniela', host, timezone: play.tenantTimezone.value, now: now.value,
+  fixture: play.fixture.value, leaderboard: play.leaderboard.value,
+  scopeLabel: roundFilter.value ? (play.rounds.value.find((r) => r.id === roundFilter.value)?.name ?? 'Jornada') : 'Tabla general',
+  stats: stats.stats.value, playerName: auth.state.profile?.display_name ?? 'Jugador', joinCode: tenant.branding.value?.joinCode ?? null,
+}))
+const shareTemplates = computed(() => (access.pool.value ? buildPoolShareTemplates(shareContext.value) : []))
+const shareLink = computed(() => poolShareLink(shareContext.value))
 const rosterNotice = computed(() => {
   if (play.participation.value === 'pending') return 'Tu inscripción está pendiente de aprobación del organizador.'
   if (play.participation.value === 'none') return 'Administras esta quiniela o aún no te has inscrito: puedes ver la parrilla, pero no pronosticar.'
@@ -76,15 +90,15 @@ async function suggest(poolMatchId: string, matchId: string): Promise<void> {
 
 function loadPool(): void {
   const id = typeof route.params.poolId === 'string' ? route.params.poolId : ''
-  void access.load(id).then(() => { if (access.pool.value && auth.state.user) { void play.load(id, auth.state.user.id); void stats.loadPool(id) } })
+  void access.load(id).then(() => { if (access.pool.value && auth.state.user) { void play.load(id, auth.state.user.id); void stats.loadPool(id); void tenant.load(id) } })
 }
 
 watch(() => route.params.poolId, loadPool, { immediate: true })
 // Otra identidad con la vista montada (FE-05): lo mostrado era del usuario anterior. Se vacía, se limpian mensajes y sugerencias
 // (también las de IA estadística) y se vuelve a verificar el acceso y cargar con el id vigente; sin sesión, se vuelve a Inicio.
 useIdentityWatch(auth, {
-  onChange: () => { play.reset(); messages.value = {}; suggestions.value = {}; suggestionMessages.value = {}; loadPool() },
-  onSignedOut: () => { play.reset(); messages.value = {}; suggestions.value = {}; suggestionMessages.value = {}; void router.replace({ name: 'home' }) },
+  onChange: () => { play.reset(); tenant.reset(); messages.value = {}; suggestions.value = {}; suggestionMessages.value = {}; loadPool() },
+  onSignedOut: () => { play.reset(); tenant.reset(); messages.value = {}; suggestions.value = {}; suggestionMessages.value = {}; void router.replace({ name: 'home' }) },
 })
 watch(roundFilter, (id) => { void play.loadLeaderboard(id || null) })
 onMounted(() => { timer = setInterval(() => { now.value = new Date() }, 15_000) })
@@ -100,9 +114,16 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
       </div>
 
       <template v-else-if="access.pool.value">
-        <div class="stadium-hero overflow-hidden rounded-3xl border border-secondary/25 p-1 shadow-md">
+        <div class="stadium-hero overflow-hidden rounded-3xl border p-1 shadow-md" :style="tenant.branding.value?.accent ? { borderColor: tenant.branding.value.accent } : undefined" :class="tenant.branding.value?.accent ? '' : 'border-secondary/25'">
+          <img v-if="tenant.branding.value?.bannerUrl" :src="tenant.branding.value.bannerUrl" alt="" class="mb-1 aspect-8/3 w-full rounded-xl object-cover" data-testid="tenant-banner" />
+          <div v-if="tenant.branding.value?.brandName || tenant.branding.value?.logoUrl" class="flex items-center gap-3 px-3 py-2" data-testid="tenant-brand">
+            <img v-if="tenant.branding.value?.logoUrl" :src="tenant.branding.value.logoUrl" :alt="`Logo de ${tenant.branding.value.brandName ?? 'la organización'}`" class="h-10 max-w-34 shrink-0 object-contain" />
+            <p v-if="tenant.branding.value?.brandName" class="truncate font-display text-sm font-bold" :style="tenant.branding.value.accent ? { color: tenant.branding.value.accent } : undefined" :class="tenant.branding.value.accent ? '' : 'text-secondary'">{{ tenant.branding.value.brandName }}</p>
+          </div>
           <PoolCard :name="access.pool.value.name" variant="hero" status="active" />
         </div>
+
+        <ShareStudio v-if="shareTemplates.length" :templates="shareTemplates" :branding="tenant.branding.value" :link="shareLink" button-label="Compartir por WhatsApp o redes" />
 
         <SegmentedTabs v-model="tab" :options="tabs" label="Secciones de la quiniela" variant="underline" />
 
@@ -129,8 +150,6 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
               </div>
               <div class="flex flex-wrap gap-2"><StatChip :label="`Racha actual ${stats.stats.value.current_streak}`" tone="success" /><StatChip :label="`Mejor racha ${stats.stats.value.best_streak}`" /><StatChip :label="`Mejor jornada ${stats.stats.value.best_round_points} pts`" /></div>
               <EvolutionChart :points="stats.evolution.value" />
-              <ShareFlyerButton :input="{ kind: 'my-result', poolName: access.pool.value.name, playerName: auth.state.profile?.display_name ?? 'Jugador', rank: stats.stats.value.rank, participants: stats.stats.value.participants, points: stats.stats.value.points, exactHits: stats.stats.value.exact_hits, currentStreak: stats.stats.value.current_streak }"
-                filename="mi-resultado.png" title="Mi resultado en SportLeagues" label="Compartir mi resultado" />
             </div>
             <div v-if="play.ticketMode.value === 'tickets'" class="app-surface space-y-3 p-4">
               <h2 class="font-display text-base font-bold text-text">Esta quiniela usa tickets</h2>
@@ -175,8 +194,6 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
               <RankingRow v-for="row in play.leaderboard.value" :key="row.participant_id" :position="row.rank" :name="row.display_name" :points="row.points" :is-current-user="row.is_me"
                 :detail="`${row.exact_hits} exactos · racha ${row.current_streak}`" />
             </div>
-            <ShareFlyerButton v-if="play.leaderboard.value.length" :input="{ kind: 'ranking', poolName: access.pool.value.name, scopeLabel: roundFilter ? (play.rounds.value.find((r) => r.id === roundFilter)?.name ?? 'Jornada') : 'Tabla general', rows: play.leaderboard.value.map((r) => ({ rank: r.rank, name: r.display_name, points: r.points, isMe: r.is_me })) }"
-              filename="tabla.png" title="Tabla de posiciones" label="Compartir tabla" />
           </section>
         </template>
       </template>
