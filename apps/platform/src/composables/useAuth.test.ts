@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 type Row = { id: string; display_name: string } | null
 
-function makeClient(opts: { profile?: Row; user?: Record<string, unknown> | null } = {}) {
+function makeClient(opts: { profile?: Row; user?: Record<string, unknown> | null; profileError?: boolean } = {}) {
   const calls = { upserts: [] as Array<{ row: unknown; options: unknown }> }
   const user = opts.user === undefined ? null : opts.user
   let profile: Row = opts.profile ?? null
@@ -19,7 +19,7 @@ function makeClient(opts: { profile?: Row; user?: Record<string, unknown> | null
   const client = {
     auth,
     from: vi.fn(() => ({
-      select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: profile, error: null }) }) }),
+      select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: profile, error: opts.profileError ? { message: 'offline' } : null }) }) }),
       upsert: async (row: { id: string; display_name: string }, options: unknown) => {
         calls.upserts.push({ row, options })
         profile = row
@@ -175,6 +175,14 @@ describe('useAuth — profile persistence', () => {
 })
 
 describe('useAuth — resilience', () => {
+  it('UAT-03: un fallo de red al consultar perfil no se confunde con perfil inexistente', async () => {
+    const { client } = makeClient({ user: { id: 'u-offline', user_metadata: { full_name: 'Ada' } }, profileError: true })
+    const api = await load(client)
+    await api.restore()
+    expect(api.state.profile).toBeNull()
+    expect(api.state.profileLookupUnavailable).toBe(true)
+    expect(api.state.error).toBe('No pudimos guardar tu perfil. Inténtalo de nuevo.')
+  })
   it('a failed profile creation is attempted once, shows a generic error and does not block the session', async () => {
     const { client, calls } = makeClient({ user: { id: 'u9', user_metadata: { full_name: 'Ada' } } })
     const original = client.from

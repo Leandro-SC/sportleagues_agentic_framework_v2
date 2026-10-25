@@ -8,7 +8,7 @@ import { BRANDING_COLORS_UNAVAILABLE, useAdmin } from './useAdmin'
 type Result = { data: unknown; error: { message: string } | null }
 
 // Cliente de Supabase mínimo: cada tabla devuelve un resultado fijo; las RPC se cuentan.
-function fakeClient(options: { plan?: 'free' | 'pro'; colors?: Result; assetsRpc?: () => Promise<Result> } = {}) {
+function fakeClient(options: { plan?: 'free' | 'pro'; colors?: Result; assetsRpc?: () => Promise<Result>; participantsRpc?: Result } = {}) {
   const calls = { rpc: [] as Array<{ name: string; args: unknown }>, tables: [] as string[], signed: 0 }
   const plan = options.plan ?? 'pro'
   const tables: Record<string, Result> = {
@@ -29,6 +29,7 @@ function fakeClient(options: { plan?: 'free' | 'pro'; colors?: Result; assetsRpc
     rpc: vi.fn(async (name: string, args: unknown) => {
       calls.rpc.push({ name, args })
       if (name === 'get_active_branding_assets') return options.assetsRpc ? options.assetsRpc() : { data: [{ asset_id: 'a1', asset_kind: 'logo', storage_path: 'tenant-1/logo.png' }], error: null }
+      if (name === 'admin_pool_participants') return options.participantsRpc ?? { data: [], error: null }
       return { data: null, error: null }
     }),
     storage: { from: () => ({ createSignedUrl: async () => { calls.signed += 1; return { data: { signedUrl: `https://signed/${calls.signed}` }, error: null } } }) },
@@ -79,6 +80,17 @@ describe('useAdmin - colores de branding (FE-02)', () => {
     expect(call.args).toMatchObject({ p_tenant_id: 'tenant-1', p_primary_color: '#112233', p_secondary_color: null })
     expect(admin.brandingColors.value).toEqual({ primary: '#112233', secondary: null })
     admin.dispose()
+  })
+})
+
+describe('useAdmin - participantes administrativos (UAT-01)', () => {
+  it('usa la RPC autorizada y adapta el nombre visible sin embed de profiles', async () => {
+    const fake = fakeClient({ participantsRpc: { data: [{ id: 'p1', profile_id: 'u1', display_name: 'Ada', approval_status: 'approved', payment_status: 'paid' }], error: null } }); h.client = fake.client
+    const admin = useAdmin({ branding: false })
+    admin.selectedPoolId.value = 'pool-1'
+    await admin.loadPoolDetails()
+    expect(fake.calls.rpc).toContainEqual({ name: 'admin_pool_participants', args: { p_pool_id: 'pool-1' } })
+    expect(admin.participants.value).toEqual([expect.objectContaining({ id: 'p1', profiles: { display_name: 'Ada' }, payment_status: 'paid' })])
   })
 })
 

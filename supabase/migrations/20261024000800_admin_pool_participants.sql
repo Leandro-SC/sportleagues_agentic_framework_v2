@@ -1,12 +1,5 @@
--- PROPUESTA (2026-10-24): NO aplicada ni ejecutada. Mover a supabase/migrations/ solo tras correr supabase/tests/proposed/admin-pool-participants.sql en rollback.
--- UAT-01 (2026-10-24): el panel de administración no podía listar a los participantes. La vista pedía `participants` con el embed
--- `profiles(display_name)`; PostgREST lo rechaza (no hay FK de participants a profiles; la relación pasa por tenant_memberships)
--- y, aunque existiera, RLS de `profiles` solo deja leer el propio perfil. Forward-only; reversión en
--- supabase/proposed/down/20261024000800_admin_pool_participants.down.sql.
---
--- `admin_pool_participants(pool)` devuelve los participantes con su nombre visible SOLO a quien administra esa quiniela: owner/admin
--- del tenant o personal de la quiniela con capacidad `participants` o `finance` (mismo criterio que F-04/ADR-020). Sin correo ni otra
--- PII. «No existe» y «no autorizado» responden igual (F-01).
+-- UAT-01: listado administrativo sin depender de una relación PostgREST inexistente entre participants y profiles.
+-- Devuelve solo nombre visible y estados operativos a administradores autorizados de la quiniela.
 set local lock_timeout = '5s';
 set local statement_timeout = '60s';
 

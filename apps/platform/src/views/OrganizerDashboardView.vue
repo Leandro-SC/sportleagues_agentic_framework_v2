@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { ChartNoAxesCombined, ShieldCheck, Trophy, UsersRound, Wallet, CalendarClock } from 'lucide-vue-next'
+import { ChartNoAxesCombined, ShieldCheck, Trophy, UsersRound, Wallet, CalendarClock, Crown } from 'lucide-vue-next'
 import AppShell from '../components/AppShell.vue'
 import ScreenHeader from '../components/ScreenHeader.vue'
 import EmptyState from '../components/EmptyState.vue'
@@ -53,6 +53,7 @@ onBeforeUnmount(admin.dispose)
           <button type="button" data-test="tile-participants" class="app-surface flex min-h-28 flex-col items-start justify-center gap-2 p-4 text-left" @click="router.push({ name: 'admin' })"><UsersRound class="h-6 w-6 text-primary" aria-hidden="true" /><span class="text-sm font-bold text-text">Participantes</span><span class="text-xs text-text-muted">Aprobaciones y pagos manuales</span></button>
           <button type="button" data-test="tile-fixture" class="app-surface flex min-h-28 flex-col items-start justify-center gap-2 p-4 text-left" @click="router.push({ name: 'admin-fixture' })"><CalendarClock class="h-6 w-6 text-primary" aria-hidden="true" /><span class="text-sm font-bold text-text">Parrilla deportiva</span><span class="text-xs text-text-muted">Equipos, torneos, partidos y resultados</span></button>
           <button type="button" data-test="tile-finance" class="app-surface flex min-h-28 flex-col items-start justify-center gap-2 p-4 text-left" @click="router.push({ name: 'admin-income' })"><Wallet class="h-6 w-6 text-primary" aria-hidden="true" /><span class="text-sm font-bold text-text">Mis finanzas</span><span class="text-xs text-text-muted">Estado de pago manual (solo lectura)</span></button>
+          <button type="button" data-test="tile-plans" class="app-surface flex min-h-28 flex-col items-start justify-center gap-2 p-4 text-left" @click="router.push({ name: 'plans' })"><Crown class="h-6 w-6 text-primary" aria-hidden="true" /><span class="text-sm font-bold text-text">Planes</span><span class="text-xs text-text-muted">Beneficios y solicitud PRO</span></button>
         </div>
         <button type="button" disabled data-test="tile-reports" class="app-surface flex min-h-14 w-full items-center gap-3 p-4 text-left opacity-60">
           <ChartNoAxesCombined class="h-5 w-5 shrink-0 text-text-muted" aria-hidden="true" />

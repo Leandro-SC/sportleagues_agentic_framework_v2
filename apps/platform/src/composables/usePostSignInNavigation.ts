@@ -10,6 +10,7 @@ export function usePostSignInNavigation() {
 
   async function continueAfterSignIn(): Promise<void> {
     if (auth.state.recovery) { await router.replace({ name: 'reset-password' }); return }
+    if (!(await auth.ensureLegalAcceptance())) { await router.replace({ name: 'legal-acceptance' }); return }
     if (!auth.state.profile) { await router.replace({ name: 'onboarding' }); return }
     const participant = await joiner.resumeIntent()
     await router.replace(participant ? { name: 'pool', params: { poolId: participant.pool_id } } : { name: 'home' })

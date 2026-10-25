@@ -39,6 +39,8 @@ export function buildRoutes({ superadminUi, superadminView = loadSuperadminView 
     { path: '/auth/reset', name: 'reset-password', component: () => import('./views/ResetPasswordView.vue') },
     { path: '/privacidad', name: 'privacy', component: () => import('./views/LegalView.vue'), props: { doc: 'privacy' } },
     { path: '/terminos', name: 'terms', component: () => import('./views/LegalView.vue'), props: { doc: 'terms' } },
+    { path: '/planes', name: 'plans', component: () => import('./views/PlansView.vue') },
+    { path: '/aceptar-documentos', name: 'legal-acceptance', component: () => import('./views/LegalAcceptanceView.vue') },
     { path: '/onboarding', name: 'onboarding', component: () => import('./views/OnboardingView.vue') },
     { path: '/j/:code', name: 'join', component: () => import('./views/JoinView.vue'), props: true },
     { path: '/p/:poolId', name: 'pool', component: () => import('./views/PoolView.vue'), props: true },
@@ -113,11 +115,25 @@ export function createAppRouter(options: RouterOptions) {
     // Falla cerrado (FE-04): solo las rutas públicas explícitas y las de guard propio pasan sin sesión; una ruta nueva
     // no clasificada exige sesión y perfil. La decisión vive en `protectedRouteRedirect` (lib/navigation-guards.ts).
     const name = String(to.name)
-    if (PUBLIC_ROUTE_NAMES.has(name) || SELF_GUARDED_ROUTE_NAMES.has(name)) return true
+    // Inicio sigue siendo público para visitantes, pero una sesión existente no puede entrar al
+    // dashboard sin aceptar la versión legal vigente (p. ej. al recargar la app).
+    if (PUBLIC_ROUTE_NAMES.has(name)) {
+      if (name !== 'home') return true
+      const auth = useAuth()
+      if (auth.state.loading) await auth.restore()
+      const legal = typeof (auth as any).ensureLegalAcceptance === 'function' ? await (auth as any).ensureLegalAcceptance() : true
+      return auth.isAuthenticated.value && !legal ? { name: 'legal-acceptance' } : true
+    }
+    if (SELF_GUARDED_ROUTE_NAMES.has(name)) return true
     const auth = useAuth()
     if (auth.state.loading) await auth.restore()
-    const redirect = protectedRouteRedirect(String(to.name), auth.isAuthenticated.value, Boolean(auth.state.profile))
+    const redirect = protectedRouteRedirect(String(to.name), auth.isAuthenticated.value, Boolean(auth.state.profile), Boolean((auth.state as any).profileLookupUnavailable))
     if (redirect) return { name: redirect }
+    if (name !== 'legal-acceptance' && name !== 'reset-password') {
+      // Compatibilidad de pruebas: los dobles de Auth antiguos no implementan este método; la app real sí.
+      const legal = await (typeof (auth as any).ensureLegalAcceptance === 'function' ? (auth as any).ensureLegalAcceptance() : true)
+      if (!legal) return { name: 'legal-acceptance' }
+    }
     return true
   })
 

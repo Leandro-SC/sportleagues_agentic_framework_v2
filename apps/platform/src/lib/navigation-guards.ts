@@ -5,20 +5,20 @@ import { ADMIN_ROUTE_NAMES } from './role-navigation'
 //
 // Públicas (UX): no exigen sesión. `join` pide sesión dentro de la vista y conserva el código; `not-found` redirige a home;
 // `privacy` y `terms` son textos legales que deben poder leerse antes de registrarse (Google OAuth y Play Store).
-export const PUBLIC_ROUTE_NAMES: ReadonlySet<string> = new Set(['home', 'auth-callback', 'join', 'not-found', 'privacy', 'terms'])
+export const PUBLIC_ROUTE_NAMES: ReadonlySet<string> = new Set(['home', 'auth-callback', 'join', 'not-found', 'privacy', 'terms', 'plans'])
 // Con guard asíncrono propio en el router (membresía admin / is_platform_admin): este guard no las decide.
 export const SELF_GUARDED_ROUTE_NAMES: ReadonlySet<string> = new Set([...ADMIN_ROUTE_NAMES, 'superadmin'])
 // Solo sesión (sin perfil): el perfil se crea aquí o la sesión es la de recuperación de contraseña.
-export const SESSION_ONLY_ROUTE_NAMES: ReadonlySet<string> = new Set(['onboarding', 'reset-password'])
+export const SESSION_ONLY_ROUTE_NAMES: ReadonlySet<string> = new Set(['onboarding', 'reset-password', 'legal-acceptance'])
 // Sesión + perfil.
 export const PROFILE_REQUIRED_ROUTE_NAMES: ReadonlySet<string> = new Set(['pool', 'profile', 'points', 'my-tickets', 'matches', 'leagues', 'league-join', 'league', 'team'])
 
-export function protectedRouteRedirect(routeName: string, authenticated: boolean, hasProfile: boolean): 'home' | 'onboarding' | null {
+export function protectedRouteRedirect(routeName: string, authenticated: boolean, hasProfile: boolean, profileLookupUnavailable = false): 'home' | 'onboarding' | null {
   if (PUBLIC_ROUTE_NAMES.has(routeName) || SELF_GUARDED_ROUTE_NAMES.has(routeName)) return null
   if (!authenticated) return 'home'
   if (SESSION_ONLY_ROUTE_NAMES.has(routeName)) return null
   // Cualquier otra ruta (clasificada como PROFILE_REQUIRED o desconocida) exige perfil.
-  return hasProfile ? null : 'onboarding'
+  return hasProfile || profileLookupUnavailable ? null : 'onboarding'
 }
 
 // Deciding whether `/superadmin` is reachable never looks at tenant role, tenant membership or

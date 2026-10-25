@@ -197,13 +197,17 @@ export function useAdmin(options: { branding?: boolean } = {}) {
     const client = getSupabaseClient()
     const startEpoch = epoch
     const [{ data: participantData, error: participantError }, { data: ruleData, error: ruleError }, { data: policyData, error: policyError }] = await Promise.all([
-      client.from('participants').select('id, profile_id, approval_status, payment_status, profiles(display_name)').eq('pool_id', selectedPoolId.value).order('created_at'),
+      // UAT-01: `participants` no tiene FK directa a `profiles`; la RPC autoriza por quiniela y expone solo el nombre visible.
+      client.rpc('admin_pool_participants', { p_pool_id: selectedPoolId.value }),
       client.from('pool_rules').select('exact_points, outcome_points, tie_breaker').eq('pool_id', selectedPoolId.value).eq('is_current', true).maybeSingle(),
       client.rpc('pool_rules_policy', { p_pool_id: selectedPoolId.value }),
     ])
     if (startEpoch !== epoch) return
     if (participantError || ruleError) { error.value = 'No fue posible cargar la configuración.'; return }
-    participants.value = (participantData ?? []) as unknown as AdminParticipant[]
+    participants.value = ((participantData ?? []) as Array<{ id: string; profile_id: string; approval_status: 'pending' | 'approved'; payment_status: PaymentStatus; display_name: string | null }>).map((participant) => ({
+      id: participant.id, profile_id: participant.profile_id, approval_status: participant.approval_status, payment_status: participant.payment_status,
+      profiles: participant.display_name ? { display_name: participant.display_name } : null,
+    }))
     rule.value = ruleData as PoolRule | null
     const policy = (Array.isArray(policyData) ? policyData[0] : policyData) as { editable: boolean; custom_allowed: boolean } | null | undefined
     rulesPolicy.value = !policyError && policy ? { editable: policy.editable, customAllowed: policy.custom_allowed } : null

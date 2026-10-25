@@ -28,6 +28,7 @@ const notice = ref('')
 const submitting = ref(false)
 const signingGoogle = ref(false)
 const remember = ref(getRememberSession())
+const legalAccepted = ref(false)
 // Google bloquea OAuth dentro de WebViews (disallowed_useragent): en el wrapper nativo solo correo y contraseña hasta ADR-022.
 const googleAvailable = !isNativePlatform()
 
@@ -54,6 +55,7 @@ function pendingInviteHint(): string {
 }
 
 async function signUp(): Promise<void> {
+  if (!legalAccepted.value) { errors.value = { legal: 'Debes aceptar los Términos de uso y la Política de privacidad.' }; return }
   errors.value = validateSignUp({ fullName: fullName.value, email: email.value, password: password.value, confirmPassword: confirmPassword.value })
   if (Object.keys(errors.value).length) return
   const result = await auth.signUpWithPassword({ fullName: fullName.value, email: email.value, password: password.value })
@@ -175,9 +177,8 @@ async function google(): Promise<void> {
 
       <p v-if="error" class="mt-3 rounded-xl bg-danger-100 p-3 text-sm font-medium text-danger" role="alert">{{ error }}</p>
       <p v-if="notice" class="mt-3 rounded-xl bg-primary-100 p-3 text-sm font-medium text-primary" role="status">{{ notice }}</p>
-      <p v-if="mode === 'sign-up'" class="mt-3 text-center text-xs text-text-muted" data-testid="legal-consent">
-        Al crear tu cuenta aceptas los <a href="/terminos" class="font-semibold text-primary underline">Términos de uso</a> y la <a href="/privacidad" class="font-semibold text-primary underline">Política de privacidad</a>.
-      </p>
+      <label v-if="mode === 'sign-up'" class="mt-3 flex items-start gap-2 text-xs text-text-muted" data-testid="legal-consent"><input v-model="legalAccepted" type="checkbox" class="mt-0.5 accent-primary" />Al crear tu cuenta aceptas los <a href="/terminos" class="font-semibold text-primary underline">Términos de uso</a> y la <a href="/privacidad" class="font-semibold text-primary underline">Política de privacidad</a>.</label>
+      <p v-if="errors.legal" class="mt-2 text-center text-xs font-medium text-danger" role="alert">{{ errors.legal }}</p>
       <p v-else-if="mode === 'sign-in'" class="mt-3 text-center text-xs text-text-muted">
         <a href="/privacidad" class="underline">Privacidad</a> · <a href="/terminos" class="underline">Términos</a>
       </p>

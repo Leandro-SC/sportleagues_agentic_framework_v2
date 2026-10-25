@@ -21,6 +21,7 @@ export const PRIVACY: LegalDoc = {
       'Para que el organizador administre su quiniela. Tus pronósticos permanecen ocultos para los demás jugadores hasta el cierre de cada partido.',
       'Para mantener la seguridad y la integridad de las competencias (por ejemplo, registros de auditoría de cambios administrativos).',
       'No vendemos tus datos ni los usamos para publicidad. Las sugerencias de marcador son estadísticas (Elo y Poisson), no recomendaciones de apuesta.',
+      'Guardamos la versión y la fecha en que aceptaste estos documentos para demostrar tu consentimiento. No almacenamos tu dirección IP ni datos de tarjeta para este fin.',
     ] },
     { title: 'Quién más los trata', paragraphs: [
       'Supabase aloja la base de datos y la autenticación. Vercel aloja la aplicación web. Google interviene solo si eliges entrar con Google.',
@@ -49,6 +50,7 @@ export const TERMS: LegalDoc = {
     { title: 'Qué es SportLeagues', paragraphs: [
       'Una herramienta para organizar quinielas y pronósticos deportivos entre personas que se conocen. No es una casa de apuestas: no recibe dinero, no paga premios y no ofrece cuotas.',
       'Si un organizador acuerda aportes o premios con sus jugadores, ese acuerdo es exclusivamente entre ellos; SportLeagues solo permite registrar manualmente un estado de participación.',
+      'Los precios y beneficios mostrados en Planes son ofertas informativas que pueden actualizarse. Solicitar un plan no genera cobro, renovación ni cambio automático de tu plan.',
     ] },
     { title: 'Tu cuenta', paragraphs: [
       'Eres responsable de mantener segura tu contraseña y de la actividad hecha con tu cuenta. Usa un nombre visible que no suplante a otra persona.',
@@ -57,6 +59,10 @@ export const TERMS: LegalDoc = {
       'El cierre de pronósticos lo decide el servidor según la hora de inicio de cada partido; después del cierre no se pueden crear ni editar pronósticos.',
       'Quien administra una quiniela no puede competir en ella. Las reglas de puntuación quedan fijas a partir del primer cierre.',
       'Los resultados oficiales los publica el organizador (o un proveedor deportivo cuando esté habilitado) y pueden corregirse; la tabla se recalcula sin duplicar puntos.',
+    ] },
+    { title: 'Planes y solicitudes', paragraphs: [
+      'FREE permite una quiniela activa y hasta 10 participantes. Los planes PRO pueden cubrir una organización completa o una sola quiniela, según la oferta visible.',
+      'Solo propietarios o administradores pueden solicitar un plan para su organización. La aprobación es manual; hasta recibir confirmación, se conservan los límites del plan actual.',
     ] },
     { title: 'Contenido de los organizadores', paragraphs: [
       'Los organizadores son responsables de los nombres, logos e imágenes que suben y deben tener derecho a usarlos. Podemos retirar contenido que infrinja derechos de terceros o estos términos.',
