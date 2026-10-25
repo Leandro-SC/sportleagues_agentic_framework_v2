@@ -79,3 +79,11 @@ No hay mecanismo programado: si la sesión se corta se necesita **un nuevo inici
 - EN CURSO: agente UAT de navegador (`af3f6d8f1628df5a0`): Chrome headless por CDP sin dependencias nuevas, 5 identidades fijas, informe `reports/testing/uat-browser-20261012.md`, código `scripts/qa/uat/**`. No ejecutar el E2E de ciclo de vida ni builds/tests pesados mientras corre (cuentas y RAM compartidas).
 - SIGUIENTE (en orden): leer el informe del UAT → corregir defectos UAT-xx → gates completos (typecheck, npm test, verify:bundle, git diff --check) → commit → merge a `main` + push (si el permiso se deniega, documentarlo) → verificar SHA publicado en Vercel QA y cabeceras/CSP → diagnóstico final `reports/release/diagnostico-final-20261012.md` → actualizar PROJECT_STATE.
 - Lighthouse: NO disponible sin instalar paquetes (denegado/no autorizado). Métricas CDP lo sustituyen parcialmente; declararlo.
+
+## ESTADO AL DETENER EL LOTE (2026-10-24) — supera a todo lo anterior
+- Detenido por pedido del propietario («documenta todo lo que hace falta y detén los procesos»). **No hay procesos ni agentes en ejecución.**
+- Rama `feat/api-football-connector` publicada en `origin`. `main` sin merge (`1f2b755`). QA Supabase 34/34.
+- Lo hecho: `reports/release/diagnostico-final-20261024.md`. **Lo que falta, en orden:** `docs/operations/PENDIENTES-20261024.md`.
+- Al reanudar: (1) `git status`; el árbol tiene trabajo ajeno sin commit (ADR-027, migración `20261024000700`) que NO es de este lote: no
+  commitearlo ni pisarlo; (2) corregir UAT-01 (borrador en `supabase/proposed/20261024000800_*`) y UAT-03 coordinando con ADR-027;
+  (3) gates en un worktree limpio; (4) merge a `main` y verificación de Vercel QA.

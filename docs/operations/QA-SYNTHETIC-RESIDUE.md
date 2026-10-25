@@ -69,3 +69,10 @@ de puntos con la versión vigente en las quinielas con versiones mezcladas (dato
 2026-10-24 (regresión tras `20261024000100`–`000600`): +1 `mvp-flow.mjs` (tenants `E2E-bb947e69` y `-B`, 5 usuarios `e2e-*@example.test`,
 32/32) y +1 `tickets-flow.mjs` (tenant `TKE-52cc8447`, 6 usuarios `tke-*@example.test`, 24/24). Nuevo residuo derivado: 12 filas de
 `notifications` generadas por el trigger (4 en `E2E-bb947e69`, 8 en `TKE-52cc8447`). Totales: mvp-flow 9, tickets-flow 4.
+
+## UAT de navegador (`scripts/qa/uat/**`, 2026-10-24)
+
+Reutiliza las 5 identidades fijas (no crea cuentas). Residuo: jornadas y partidos «UAT R…» y «UAT Jornada …» (un resultado publicado por
+cada corrida del bloque b1); tickets de qa-user1 (2 vigentes, el resto cancelados) y sus pronósticos; un pronóstico de qa-user2 en la quiniela
+B; qa-user2 y qa-outsider quedaron como participantes de la quiniela B; 3 solicitudes «Crear mi propia quiniela» de qa-user1, canceladas;
+unos 5 códigos de unión de la quiniela B. `requires_approval` de la quiniela B se activó temporalmente y se restauró (verificado: false, open).

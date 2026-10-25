@@ -1,47 +1,43 @@
 # PROJECT_STATE.md
 
-## Estado general
+## Estado general (actualizado 2026-10-24)
 
-- Fase actual: `05` / `05-bis`
-- Última fase completada: `04 - Auth, onboarding y memberships`
-- Estado: `PHASE_05_EDGE_FUNCTIONS_ACTIVE_PARTIAL_QA_AUTH_HAPPY_PATHS_PENDING`
-- Entorno QA/UAT: proyecto Supabase Cloud `plataforma_bet` (`juoftaofzepxbrrxbkhx`). Las 11
-  migraciones del proyecto (incluidas las 5 de Fase 05/05-bis) están aplicadas y confirmadas
-  (`supabase migration list --linked` sin pendientes). No es producción; producción se creará
-  cuando el producto esté validado.
-- **Hallazgo de seguridad 001 (alto): `CLOSED / VALIDATED`.**
-  `20260917000100_phase_05_branding_asset_service_role_guard.sql` está aplicada y la regresión
-  QA confirmó ACL revocadas para `anon`/`authenticated`, denegación interna y acceso exclusivo de
-  `service_role`. Ver `reports/security/finding-001-record-verified-branding-asset-authorization-gap.md`.
+- Entorno QA/UAT: Supabase Cloud `plataforma_bet` (`juoftaofzepxbrrxbkhx`), **34/34 migraciones** sincronizadas (las 6 de `20261024*` se
+  aplicaron hoy con dry-run previo). Edge Functions activas en QA: `branding-asset`, `branding-reconciler`, `delete-account`, `csp-report`.
+  `sports-sync` sigue sin desplegar (Premium futuro). Web QA: `https://sportleagues-qa.vercel.app` (despliega `main`). **No hay producción.**
+- Estado de módulos: código, SQL y E2E cerrados en QA; **máximo `DONE_PENDING_UAT`** hasta la UAT humana en dispositivo
+  (`docs/testing/MOBILE-FIRST-ACCEPTANCE.md`).
+- Hallazgo 001: `CLOSED / VALIDATED`. F-04 aplicado en QA. F-05 aplicado en QA (`sports-sync` sin desplegar). **F-06 en observación**
+  (`csp-report` desplegado y `report-uri` activo; falta observar los reportes y decidir la CSP impuesta).
+- Informe del lote 2026-10-24: `reports/release/diagnostico-final-20261024.md`. **Pendientes: `docs/operations/PENDIENTES-20261024.md`** (incluye UAT-01 y UAT-03 altos, merge a `main` y bloqueos del propietario).
 
 ## MVP — fases
+
+Estados: `DONE_PENDING_UAT` = implementado y probado (unitarias, SQL en rollback, E2E reales contra QA), sin UAT humana en dispositivo.
 
 - [x] 01 — Auditoría y normalización de requisitos
 - [x] 02 — Arquitectura + ADRs base
 - [x] 03 — Modelo de datos + multi-tenancy + RLS
-- [x] 04 — Auth, onboarding y memberships
-- [ ] 05 — Admin: quinielas, branding, reglas y participantes. Schema/RPC/migraciones aplicados y
-      validados en QA (`reports/admin/phase-05bis-qa-validation.md`). Bloqueado para cierre por
-      happy paths remotos autenticados y QA manual de `/admin`/Magic Link; las fixtures SQL son
-      autocontenidas y ya no requieren datos QA preexistentes.
-- [ ] 05-bis — Superadmin de plataforma (frontera de autorización global, ver `ADR-008`,
-      `reports/admin/phase-05bis-hardening.md` y `reports/admin/phase-05bis-qa-validation.md`):
-      infraestructura completa y **validada exhaustivamente contra QA real** (tabla
-      `platform_admins`, `is_platform_admin()`, RLS, GRANT/REVOKE, `requireTenantAdmin` +
-      `requirePlatformAdmin`, loading, logout — todo con tests unitarios en verde). Sin hallazgos
-      de seguridad. Pendiente: provisionar el primer Superadmin de prueba (runbook listo, no
-      ejecutado — requiere autorización explícita) y validación manual en navegador de
-      `/superadmin`. No requiere corregir el hallazgo 001 para avanzar (áreas independientes).
-- [ ] 06 — Torneos, jornadas y partidos
-- [ ] 07 — Pronósticos, locks y privacidad previa al partido
-- [ ] 08 — Scoring, recálculo y leaderboards
-- [ ] 09 — Elo + Poisson + auto-fill estadístico
-- [ ] 10 — Flyers HD + QR + Web Share
-- [ ] 11 — PWA + Capacitor + deep links + notificaciones base
-- [ ] 12 — Analítica/observabilidad y feature entitlements
-- [ ] 13 — Testing funcional, E2E, responsive y rendimiento
-- [ ] 14 — Auditoría final de seguridad y RLS
-- [ ] 15 — Release web/Android y runbook
+- [x] 04 — Auth, onboarding y memberships (correo/contraseña + Google, ADR-013)
+- [~] 05 / 05-bis — Admin y Superadmin: `DONE_PENDING_UAT`. Falta la evidencia humana de los happy paths HTTP de branding y la
+      validación manual de `/admin` y `/superadmin` (UI de Superadmin fuera de la app principal, ADR-018).
+- [~] 06 — Torneos, jornadas y partidos (catálogo central y resultados híbridos, ADR-016): `DONE_PENDING_UAT`
+- [~] 07 — Pronósticos, locks y privacidad: `DONE_PENDING_UAT`
+- [~] 08 — Scoring, recálculo y leaderboards: `DONE_PENDING_UAT`; reglas congeladas al primer lock y FREE con puntuación estándar
+      (ADR-023); tabla en vivo por Realtime.
+- [~] 09 — Elo + Poisson + auto-fill: `DONE_PENDING_UAT`; ratings reconstruidos en QA y recalculados por `pg_cron` cada 30 min.
+- [~] 10 — Flyers HD + QR + Web Share: `DONE_PENDING_UAT`; centro para compartir por WhatsApp, QR local, marca de agua FREE,
+      white-label PRO, nombre de plataforma y ajuste inteligente del logo (ADR-024).
+- [~] 11 — PWA + Capacitor + deep links + notificaciones base: `DONE_PENDING_UAT`; App Links `/j/` y `/p/` (host QA, huella debug),
+      Google oculto en el wrapper, notificaciones de resultados en la app (ADR-025). Push del sistema operativo: etapa 2 (ADR pendiente).
+- [~] 12 — Observabilidad y entitlements: entitlements en servidor completos; telemetría local sin PII y reportes CSP. Colector
+      externo de errores: `BLOCKED_DECISION` (proveedor).
+- [~] 13 — Testing: 87 archivos / 812 pruebas unitarias aisladas de la red; suites SQL en rollback; E2E reales; CI en GitHub Actions.
+      UAT de navegador automatizada: ver `reports/testing/uat-browser-20261012.md`.
+- [~] 14 — Auditoría de seguridad y RLS: revisiones independientes del 2026-10-11/12 cerradas en QA; nuevas tablas con RLS y pruebas
+      negativas (notifications, brand name, account deletion).
+- [ ] 15 — Release web/Android: `BLOCKED_EXTERNAL`/`BLOCKED_DECISION`. Faltan proyecto de producción, dominio, keystore de release,
+      ficha de Play, identidad legal y revisión de textos, `VITE_LEGAL_CONTACT_EMAIL` y D22.
 
 ## Futuro explícitamente fuera del MVP
 
@@ -438,3 +434,25 @@ Informe único: `reports/release/closure-board-20261012.md`. **Veredicto: `READY
 - **Fase 11:** PWA (manifest, service worker seguro) y config Capacitor listas; compilación Android BLOCKED_EXTERNAL. **Fase 12:** parcial (telemetría local + receptor CSP; colector externo requiere ADR).
 - **Gates:** `npm ci` real (`source-map-js` 1.2.2), `npm audit` 0, typecheck, `npm test` 74 archivos / 659 tests, build, `verify:bundle`, `git diff --check`: PASS. **NO EJECUTADO:** UAT móvil (checklist `docs/testing/UAT-MOBILE-AUTHENTICATED.md`), Lighthouse, concurrencia real de las propuestas, inventario `auth.users`/invitación a `quinielasvilla@gmail.com` (script de operador `scripts/qa/qa-accounts.mjs`).
 - Fases 05/05-bis siguen sin ACCEPTED formal (faltan happy paths HTTP y validación manual); 06–08 y tickets: código y pruebas cerrados, **DONE_PENDING_UAT**.
+
+## Lote de correcciones y mejoras (2026-10-24) — autorización completa del propietario
+
+Rama `feat/api-football-connector` (respaldada en `origin`). Detalle y evidencia: `reports/release/diagnostico-final-20261024.md`.
+
+- **Scoring (ADR-023):** reglas congeladas al primer lock o primer resultado; FREE usa la puntuación estándar 3/1; regla estándar al
+  abrir sin reglas; `rescore_pool`; política de reglas para la UI.
+- **Marca y compartir (ADR-024):** nombre de plataforma del organizador (todos los planes) visible para los jugadores; logo y banner PRO
+  sin deformar; ajuste inteligente del logo en el navegador; centro para compartir por WhatsApp (tabla, por cerrar, resultados, campeón,
+  mi resultado, invitación; formato chat o Estado; foto de fondo local; mensaje editable); QR (`uqr`), marca de agua FREE y white-label PRO.
+- **Notificaciones y tabla en vivo (ADR-025):** avisos de resultado publicado/corregido con el pronóstico propio y los puntos; Realtime
+  más sondeo de respaldo; tabla en vivo; Elo recalculado por `pg_cron`.
+- **Privacidad (ADR-026):** eliminación de cuenta desde Perfil (Edge Function `delete-account`, baja lógica); `/privacidad` y `/terminos`
+  públicas.
+- **Móvil:** App Links `/j/` y `/p/` para el host de QA, `assetlinks.json` (huella debug), Google oculto en el wrapper (ADR-022 sigue Proposed).
+- **Seguridad/operación:** `csp-report` desplegado y `report-uri` activo (F-06 en observación); CI de GitHub Actions; `npm audit` 0 (raíz);
+  pruebas unitarias aisladas de la red.
+- **QA aplicado (dry-run previo en cada una):** `20261024000100`–`000600` (34/34).
+- **Trabajo ajeno en curso detectado (no incluido):** ADR-027 (aceptación legal y catálogo de planes), migración
+  `20261024000700_legal_acceptance_and_plan_catalog.sql`, `LegalAcceptanceView.vue`, `PlansView.vue`, `usePlanCatalog.ts` y cambios en
+  `useAuth.ts`, `AuthForm.vue`, `router.ts`, `navigation-guards.ts`, `usePostSignInNavigation.ts`, `legal-content.ts` y `ProfileView.vue`.
+  Quedaron sin commit, sin aplicar y sin tocar; al momento del cierre rompían el typecheck (`acceptLegalDocuments`).
