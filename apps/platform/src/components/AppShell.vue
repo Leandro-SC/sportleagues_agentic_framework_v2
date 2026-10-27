@@ -29,7 +29,7 @@ const navMode = computed<NavMode>(() => props.nav ?? navModeForRoute(route?.name
 </script>
 
 <template>
-  <div class="mx-auto flex min-h-dvh max-w-lg flex-col bg-canvas">
+  <div class="app-shell mx-auto flex min-h-dvh max-w-lg flex-col overflow-x-clip bg-canvas shadow-2xl shadow-black/30">
     <TopBar v-if="variant === 'guest'" variant="guest" :title="title" :user-name="userName" />
     <main class="flex-1 px-5" :class="variant === 'focus' ? 'safe-top flex items-center justify-center pb-8' : variant === 'screen' ? 'safe-top flex flex-col' : variant === 'guest' ? 'pt-1 pb-8' : 'pb-8'">
       <div class="w-full" :class="variant === 'screen' ? 'flex flex-1 flex-col' : ''">

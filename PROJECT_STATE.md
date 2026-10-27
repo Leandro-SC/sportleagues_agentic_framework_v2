@@ -460,3 +460,52 @@ Rama `feat/api-football-connector` (respaldada en `origin`). Detalle y evidencia
 ## Correcciones UAT y publicación a main (2026-10-24)
 
 `main` y `origin/main` están en `d21ae18`; las migraciones legales y de participantes de administración quedaron aplicadas en QA. UAT-01 y UAT-03 se corrigieron y cuentan con pruebas focalizadas. UAT-02 a UAT-09 se corrigieron en el siguiente lote pendiente de commit: la participación pendiente se revalida aun con caché fresca; el acceso a una quiniela tiene caché privada offline; los rechazos de tickets mantienen el panel visible; se amplían áreas táctiles, contraste y diseño a 200 %; Inicio prioriza sus imágenes LCP. Evidencia local: typecheck, pruebas focalizadas (29/29), batería Vitest y `verify:bundle` completados sin código de error; queda validación humana de navegador/Vercel QA y revisión de la primera corrida de CI.
+
+## Consola de plataforma aislada en Vercel (2026-10-26)
+
+Se creó `theonix/sportleagues-control-qa`, separado de `sportleagues-qa`, con Node 22, `npm ci`,
+`npm run build:superadmin` y salida `apps/superadmin/dist`. Se configuraron solo
+`VITE_SUPABASE_URL` y una clave publicable de Supabase para Production/Preview; no se cargó ninguna
+service-role ni secreto privado. El primer despliegue de producción quedó listo en
+`https://sportleagues-control-qa.vercel.app` y muestra la pantalla de acceso de plataforma.
+
+El repositorio `Leandro-SC/sportleagues_agentic_framework_v2` está conectado, pero los despliegues
+automáticos permanecen desactivados: Vercel conserva `main` como rama de producción y esa rama no
+contiene la consola. Pendiente de operador: en Settings → Environments → Production → Branch Tracking,
+definir `feat/superadmin-control-plane` y habilitar despliegues Git. No asignar dominio público de jugadores.
+Handoff: `docs/agents/HANDOFF-VERCEL-CONTROL-20261026.md`.
+
+## Control Plane premium y operador único (2026-10-26)
+
+La migración `20261027032944_superadmin_single_email_access.sql` se aplicó a QA tras dry-run.
+`platform_console_guard()` exige un rol activo y el correo de operador aprobado; la suite SQL negativa confirmó
+3/3 escenarios (operador permitido, otro platform admin denegado y `anon` sin ejecución). La interfaz elimina la
+entrada libre de correo y cierra una sesión ajena en ese origen. El despliegue manual actualizado está listo en
+`https://sportleagues-control-qa.vercel.app`.
+
+El dashboard se renovó como Control Plane premium, responsive y basado solo en métricas reales de RPC: señales
+operativas, organizaciones con búsqueda, solicitudes y catálogo auditado. ADR-030 delimita estas funciones y prohíbe
+tablas globales o acciones destructivas sin un ADR y endpoint protegido adicional.
+
+El incremento operativo `20261027040000_superadmin_operational_read_models.sql` quedó aplicado en QA: usuarios
+minimizados, clientes, torneos/partidos, actividad y monitor de sincronización se sirven por RPCs auditadas. ADR-031
+confirma que no se exponen emails de Auth, cuerpos de avisos ni metadata libre; las mutaciones globales siguen sujetas
+a funciones específicas y confirmación de producto.
+
+El despliegue de este incremento (`dpl_2B1TGpmm5dUA5duYPwfreMWEpqq2`) está `Ready` y tiene los aliases canónicos
+`sportleagues-control-qa.vercel.app` y `sportleagues-control-qa-theonix.vercel.app`.
+
+La interfaz del Control Plane se renovó a una estética B2B clara y sobria: se retiraron acentos neón, se adoptaron
+superficies neutras, azul marino institucional, jerarquía tipográfica y tablas/tarjetas más legibles en escritorio y móvil.
+El build de Superadmin y `git diff --check` pasaron antes del despliegue `dpl_71SmswmwqjE1gaCMHqeR48t1u12Q`.
+
+La migración `20261027042014_superadmin_observability_and_growth_metrics.sql` añadió presencia autenticada de corta
+vida, errores de cliente anonimizados, KPIs de adquisición/demanda y lecturas de actividad por usuario. QA: dry-run y
+aplicación correctos; suite de autorización 3/3 PASS. El Control Plane publica los módulos Analítica y KPIs, Monitor
+en vivo y Errores y logs en `dpl_3SECiF257Cbfguq4Ce7dTtejN6wP`. La presencia comenzará a poblarse tras el siguiente
+despliegue separado de la app de jugadores que incorpora el heartbeat y el sumidero de telemetría.
+
+El Control Plane incorpora filtros reutilizables por búsqueda, fechas desde/hasta, rangos rápidos (hoy/7/30 días),
+estado contextual y limpieza de criterios en clientes, usuarios, operaciones deportivas, solicitudes, monitor y errores.
+El rediseño responsive pasó `build:superadmin` y `git diff --check`; se publicó como
+`dpl_Fasb42KcAcebCekqxAEgjGNKptoi`.

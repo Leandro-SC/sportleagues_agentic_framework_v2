@@ -35,7 +35,7 @@ const items = computed<NavItem[]>(() => (props.mode === 'admin' ? adminItems : u
 </script>
 
 <template>
-  <nav :aria-label="mode === 'admin' ? 'Navegación del organizador' : 'Navegación principal'" class="safe-bottom sticky bottom-0 z-30 border-t border-border bg-canvas/95 backdrop-blur">
+  <nav :aria-label="mode === 'admin' ? 'Navegación del organizador' : 'Navegación principal'" class="safe-bottom sticky bottom-0 z-30 border-t border-border/80 bg-canvas/94 shadow-[0_-10px_28px_rgba(3,17,28,0.28)] backdrop-blur-xl">
     <!-- Salida siempre visible del modo organizador hacia la experiencia de participante. -->
     <RouterLink
       v-if="mode === 'admin'"
@@ -55,7 +55,7 @@ const items = computed<NavItem[]>(() => (props.mode === 'admin' ? adminItems : u
         :class="active === item.key ? 'text-primary' : 'text-text-muted hover:text-text'"
       >
         <span class="flex h-8 w-10 items-center justify-center rounded-xl" :class="active === item.key ? 'bg-primary-100 shadow-glow-primary' : ''">
-          <component :is="item.icon" class="h-5.5 w-5.5" :stroke-width="active === item.key ? 2.4 : 2" />
+          <component :is="item.icon" class="h-5.5 w-5.5 transition-transform" :class="active === item.key ? 'text-primary drop-shadow-[0_0_8px_rgba(33,245,154,0.45)]' : ''" :stroke-width="active === item.key ? 2.5 : 2" />
         </span>
         <span>{{ item.label }}</span>
       </RouterLink>

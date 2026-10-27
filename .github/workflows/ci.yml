@@ -31,6 +31,8 @@ jobs:
       - run: npm audit --omit=dev --audit-level=high
       - run: npm run typecheck
       - run: npm test
+      - name: Build de la consola aislada de Superadmin
+        run: npm run build:superadmin
       - name: Build y verificación del bundle (sin dataset de vista previa ni UI de Superadmin)
         run: npm run verify:bundle
       - name: git diff --check

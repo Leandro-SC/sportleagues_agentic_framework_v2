@@ -16,7 +16,7 @@ const initials = computed(() => {
 </script>
 
 <template>
-  <header class="safe-top sticky top-0 z-30 border-b border-border bg-canvas/90 backdrop-blur">
+  <header class="safe-top sticky top-0 z-30 border-b border-border/80 bg-canvas/82 shadow-[0_8px_24px_rgba(3,17,28,0.16)] backdrop-blur-xl">
     <div class="mx-auto flex max-w-lg items-center justify-between px-5 py-3.5">
       <RouterLink to="/" class="flex items-center gap-2">
         <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-canvas shadow-glow-primary">

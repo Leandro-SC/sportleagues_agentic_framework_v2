@@ -1,4 +1,5 @@
 node_modules/
+.vercel/
 apps/platform/dist/
 apps/superadmin/dist/
 supabase/.temp/

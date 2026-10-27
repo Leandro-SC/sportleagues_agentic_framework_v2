@@ -103,11 +103,17 @@
   }
 
   .app-surface {
-    @apply rounded-2xl border border-border bg-surface;
+    @apply rounded-2xl border border-border bg-gradient-to-b from-surface-2/70 to-surface;
   }
 
   .app-surface-raised {
-    @apply rounded-2xl border border-border bg-surface shadow-md;
+    @apply rounded-2xl border border-border bg-surface-2 shadow-md;
+  }
+
+  .app-shell {
+    background-image:
+      radial-gradient(130% 42% at 50% -8%, rgba(22, 216, 244, 0.12), transparent 64%),
+      radial-gradient(100% 34% at 50% 105%, rgba(33, 245, 154, 0.08), transparent 70%);
   }
 
   .field-surface {

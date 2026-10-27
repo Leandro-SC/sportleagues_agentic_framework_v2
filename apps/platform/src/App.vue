@@ -5,10 +5,11 @@ import { LoaderCircle } from 'lucide-vue-next'
 import { hasSupabaseConfiguration } from './lib/supabase'
 import { useAuth } from './composables/useAuth'
 import { routeAuthCheck } from './router'
+import { startPlatformPresence } from './lib/platform-observability'
 
 const configured = hasSupabaseConfiguration()
 const auth = configured ? useAuth() : null
-onMounted(() => { if (auth) void auth.restore() })
+onMounted(() => { if (auth) void auth.restore().finally(startPlatformPresence) })
 </script>
 
 <template>
