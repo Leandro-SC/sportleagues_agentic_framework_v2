@@ -101,7 +101,7 @@ const formLabels = { G: 'Ganado', E: 'Empatado', P: 'Perdido' }
           <PreviewBadge v-if="sports.preview" class="mt-3" />
         </div>
 
-        <dl class="grid grid-cols-5 divide-x divide-border rounded-2xl border border-border bg-surface/60 py-3">
+        <dl class="grid grid-cols-5 divide-x divide-border rounded-2xl border border-border bg-linear-to-b from-surface-2/80 to-surface py-3.5 shadow-sm">
           <div v-for="item in summary" :key="item.label" class="flex flex-col-reverse items-center gap-0.5 px-1 text-center">
             <dt class="text-[11px] text-text-muted">{{ item.label }}</dt>
             <dd class="font-display text-2xl font-bold text-text">{{ item.value }}</dd>
@@ -149,7 +149,7 @@ const formLabels = { G: 'Ganado', E: 'Empatado', P: 'Perdido' }
       <div class="pointer-events-none fixed inset-x-0 bottom-[calc(var(--bottom-nav-h)+env(safe-area-inset-bottom))] z-20 mx-auto max-w-lg bg-linear-to-t from-canvas via-canvas/85 to-transparent px-5 pb-3 pt-8">
         <button
           type="button"
-          class="press-scale pointer-events-auto flex w-full items-center justify-center gap-2 rounded-pill py-3.5 text-[15px] font-bold shadow-glow-primary"
+          class="press-scale pointer-events-auto flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[15px] font-extrabold shadow-[0_0_20px_rgba(33,245,154,0.35)]"
           :class="following ? 'border border-primary bg-canvas text-primary' : 'bg-primary text-canvas'"
           :aria-pressed="following"
           @click="followed.toggle(team.id)"

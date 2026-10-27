@@ -31,12 +31,12 @@ function goTo(index: number): void {
         class="stadium-hero relative w-full shrink-0 snap-center overflow-hidden rounded-2xl border border-secondary/30 px-4 pb-7 pt-3 shadow-md"
       >
         <div class="flex items-center justify-between gap-2">
-          <span class="flex min-w-0 items-center gap-2 text-xs font-semibold text-text">
+          <span class="flex min-w-0 items-center gap-2 rounded-full border border-white/10 bg-black/40 px-2.5 py-1 text-xs font-semibold text-text backdrop-blur-sm">
             <CompetitionEmblem v-if="competition(match.tournament_id)" :name="competition(match.tournament_id)!.name" :country="competition(match.tournament_id)!.country" :accent="competition(match.tournament_id)!.accent" size="md" />
             <span class="truncate">{{ competition(match.tournament_id)?.name }}</span>
           </span>
-          <span class="inline-flex items-center gap-1.5 rounded-pill bg-danger px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-white">
-            <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-white" aria-hidden="true" />En vivo
+          <span class="inline-flex items-center gap-1.5 rounded-full bg-rose-600 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-sm">
+            <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-white" aria-hidden="true" />EN VIVO
           </span>
         </div>
         <div class="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
@@ -45,8 +45,11 @@ function goTo(index: number): void {
             <span class="w-full truncate text-center text-sm font-semibold text-text">{{ team(match.home_team_id)?.name }}</span>
           </span>
           <span class="flex flex-col items-center">
-            <span class="font-display text-4xl font-extrabold tracking-wide text-text">{{ match.home_score }} - {{ match.away_score }}</span>
+            <span class="font-display text-3xl font-black tracking-wider text-text">{{ match.home_score }} - {{ match.away_score }}</span>
             <span class="text-xs font-bold text-primary">{{ match.minute }}'</span>
+            <span class="mt-1 flex items-center justify-center gap-1">
+              <span class="h-1.5 w-1.5 rounded-full bg-primary" />
+            </span>
           </span>
           <span class="flex min-w-0 flex-col items-center gap-1.5">
             <TeamCrest :name="team(match.away_team_id)?.name ?? 'Visita'" :short-name="team(match.away_team_id)?.short_name" :colors="team(match.away_team_id)?.colors" size="lg" />

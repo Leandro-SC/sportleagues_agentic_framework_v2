@@ -88,7 +88,7 @@ const shortName = computed(() => competition.value?.name.replace(/\s+(CL|AP)?\s*
               <p class="font-display text-base font-bold leading-snug text-text">La emoción de la {{ shortName }} en tus manos</p>
               <RouterLink
                 :to="{ query: { tab: 'partidos' } }"
-                class="press-scale inline-flex rounded-lg bg-primary px-4 py-2 text-xs font-bold text-canvas shadow-glow-primary"
+                class="press-scale inline-flex rounded-full bg-primary px-5 py-2 text-xs font-extrabold text-canvas shadow-glow-primary"
               >{{ hasLive ? 'Ver partidos en vivo' : 'Ver partidos' }}</RouterLink>
             </div>
             <TeamCrest v-if="leader" :name="leader.name" :short-name="leader.short_name" :colors="leader.colors" size="xl" class="absolute -bottom-3 right-2 rotate-6 opacity-90" />

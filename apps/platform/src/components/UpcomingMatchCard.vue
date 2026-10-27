@@ -24,7 +24,7 @@ defineProps<{ match: Match; competition?: Competition; home?: Team; away?: Team;
         <span class="line-clamp-2 text-right text-sm font-semibold leading-tight text-text">{{ home?.name }}</span>
         <TeamCrest :name="home?.name ?? 'Local'" :short-name="home?.short_name" :colors="home?.colors" size="sm" />
       </span>
-      <span class="text-xs font-semibold text-text-muted">vs</span>
+      <span class="flex h-7 w-7 items-center justify-center rounded-full border border-[#ffc24b]/40 bg-[#2a220b] text-[11px] font-black text-[#ffc24b] shadow-sm">vs</span>
       <span class="flex min-w-0 items-center gap-2">
         <TeamCrest :name="away?.name ?? 'Visita'" :short-name="away?.short_name" :colors="away?.colors" size="sm" />
         <span class="line-clamp-2 text-sm font-semibold leading-tight text-text">{{ away?.name }}</span>

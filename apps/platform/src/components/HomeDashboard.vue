@@ -90,7 +90,7 @@ const resultIcon = { pool: Trophy, competition: ListOrdered, team: UsersRound }
         <NotificationsButton />
         <RouterLink
           :to="{ name: 'profile' }"
-          class="press-scale flex h-11 w-11 items-center justify-center rounded-full bg-surface-3 font-display text-sm font-bold text-text ring-1 ring-white/15"
+          class="press-scale flex h-11 w-11 items-center justify-center rounded-full bg-surface-2 font-display text-sm font-extrabold text-text ring-1 ring-white/20 shadow-sm"
           aria-label="Ver perfil"
         >{{ initials }}</RouterLink>
       </div>

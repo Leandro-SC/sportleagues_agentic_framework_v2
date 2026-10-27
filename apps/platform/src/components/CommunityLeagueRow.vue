@@ -18,6 +18,6 @@ defineEmits<{ join: [league: CommunityLeague] }>()
         {{ SPORT_LABELS[league.sport] }} · {{ league.teams_count ? `${league.teams_count} equipos` : `${league.members_count} miembros` }}
       </span>
     </span>
-    <button type="button" class="press-scale shrink-0 rounded-lg bg-primary px-4 py-2 text-xs font-bold text-canvas" :aria-label="`Unirse a ${league.name}`" @click="$emit('join', league)">Unirse</button>
+    <button type="button" class="press-scale shrink-0 rounded-full bg-primary px-4 py-1.5 text-xs font-extrabold text-canvas shadow-sm hover:bg-primary-600" :aria-label="`Unirse a ${league.name}`" @click="$emit('join', league)">Unirse</button>
   </li>
 </template>

@@ -13,7 +13,7 @@ import PrimaryButton from '../components/PrimaryButton.vue'
 import SportIcon from '../components/SportIcon.vue'
 import { useAuth } from '../composables/useAuth'
 import { normalizeJoinCode } from '../lib/join-intent'
-import type { SportKey } from '../lib/sports-catalog'
+import type { SportFilter } from '../lib/sports-catalog'
 
 const router = useRouter()
 const auth = useAuth()
@@ -23,7 +23,7 @@ const codeError = ref('')
 const authPanel = ref(false)
 const joinOpen = ref(false)
 const authMode = ref<AuthMode>('sign-in')
-const coverSports: SportKey[] = ['football', 'volleyball', 'basketball', 'tennis']
+const coverSports: SportFilter[] = ['all', 'football', 'basketball', 'tennis', 'volleyball']
 
 function goToJoin(): void {
   const normalized = normalizeJoinCode(code.value)
@@ -49,21 +49,35 @@ function openAuth(mode: AuthMode): void {
       <img :src="coverBackground" alt="" fetchpriority="high" decoding="async" class="pointer-events-none absolute inset-0 h-full w-full object-cover" />
       <div class="pointer-events-none absolute inset-0 bg-linear-to-b from-canvas/30 via-canvas/10 to-canvas/85" />
       <div class="relative flex flex-1 flex-col">
-        <img :src="coverLogo" alt="Tablo" fetchpriority="high" decoding="async" class="mx-auto mt-[5dvh] w-48 drop-shadow-[0_8px_24px_rgba(0,0,0,0.65)]" />
-        <p class="mx-auto mt-2 max-w-44 font-display text-base font-bold leading-tight text-text">Tu pasión,<br />en cada partido</p>
+        <div class="mx-auto mt-[4dvh] flex flex-col items-center">
+          <div class="relative flex items-center justify-center">
+            <div class="absolute -inset-2 rounded-full bg-primary/25 blur-xl"></div>
+            <svg viewBox="0 0 48 48" class="relative h-14 w-14 text-primary drop-shadow-[0_0_16px_rgba(33,245,154,0.7)]" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 8h24v14c0 6.627-5.373 12-12 12s-12-5.373-12-12V8z" />
+              <path d="M12 14H6a4 4 0 0 0-4 4v2a6 6 0 0 0 6 6h4" />
+              <path d="M36 14h6a4 4 0 0 1 4 4v2a6 6 0 0 1-6 6h-4" />
+              <path d="M24 34v6" />
+              <path d="M16 40h16" />
+            </svg>
+          </div>
+          <h1 class="mt-3 font-display text-4xl font-extrabold tracking-tight text-white drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)]">
+            Sport<span class="text-primary">Leagues</span>
+          </h1>
+        </div>
+        <p class="mx-auto mt-2 max-w-48 font-display text-[16px] font-bold leading-tight text-text drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">Tu pasión,<br />en cada partido</p>
         <div class="mt-5 flex items-center justify-center gap-2" aria-label="Deportes disponibles">
-          <span v-for="sport in coverSports" :key="sport" class="flex h-8 w-8 items-center justify-center rounded-full border border-text/20 bg-canvas/45 text-text backdrop-blur-sm">
-            <SportIcon :sport="sport" class="h-4 w-4" />
+          <span v-for="sport in coverSports" :key="sport" class="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-canvas/60 text-text backdrop-blur-md shadow-sm">
+            <SportIcon :sport="sport" class="h-4.5 w-4.5" />
           </span>
         </div>
         <div class="flex-1" />
         <div class="space-y-3">
-          <button type="button" class="press-scale flex w-full items-center justify-center gap-3 rounded-pill bg-primary px-5 py-4 text-[15px] font-bold text-canvas shadow-glow-primary" @click="openAuth('sign-in')">
+          <button type="button" class="press-scale flex w-full items-center justify-center gap-3 rounded-full bg-primary px-5 py-4 text-[16px] font-extrabold text-canvas shadow-[0_0_24px_rgba(33,245,154,0.35)] hover:bg-[#34f7a5]" @click="openAuth('sign-in')">
             <span>Iniciar sesión</span><ArrowRight class="h-5 w-5" aria-hidden="true" />
           </button>
-          <button type="button" class="press-scale w-full rounded-pill border border-primary bg-canvas/35 px-5 py-4 text-[15px] font-bold text-text backdrop-blur-sm" @click="openAuth('sign-up')">Crear cuenta</button>
+          <button type="button" class="press-scale w-full rounded-full border border-white/20 bg-black/40 px-5 py-4 text-[16px] font-bold text-text backdrop-blur-md hover:border-white/40" @click="openAuth('sign-up')">Crear cuenta</button>
         </div>
-        <p class="mt-7 text-xs font-medium text-text/85">Juega <span class="mx-2 text-primary">•</span> Compite <span class="mx-2 text-primary">•</span> Conecta</p>
+        <p class="mt-7 text-xs font-semibold text-text/90">Juega <span class="mx-2 text-primary font-bold">•</span> Compite <span class="mx-2 text-primary font-bold">•</span> Conecta</p>
       </div>
     </section>
 

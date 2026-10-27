@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Award, BadgeCheck, ChevronLeft, FileText, History, LayoutDashboard, ChartNoAxesColumnIncreasing, LoaderCircle, LogOut, Settings, ShieldCheck, Star, Ticket, UserX, UsersRound, Crown } from 'lucide-vue-next'
+import { Award, BadgeCheck, Camera, ChevronLeft, FileText, History, LayoutDashboard, ChartNoAxesColumnIncreasing, LoaderCircle, LogOut, Settings, ShieldCheck, Star, Ticket, UserX, UsersRound, Crown } from 'lucide-vue-next'
 import ActivityRow from '../components/ActivityRow.vue'
 import AppShell from '../components/AppShell.vue'
 import CatalogBoundary from '../components/CatalogBoundary.vue'
@@ -103,22 +103,22 @@ async function logout(): Promise<void> {
 
     <section class="space-y-3.5 pb-2">
       <div class="flex flex-col items-center text-center">
-        <span class="relative flex h-16 w-16 items-center justify-center rounded-full border-2 border-text/80 bg-canvas font-display text-xl font-bold text-text">
+        <span class="relative flex h-20 w-20 items-center justify-center rounded-full border-2 border-white/20 bg-surface-2 font-display text-2xl font-black text-text shadow-md">
           {{ initials }}
-          <BadgeCheck class="absolute -bottom-0.5 -right-0.5 h-5 w-5 rounded-full bg-canvas text-primary" aria-label="Cuenta verificada" />
+          <span class="absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center rounded-full border border-primary/80 bg-surface text-primary shadow-sm" aria-label="Cambiar foto"><Camera class="h-3.5 w-3.5" aria-hidden="true" /></span>
         </span>
-        <p class="mt-2 font-display text-lg font-bold text-text">{{ auth.state.profile?.display_name ?? 'Sin nombre' }}</p>
-        <p class="text-sm text-text-muted">{{ auth.state.user?.email }}</p>
+        <p class="mt-2 font-display text-xl font-bold text-text">{{ auth.state.profile?.display_name ?? 'Sin nombre' }}</p>
+        <p class="text-xs text-text-muted">{{ auth.state.user?.email ? (auth.state.user.email.includes('@') ? `@${auth.state.user.email.split('@')[0]}` : auth.state.user.email) : '@bart.sport' }}</p>
         <div v-if="previewStats" class="mt-2 flex items-center gap-2">
-          <span class="inline-flex items-center gap-1.5 rounded-lg border border-primary/60 bg-primary-100 px-2.5 py-1 text-xs font-semibold text-primary">
+          <span class="inline-flex items-center gap-1.5 rounded-full border border-primary/70 bg-primary-100/70 px-3 py-1 text-xs font-bold text-primary shadow-sm">
             <Star class="h-3.5 w-3.5" aria-hidden="true" />{{ previewStats.level }}
           </span>
-          <span class="rounded-lg bg-surface-2 px-2.5 py-1 text-xs font-semibold text-text-muted">+{{ previewStats.weeklyPoints }} pts</span>
+          <span class="rounded-full border border-border bg-surface-2 px-2.5 py-1 text-xs font-semibold text-text-muted">+{{ previewStats.weeklyPoints }} pts</span>
           <PreviewBadge />
         </div>
       </div>
 
-      <dl class="grid grid-cols-3 divide-x divide-border rounded-2xl border border-border bg-linear-to-b from-surface-2/70 to-surface py-2.5">
+      <dl class="grid grid-cols-3 divide-x divide-border rounded-2xl border border-border bg-linear-to-b from-surface-2/80 to-surface py-3.5 shadow-sm">
         <div v-for="item in stats" :key="item.label" class="flex flex-col-reverse items-center gap-0.5">
           <dt class="text-xs text-text-muted">{{ item.label }}</dt>
           <dd class="font-display text-xl font-bold text-text">{{ item.value }}</dd>

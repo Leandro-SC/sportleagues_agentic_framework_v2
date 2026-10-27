@@ -59,11 +59,11 @@ const emptyCopy = computed(() => {
           type="button"
           role="radio"
           :aria-checked="sport === option.value"
-          class="press-scale flex flex-col items-center gap-1.5 rounded-xl border px-1 py-2.5 text-[11px] font-semibold transition-colors"
-          :class="sport === option.value ? 'border-primary/70 bg-primary-100/60 text-text shadow-glow-primary' : 'border-transparent text-text-muted hover:text-text'"
+          class="press-scale flex flex-col items-center gap-1.5 rounded-2xl border px-1 py-2.5 text-[11px] font-semibold transition-all"
+          :class="sport === option.value ? 'border-primary/80 bg-primary-100/70 text-text shadow-glow-primary' : 'border-border/60 bg-surface-2/40 text-text-muted hover:border-border hover:text-text'"
           @click="sport = option.value"
         >
-          <SportIcon :sport="option.value" class="h-6 w-6" />
+          <SportIcon :sport="option.value" class="h-6 w-6" :class="sport === option.value ? 'text-primary' : 'text-text-muted'" />
           {{ option.label }}
         </button>
       </div>

@@ -48,7 +48,7 @@ async function createLeague(): Promise<void> {
       <div class="stadium-hero relative -mx-5 overflow-hidden px-6 pb-3 pt-4 text-center">
         <div class="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-linear-to-b from-transparent to-canvas" />
         <div class="relative">
-          <Trophy class="mx-auto h-12 w-12 text-primary drop-shadow-[0_0_18px_rgba(33,245,154,0.55)]" :stroke-width="1.5" aria-hidden="true" />
+          <Trophy class="mx-auto h-12 w-12 text-primary drop-shadow-[0_0_20px_rgba(33,245,154,0.65)]" :stroke-width="1.8" aria-hidden="true" />
           <h1 class="mx-auto mt-3 max-w-72 font-display text-[22px] font-bold leading-tight text-text">Crea tu propia liga o únete a una</h1>
           <p class="mx-auto mt-1.5 max-w-72 text-sm leading-snug text-text-muted">Compite con tus amigos, arma tu liga y demuestra quién es el mejor.</p>
         </div>

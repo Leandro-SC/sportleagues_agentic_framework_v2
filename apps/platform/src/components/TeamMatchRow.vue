@@ -25,7 +25,7 @@ const moment = computed(() => {
         <span class="line-clamp-2 text-right text-[13px] font-medium leading-tight text-text min-[360px]:text-sm">{{ away?.name }}</span>
         <TeamCrest :name="away?.name ?? 'Visita'" :short-name="away?.short_name" :colors="away?.colors" size="sm" />
       </span>
-      <span v-if="match.status === 'live'" class="rounded-pill bg-primary px-2 py-0.5 text-[10px] font-bold text-canvas">En vivo</span>
+      <span v-if="match.status === 'live'" class="rounded-full border border-primary/60 bg-primary-100/80 px-2 py-0.5 text-[10px] font-bold text-primary">En vivo</span>
     </span>
   </div>
 </template>

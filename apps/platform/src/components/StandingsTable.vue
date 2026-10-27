@@ -28,9 +28,12 @@ withDefaults(defineProps<{ rows: RankedStanding[]; team: (id: string) => Team | 
         <tr
           v-for="row in rows"
           :key="row.team_id"
-          :class="row.position === 1 ? 'bg-primary-100/70' : 'bg-surface/60'"
+          :class="row.position === 1 ? 'bg-primary-100/50 border-l-2 border-primary' : 'bg-surface/60 border-l-2 border-transparent'"
         >
-          <td class="relative rounded-l-xl py-2.5 pl-3 font-semibold text-text" :class="row.position === 1 ? 'before:absolute before:inset-y-1.5 before:left-0 before:w-[3px] before:rounded-pill before:bg-primary' : ''">{{ row.position }}</td>
+          <td class="rounded-l-xl py-2.5 pl-2 font-semibold text-text">
+            <span v-if="row.position === 1" class="inline-flex h-5 w-5 items-center justify-center rounded-md bg-primary text-canvas font-black text-xs">1</span>
+            <span v-else class="inline-flex h-5 w-5 items-center justify-center text-text-muted font-bold text-xs">{{ row.position }}</span>
+          </td>
           <td class="max-w-0 py-2.5">
             <RouterLink :to="{ name: 'team', params: { teamId: row.team_id } }" class="flex min-w-0 items-center gap-2.5 hover:underline">
               <TeamCrest :name="team(row.team_id)?.name ?? row.team_id" :short-name="team(row.team_id)?.short_name" :colors="team(row.team_id)?.colors" size="xs" />

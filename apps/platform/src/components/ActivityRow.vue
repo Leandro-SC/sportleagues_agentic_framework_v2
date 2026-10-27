@@ -18,10 +18,10 @@ const visuals: Record<ActivityKind, { icon: Component; classes: string }> = {
     <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full ring-2" :class="visuals[item.kind].classes">
       <component :is="visuals[item.kind].icon" class="h-5 w-5" aria-hidden="true" />
     </span>
-    <span class="min-w-0">
-      <span class="block text-sm font-medium text-text">{{ item.title }}</span>
-      <span class="block truncate text-sm text-text">{{ item.detail }}</span>
-      <span class="block text-xs text-text-muted">{{ relativeTimeLabel(item.occurred_at, now) }}</span>
+    <span class="min-w-0 flex-1">
+      <span class="block text-sm font-semibold text-text">{{ item.title }}</span>
+      <span class="block truncate text-xs text-text-muted mt-0.5">{{ item.detail }}</span>
+      <span class="block text-[11px] text-text-faint mt-0.5">{{ relativeTimeLabel(item.occurred_at, now) }}</span>
     </span>
   </li>
 </template>

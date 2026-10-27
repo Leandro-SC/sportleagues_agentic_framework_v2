@@ -83,7 +83,7 @@ function submit(): void {
             <p class="mt-1.5 text-xs text-text-muted">Verificaremos el código y verás la liga al unirte.</p>
           </div>
         </div>
-        <button type="button" class="press-scale w-full rounded-xl bg-primary py-3 text-sm font-bold text-canvas shadow-glow-primary" @click="joinWithCode(parsed.code)">Unirme</button>
+        <button type="button" class="press-scale w-full rounded-full bg-primary py-3.5 text-sm font-extrabold text-canvas shadow-glow-primary" @click="joinWithCode(parsed.code)">Unirme</button>
       </article>
 
       <article v-else-if="featured" class="app-surface space-y-4 bg-linear-to-b from-surface-2 to-surface p-5">
@@ -101,7 +101,7 @@ function submit(): void {
             <PreviewBadge class="mt-2" />
           </div>
         </div>
-        <button type="button" class="press-scale w-full rounded-xl bg-primary py-3 text-sm font-bold text-canvas shadow-glow-primary" @click="joinPreview(featured)">Unirme</button>
+        <button type="button" class="press-scale w-full rounded-full bg-primary py-3.5 text-sm font-extrabold text-canvas shadow-glow-primary" @click="joinPreview(featured)">Unirme</button>
       </article>
 
       <article v-else-if="!sports.preview" class="app-surface flex items-start gap-3 p-4 text-sm text-text-muted">
