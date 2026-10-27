@@ -45,6 +45,7 @@ Vercel usa RPCs de Superadmin y las variables públicas `VITE_SUPABASE_URL` y `V
 - Renovación visual sin neón: paleta B2B clara, sidebar institucional, tarjetas y tablas más legibles; build y `git diff --check` OK antes de `dpl_71SmswmwqjE1gaCMHqeR48t1u12Q`.
 - `20261027042014_superadmin_observability_and_growth_metrics.sql` y ADR-032: presencia autenticada, errores saneados y KPIs de negocio. QA dry-run/aplicación OK; suite 3/3 PASS. Despliegue de Control `dpl_3SECiF257Cbfguq4Ce7dTtejN6wP`: Ready.
 - Filtros UI completos: texto contextual, fechas, rangos rápidos, estados y restablecimiento, con diseño responsive. `build:superadmin` y `git diff --check`: PASS; despliegue `dpl_Fasb42KcAcebCekqxAEgjGNKptoi`: Ready.
+- Dependabot móvil: se fijó `xcode → uuid` a `11.1.1` mediante `overrides`, sin degradar Capacitor. `npm audit` móvil: 0 vulnerabilidades; carga `xcode+uuid` y `cap doctor`: PASS.
 
 ## Riesgos / limitaciones
 

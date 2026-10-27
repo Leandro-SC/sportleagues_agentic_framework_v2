@@ -509,3 +509,7 @@ El Control Plane incorpora filtros reutilizables por búsqueda, fechas desde/has
 estado contextual y limpieza de criterios en clientes, usuarios, operaciones deportivas, solicitudes, monitor y errores.
 El rediseño responsive pasó `build:superadmin` y `git diff --check`; se publicó como
 `dpl_Fasb42KcAcebCekqxAEgjGNKptoi`.
+
+Dependabot reportaba una vulnerabilidad moderada solo de desarrollo en el wrapper móvil (`@capacitor/cli → xcode → uuid`).
+Se fijó el subárbol de `xcode` a `uuid` 11.1.1 por `overrides`, manteniendo Capacitor 8.5.3. Evidencia: auditoría móvil
+0 vulnerabilidades, carga `xcode+uuid` compatible y `cap doctor` confirma Android correctamente.
